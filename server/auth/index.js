@@ -2,7 +2,7 @@ const _ = require('lodash');
 const express = require('express');
 const WCAStrategy = require('passport-wca').Strategy;
 const OAuthStrategy = require('passport-oauth2');
-const User = require('../models/user');
+const { User } = require('../models');
 const auth = require('../middlewares/auth');
 
 module.exports = (app, passport) => {

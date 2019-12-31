@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const schema = new mongoose.Schema({
+module.exports = new mongoose.Schema({
   id: {
     type: Number,
     required: true
@@ -22,5 +22,3 @@ const schema = new mongoose.Schema({
 }, {
   _id: false
 });
-
-module.exports = mongoose.model('User', schema, 'users');

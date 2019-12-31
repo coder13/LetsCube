@@ -1,5 +1,7 @@
 const path = require('path');
+const http = require('http');
 const express = require('express');
+const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -15,6 +17,23 @@ const init = async () => {
 
   app.set('config', config);
   app.set('prod', process.env.NODE_ENV !== 'prod');
+  
+  app.use(express.json()); // for parsing application/json
+  app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+
+  const socketServer = http.Server(app);
+  const io = app.io = require('socket.io')(socketServer);
+  socketServer.listen(9000);
+
+  io.sockets.on('connection', function (socket){
+    socket.on('foo', function (bar) {
+      console.log(23, 'new socket connection');
+    })
+
+    socket.on('disconnect', function () {
+      console.log(27, 'socket disconnected')
+    })
+  });
 
   app.use(cors({
     origin: 'http://localhost:3000',
@@ -54,15 +73,20 @@ const init = async () => {
     res.sendFile(path.join(__dirname, '../build/index.html'));
   });
 
-  app.use('/auth/', require('./auth')(app, passport));
-
+  app.use('/auth', require('./auth')(app, passport));
+  app.use('/api', require('./routes')(app));
 
   app.use('/*', () => {
     throw new NotFound();
   });
 
-  mongoose.connect(config.mongodb, {
+  await mongoose.connect(config.mongodb, {
     useNewUrlParser: true
+  }).then(() => {
+    console.log(`Connected to mongo database at ${config.mongodb}`);
+  }).catch(err => {
+    console.error('Error when connecting to database', err);
+    process.exit();
   });
 
   const server = app.listen(config.server.port, '0.0.0.0', (err) => {
