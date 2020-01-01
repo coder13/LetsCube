@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { createStore } from 'redux';
 import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -11,31 +10,12 @@ import * as serviceWorker from './serviceWorker';
 import theme from './theme';
 import store from './store';
 import { connectSocket } from './store/socket/actions';
+import { fetchUser } from './store/user/actions';
+import { fetchRooms } from './store/rooms/actions';
 
-console.log(15, store)
 store.dispatch(connectSocket());
-// store.dispatch(fetchUser());
-
-// const socket = require('socket.io-client')('http://localhost:9000');
-
-// socket.on('connect', function () {
-//   store.dispatch(socketConnected())
-//   console.log(13, 'connected');
-//   socket.emit('foo', 'bar')
-// })
-
-// socket.on('event', function () {
-//   console.log(17, 'evented');
-// })
-
-// socket.on('disconnect', function () {
-//   store.dispatch(socketDisconnected)
-//   console.log(21, 'disconnected');
-// })
-
-// socket.on('ROOM_CREATED', data => {
-//   console.log('ROOM_CREATED', data);
-// })
+store.dispatch(fetchUser());
+// store.dispatch(fetchRooms());
 
 /* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */
 ReactDOM.render(

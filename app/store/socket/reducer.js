@@ -1,30 +1,24 @@
-// ACTIONS
-import { CONNECTION_CHANGED, PORT_CHANGED } from './actions';
+import { CONNECTION_CHANGED } from './actions';
 
-// Initial state
 const INITIAL_STATE = {
-    connected: false
+  connected: false,
+  error: false
 };
 
-// Socket reducer
-function socketReducer(state=INITIAL_STATE, action) {
-  let reduced;
-  switch (action.type) {
-    case CONNECTION_CHANGED:
-      reduced = Object.assign({}, state, {
-        connected: action.connected,
-        isError: false
-      });
-      break;
-    case PORT_CHANGED:
-      reduced = Object.assign({}, state, {
-        port: action.port
-      });
-      break;
-    default:
-      reduced = state;
+const reducers = {
+  [CONNECTION_CHANGED]: (state, action) =>
+    Object.assign({}, state, {
+      connected: action.connected,
+      error: false
+    })
+}
+
+function socketReducer(state = INITIAL_STATE, action) {
+  if (reducers[action.type]) {
+    return reducers[action.type](state, action)
+  } else {
+    return state;
   }
-  return reduced;
 }
 
 export default socketReducer;

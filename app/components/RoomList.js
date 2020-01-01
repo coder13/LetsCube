@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { connect } from 'react-redux';
 import { makeStyles } from '@material-ui/core/styles';
 import Fab from '@material-ui/core/Fab';
 import Button from '@material-ui/core/Button';
@@ -30,21 +31,17 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-export default function RoomList () {
-  const [rooms, setRooms] = useState([]);
+const RoomList = ({ rooms, fetching }) => {
+  const publicRooms = rooms.filter(room => !room.password);
+  const privateRooms = rooms.filter(room => !!room.password);
 
-  useEffect(() => {
-    async function fetchRooms () {
-      let data = await fetch('/api/rooms')
-        .then(res => res.json())
-      setRooms(data);
-    }
-
-    fetchRooms();
-  }, []);
-
-  let publicRooms = rooms.filter(room => !room.password);
-  let privateRooms = rooms.filter(room => !!room.password);
+  if (fetching) {
+    return (
+      <Container>
+        <p>Fetching...</p>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -172,3 +169,15 @@ function AddRoomFab (props) {
     </div>
   );
 }
+
+const mapStateToProps = (state) => ({
+  fetching: state.roomList.fetching,
+  rooms: state.roomList.rooms,
+  user: state.user
+});
+
+// const mapDispatchToProps = (dispatch) => ({
+//   fetchRooms: dispatch(fetchRooms()),
+// });
+
+export default connect(mapStateToProps)(RoomList);

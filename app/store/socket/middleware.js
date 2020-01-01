@@ -4,63 +4,38 @@ import {
   CONNECT_SOCKET,
   DISCONNECT_SOCKET
 } from './actions';
-// import {
-//   clientUpdateReceived,
-//   messageReceived,
-//   recipientChanged,
-//   messageSent,
-//   SEND_MESSAGE
-// } from '../../message/actions';
+import { roomsUpdated } from '../rooms/actions';
 
 const socketMiddleware = store => {
   // The socket's connection state changed
-  const onConnectionChange = isConnected => {
+  const onChange = isConnected => {
     store.dispatch(connectionChanged(isConnected));
-    // store.dispatch(statusChanged(isConnected ? 'Connected' : 'Disconnected'));
   };
 
-  // There has been a socket error
-  // const onSocketError = (status) => store.dispatch(statusChanged(status, true));
-  const onSocketError = (status) => {
-    console.log(25, status);
+  const onUpdateRooms = rooms => {
+    store.dispatch(roomsUpdated(rooms));
   };
 
-  // The client has received a message
-  // const onIncomingMessage = message => store.dispatch(messageReceived(message));
-  const onIncomingMessage = message => {
-    console.log(31, message);
-  };
+  const socket = new Socket({
+    onChange,
+    onUpdateRooms
+  });
 
-  const socket = new Socket(
-    onConnectionChange,
-    onSocketError,
-    onIncomingMessage
-  );
+  const reducers = {
+    [CONNECT_SOCKET]: () => {
+      socket.connect();
+    },
+    [DISCONNECT_SOCKET]: () => {
+      socket.disconnect();
+    }
+  };
 
   // Return the handler that will be called for each action dispatched
   return next => action => {
-    const messageState = store.getState().messageState;
-    const socketState = store.getState().socketState;
-    console.log(44, action)
-
-    switch (action.type){
-      case CONNECT_SOCKET:
-        socket.connect();
-        break;
-      case DISCONNECT_SOCKET:
-        socket.disconnect();
-        break;
-      // case SEND_MESSAGE:
-      //   socket.sendMessage({
-      //     message: messageState.message
-      //   });
-      //   store.dispatch(messageSent());
-      //   break;
-      default:
-        break;
+    if (reducers[action.type]) {
+      return reducers[action.type]();
     }
-
-    return next(action)
+    next(action); // This is a middleware, we still need to call this!
   };
 };
 

@@ -3,10 +3,11 @@ import io from 'socket.io-client';
 
 // Socket manager
 export default class Socket {
-  constructor(onChange, onSocketError, onMessage) {
-    this.onChange = onChange;
-    this.onSocketError = onSocketError;
-    this.onMessage = onMessage;
+  constructor(props) {
+    this.onChange = props.onChange;
+    this.onSocketError = props.onSocketError;
+    this.onMessage = props.onMessage;
+    this.onUpdateRooms = props.onUpdateRooms;
     this.socket = null;
     this.user = null;
     this.port = null;
@@ -16,7 +17,6 @@ export default class Socket {
   connect = () => {
     // Connect
     const host = `http://${document.location.hostname}:9000`;
-    console.log(19, host)
     this.socket = io.connect(host);
 
     // Set listeners
@@ -29,6 +29,7 @@ export default class Socket {
   // Received connect event from socket
   onConnected = () => {
     this.socket.on(Protocol.MESSAGE, this.onMessage);
+    this.socket.on(Protocol.UPDATE_ROOMS, this.onUpdateRooms);
     this.onChange(true);
   };
 

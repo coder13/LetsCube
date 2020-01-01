@@ -1,19 +1,27 @@
 import { createStore, combineReducers, applyMiddleware } from 'redux';
+import thunkMiddleware from 'redux-thunk';
+import { createLogger } from 'redux-logger';
 
-// REDUCERS
+import roomsReducer from './rooms/reducer';
 import socketReducer from './socket/reducer';
+import userReducer from './user/reducer';
 
-// MIDDLEWARE
 import socketMiddleware from './socket/middleware';
 
 // Root reducer
 const rootReducer = combineReducers({
-  socket: socketReducer
+  roomList: roomsReducer,
+  socket: socketReducer,
+  user: userReducer
 });
 
+const middleware = applyMiddleware(
+  thunkMiddleware,
+  socketMiddleware,
+  createLogger(),
+)
+
 // Store
-const store = createStore(
-  rootReducer,
-  applyMiddleware(socketMiddleware));
+const store = createStore(rootReducer, middleware);
 
 export default store;

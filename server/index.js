@@ -11,6 +11,8 @@ const session = require('express-session');
 const cookieSession = require('cookie-session');
 const MongoStore = require('connect-mongo')(session);
 const { NotFound } = require('rest-api-errors');
+const { UPDATE_ROOMS } = require('../app/lib/protocol.js');
+const { Room } = require('./models');
 
 const init = async () => {
   const app = express();
@@ -21,14 +23,18 @@ const init = async () => {
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+  await mongoose.connect(config.mongodb, {
+    useNewUrlParser: true,
+  });
+
   const socketServer = http.Server(app);
   const io = app.io = require('socket.io')(socketServer);
   socketServer.listen(9000);
 
   io.sockets.on('connection', function (socket){
-    socket.on('foo', function (bar) {
-      console.log(23, 'new socket connection');
-    })
+    Room.find().then(rooms => {
+        socket.emit(UPDATE_ROOMS, rooms)
+      });
 
     socket.on('disconnect', function () {
       console.log(27, 'socket disconnected')
@@ -53,10 +59,6 @@ const init = async () => {
   }));
 
   /* Auth */
-
-  await mongoose.connect(config.mongodb, {
-    useNewUrlParser: true,
-  });
 
   app.use(cookieSession({
     name: 'session',
