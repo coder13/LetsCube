@@ -11,11 +11,9 @@ import theme from './theme';
 import store from './store';
 import { connectSocket } from './store/socket/actions';
 import { fetchUser } from './store/user/actions';
-import { fetchRooms } from './store/rooms/actions';
 
 store.dispatch(connectSocket());
 store.dispatch(fetchUser());
-// store.dispatch(fetchRooms());
 
 /* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */
 ReactDOM.render(

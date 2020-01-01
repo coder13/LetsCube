@@ -8,9 +8,8 @@ export default class Socket {
     this.onSocketError = props.onSocketError;
     this.onMessage = props.onMessage;
     this.onUpdateRooms = props.onUpdateRooms;
+    this.onUpdateRoom = props.onUpdateRoom;
     this.socket = null;
-    this.user = null;
-    this.port = null;
   }
 
   // attempt to connect to server
@@ -30,6 +29,7 @@ export default class Socket {
   onConnected = () => {
     this.socket.on(Protocol.MESSAGE, this.onMessage);
     this.socket.on(Protocol.UPDATE_ROOMS, this.onUpdateRooms);
+    this.socket.on(Protocol.UPDATE_ROOM, this.onUpdateRoom);
     this.onChange(true);
   };
 
@@ -46,5 +46,9 @@ export default class Socket {
   onError = message  => {
     this.onSocketError(message);
     this.disconnect();
+  };
+
+  emit = (type, message) => {
+    this.socket.emit(type, message);
   };
 }

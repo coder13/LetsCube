@@ -11,8 +11,41 @@ const session = require('express-session');
 const cookieSession = require('cookie-session');
 const MongoStore = require('connect-mongo')(session);
 const { NotFound } = require('rest-api-errors');
-const { UPDATE_ROOMS } = require('../app/lib/protocol.js');
+const Protocol = require('../app/lib/protocol.js');
 const { Room } = require('./models');
+
+function initSocket (io) {
+  function initRoom (room) {
+    io.of('/' + room.accessCode).on('connection', socket => {
+      console.log(19, socket.id, 'connected to room', room.name)
+    })
+  }
+
+  io.sockets.on('connection', function (socket) {
+    // console.log(socket, 19)
+
+    // give them the list of rooms
+    Room.find().then(rooms => {
+      socket.emit(Protocol.UPDATE_ROOMS, rooms)
+    });
+
+    const roomState = {};
+
+    socket.on(Protocol.FETCH_ROOM, id => {
+      Room.findById(id).then(room => {
+        socket.emit(Protocol.UPDATE_ROOM, room);
+      });
+    });
+
+    socket.on(Protocol.DISCONNECT, () => {
+      console.log(27, 'socket disconnected')
+    });
+  });
+
+  Room.find().then(rooms => {
+    rooms.forEach(room => initRoom(room));
+  });
+}
 
 const init = async () => {
   const app = express();
@@ -31,15 +64,7 @@ const init = async () => {
   const io = app.io = require('socket.io')(socketServer);
   socketServer.listen(9000);
 
-  io.sockets.on('connection', function (socket){
-    Room.find().then(rooms => {
-        socket.emit(UPDATE_ROOMS, rooms)
-      });
-
-    socket.on('disconnect', function () {
-      console.log(27, 'socket disconnected')
-    })
-  });
+  initSocket(io);
 
   app.use(cors({
     origin: 'http://localhost:3000',

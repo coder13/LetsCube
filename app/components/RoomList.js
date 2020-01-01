@@ -63,12 +63,17 @@ const RoomList = ({ rooms, fetching }) => {
   );
 }
 
-function Room (props) {
-  const { room } = props;
-
+function ListItemLink (props) {
   return (
-    <ListItem
-      button
+    <ListItem button component="a" {...props} />
+  );
+}
+
+function Room ({ room }) {
+  console.log(73, room)
+  return (
+    <ListItemLink
+      href={`/rooms/${room._id}`}
     >
       <ListItemIcon>
         { room.private ?
@@ -77,7 +82,7 @@ function Room (props) {
         }
       </ListItemIcon>
       <ListItemText primary={room.name}/>
-    </ListItem>
+    </ListItemLink>
   );  
 }
 

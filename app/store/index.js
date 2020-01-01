@@ -3,6 +3,7 @@ import thunkMiddleware from 'redux-thunk';
 import { createLogger } from 'redux-logger';
 
 import roomsReducer from './rooms/reducer';
+import roomReducer from './room/reducer';
 import socketReducer from './socket/reducer';
 import userReducer from './user/reducer';
 
@@ -11,6 +12,7 @@ import socketMiddleware from './socket/middleware';
 // Root reducer
 const rootReducer = combineReducers({
   roomList: roomsReducer,
+  room: roomReducer,
   socket: socketReducer,
   user: userReducer
 });

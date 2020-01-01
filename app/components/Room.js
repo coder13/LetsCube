@@ -1,6 +1,8 @@
-import React, { Component } from 'react';
+import React, { useEffect } from 'react';
+import { connect } from 'react-redux';
 import Container from '@material-ui/core/Container';
 import Paper from '@material-ui/core/Paper';
+import { fetchRoom } from '../store/room/actions';
 
 /*
   GET room
@@ -11,34 +13,26 @@ import Paper from '@material-ui/core/Paper';
     If no error, start listening with socketio
 */
 
-class Room extends Component {
-  state = {
-    room: null,
-    loading: true,
-    authenticated: null // if password is true, this will be false until a password is given
-  }
+let lastRoomId = null;
+const Room = (props) => {
+  const { dispatch, name, accessCode, match } = props;
+  const { roomId } = match.params;
 
-  componentDidMount () {
-    const { roomId } = this.props.match.params;
+  useEffect(() => {
+    if (roomId !== lastRoomId) {
+      dispatch(fetchRoom(roomId))
+      lastRoomId = roomId;
+    }
+  }, []);
 
-    fetch(`/api/room/${roomId}`)
-      .then(data => data.json())
-      .then(room => {
-        this.setState({
-          loading: false,
-          room: room,
-          authenticated: !room.password
-        })
-      })
-  }
-
-  render () {
-    return (
-      <Container>
-        <Paper></Paper>
-      </Container>
-    )
-  }
+  return (
+    <Container>
+      <Paper>
+        <p>{name}</p>
+        <p>{accessCode}</p>
+      </Paper>
+    </Container>
+  );
 }
 
 // function Login (props) {
@@ -49,4 +43,8 @@ class Room extends Component {
 //   );
 // }
 
-export default Room;
+const mapStateToProps = (state) => ({
+  ...state.room
+})
+
+export default connect(mapStateToProps)(Room);
