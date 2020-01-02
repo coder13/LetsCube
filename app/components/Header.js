@@ -29,6 +29,7 @@ const useStyles = makeStyles(theme => ({
 
 function Header (props) {
   const { user } = props;
+  const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
@@ -54,7 +55,7 @@ function Header (props) {
         <Typography variant="h6" className={classes.title}>
           <Link to="/" className={classes.titleLink}>Let's Cube</Link>
         </Typography>
-        { user ?
+        { loggedIn ?
           <React.Fragment>
             <IconButton onClick={handleMenu} color="inherit" >
               <AccountCircle />
@@ -78,7 +79,7 @@ function Header (props) {
             </Menu> 
           </React.Fragment>:
           <Button color="inherit" onClick={() => {
-            window.location = '/auth/login?redirect=http://localhost:3000'
+            window.location = `/auth/login?redirect=http://${document.location.host}`
           }}>Login</Button>
         }
       </Toolbar>

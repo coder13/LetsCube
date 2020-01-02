@@ -4,7 +4,7 @@ export const USER_FETCHING = 'user/fetching';
 export const userChanged = user => ({
   type: USER_CHANGED,
   fetching: false,
-  ...user
+  user
 })
 
 export const fetchingUser = () => ({

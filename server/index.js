@@ -8,9 +8,11 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
+const expressSocketSession = require('express-socket.io-session');
 const cookieSession = require('cookie-session');
 const MongoStore = require('connect-mongo')(session);
 const { NotFound } = require('rest-api-errors');
+const socketLogger = require('./middlewares/socketLogger');
 const Protocol = require('../app/lib/protocol.js');
 const { Room } = require('./models');
 
@@ -22,7 +24,6 @@ function initSocket (io) {
   }
 
   io.sockets.on('connection', function (socket) {
-    // console.log(socket, 19)
 
     // give them the list of rooms
     Room.find().then(rooms => {
@@ -60,17 +61,6 @@ const init = async () => {
     useNewUrlParser: true,
   });
 
-  const socketServer = http.Server(app);
-  const io = app.io = require('socket.io')(socketServer);
-  socketServer.listen(9000);
-
-  initSocket(io);
-
-  app.use(cors({
-    origin: 'http://localhost:3000',
-    credentials: true
-  }))
-
   /* Logging */
 
   app.use(morgan('dev', {
@@ -85,14 +75,35 @@ const init = async () => {
 
   /* Auth */
 
-  app.use(cookieSession({
+  let cookieAuth = cookieSession({
     name: 'session',
     secret: config.auth.secret,
     signed: false
-  }))
+  });
+
+  app.use(cookieAuth);
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  const socketServer = http.Server(app);
+  const io = app.io = require('socket.io')(socketServer);
+  // socket.handshake.session.passport.user
+  io.use(expressSocketSession(cookieAuth, {
+    autoSave: true
+  }))
+  io.use(socketLogger);
+
+  socketServer.listen(9000);
+
+  initSocket(io);
+
+  /* Cors */
+
+  app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+  }))
 
   app.use(express.static(path.join(__dirname, '../build')))
 

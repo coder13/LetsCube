@@ -23,6 +23,8 @@ function App ({ classes, fetching, user }) {
     return (<Loading/>);
   }
 
+  console.log(26, user)
+
   return (
     <div className={classes.root}>
       <Header user={user} />

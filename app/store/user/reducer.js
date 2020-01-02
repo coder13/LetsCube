@@ -5,9 +5,9 @@ import {
 
 const INITIAL_STATE = {
   fetching: true,
-  _id: undefined,
+  id: undefined,
   name: undefined,
-  wca_id: undefined,
+  wcaId: undefined,
   email: undefined
 };
 
