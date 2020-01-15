@@ -11,6 +11,8 @@ import userReducer from './user/reducer';
 
 import socketMiddleware from './socket/middleware';
 
+const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
+
 export const history = createBrowserHistory();
 
 // Root reducer
@@ -30,4 +32,4 @@ const middleware = applyMiddleware(
 )
 
 // Store
-export const store = createStore(rootReducer, compose(middleware));
+export const store = createStore(rootReducer, composeEnhancer(middleware));
