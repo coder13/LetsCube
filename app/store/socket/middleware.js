@@ -1,3 +1,4 @@
+import { push } from 'connected-react-router';
 import * as Protocol from '../../lib/protocol.js'
 import Socket from './Socket';
 import {
@@ -6,7 +7,7 @@ import {
   DISCONNECT_SOCKET
 } from './actions';
 import { FETCH_ROOM, roomUpdated } from '../room/actions';
-import { roomsUpdated } from '../rooms/actions';
+import { CREATE_ROOM, roomCreated, roomsUpdated } from '../rooms/actions';
 
 const socketMiddleware = store => {
   // The socket's connection state changed
@@ -22,15 +23,25 @@ const socketMiddleware = store => {
     store.dispatch(roomUpdated(room));
   };
 
+  const onRoomCreated = room => {
+    store.dispatch(roomCreated(room));
+  };
+
   const onSocketError = (error) => {
-    console.log(20, 'socket erorr', error)
-  }
+    console.error(error);
+  };
+
+  const onForceJoin = (roomId) => {
+    store.dispatch(push(`/rooms/${roomId}`));
+  };
 
   const socket = new Socket({
     onChange,
     onSocketError,
     onUpdateRooms,
     onUpdateRoom,
+    onRoomCreated,
+    onForceJoin,
   });
 
   const reducers = {
@@ -41,7 +52,10 @@ const socketMiddleware = store => {
       socket.disconnect();
     },
     [FETCH_ROOM]: ({id}) => {
-      socket.emit(Protocol.FETCH_ROOM, id)
+      socket.emit(Protocol.FETCH_ROOM, id);
+    },
+    [CREATE_ROOM]: ({room}) => {
+      socket.emit(Protocol.CREATE_ROOM, room);
     },
   };
 

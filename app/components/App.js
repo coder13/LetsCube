@@ -13,9 +13,6 @@ const styles = {
     minHeight: '100vh',
     flexDirection: 'column',
   },
-  grow: {
-    flexGrow: 1,
-  },
 };
 
 function App ({ classes, fetching, user }) {
@@ -23,18 +20,16 @@ function App ({ classes, fetching, user }) {
     return (<Loading/>);
   }
 
-  console.log(26, user)
-
   return (
     <div className={classes.root}>
       <Header user={user} />
-        <Switch>
-          <Route exact path="/" component={RoomList} />
-          <Route path="/rooms/:roomId" component={Room} />
-          {user && 
-            (<Route exact path ="/preferences" component={Preferences}/>)}
-          <Redirect to="/" />
-        </Switch>
+      <Switch>
+        <Route exact path="/" component={RoomList}/>
+        <Route path="/rooms/:roomId" component={Room} />
+        {user && 
+          (<Route exact path ="/preferences" component={Preferences}/>)}
+        <Redirect to="/" />
+      </Switch>
     </div>
   );
 }
@@ -55,7 +50,7 @@ function Preferences () {
 
 const mapStateToProps = (state) => ({
   connected: state.connected,
-  user: state.user
+  user: state.user,
 });
 
 export default withStyles(styles)(connect(mapStateToProps)(App));

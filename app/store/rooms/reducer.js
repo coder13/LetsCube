@@ -1,8 +1,8 @@
 import {
   ROOMS_UPDATED,
   ROOMS_FETCHING,
-  ROOMS_CREATED,
-  ROOMS_DESTROYED
+  ROOM_CREATED,
+  ROOM_DESTROYED
 } from './actions';
 
 const INITIAL_STATE = {
@@ -21,11 +21,11 @@ const reducers = {
     Object.assign({}, state, {
       fetching: true
     }),
-  [ROOMS_CREATED]: (state, action) =>
+  [ROOM_CREATED]: (state, action) =>
     Object.assign({}, state, {
       rooms: [...state.rooms, action.room]
     }),
-  [ROOMS_DESTROYED]: (state, action) =>
+  [ROOM_DESTROYED]: (state, action) =>
     Object.assign({}, state, {
       
     })

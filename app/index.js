@@ -2,13 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
+import { ConnectedRouter } from 'connected-react-router';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { ThemeProvider } from '@material-ui/core/styles';
 import './css/index.scss';
 import App from './components/App';
 import * as serviceWorker from './serviceWorker';
 import theme from './theme';
-import store from './store';
+import { store, history } from './store';
 import { connectSocket } from './store/socket/actions';
 import { fetchUser } from './store/user/actions';
 
@@ -18,12 +19,12 @@ store.dispatch(fetchUser());
 /* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */
 ReactDOM.render(
   <Provider store={store}>
-    <BrowserRouter>
+    <ConnectedRouter history={history}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <App />
       </ThemeProvider>
-    </BrowserRouter>
+    </ConnectedRouter>
   </Provider>,
   document.querySelector('#root'),
 );

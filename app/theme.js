@@ -17,4 +17,7 @@ export default createMuiTheme({
       default: '#fff',
     },
   },
+  typography: {
+    fontSize: 11
+  },
 });

@@ -8,7 +8,10 @@ const INITIAL_STATE = {
   id: undefined,
   name: undefined,
   wcaId: undefined,
-  email: undefined
+  email: undefined,
+  avatar: {
+    thumb_url: undefined,
+  },
 };
 
 const reducers = {

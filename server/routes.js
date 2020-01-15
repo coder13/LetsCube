@@ -76,7 +76,7 @@ module.exports = (app) => {
 
     newRoom.save()
       .then(room => {
-        app.io.emit('ROOM_CREATED', room)
+        app.createRoom(room);
         res.send(room);
       })
       .catch(sendError(res))

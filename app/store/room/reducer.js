@@ -1,8 +1,7 @@
 import {
   ROOM_UPDATED,
   ROOM_FETCHING,
-  ROOM_CREATED,
-  ROOM_DESTROYED
+  NEW_ATTEMPT,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -12,6 +11,7 @@ const INITIAL_STATE = {
   password: null,
   private: null,
   users: [],
+  attempts: [],
 };
 
 const reducers = {
@@ -24,6 +24,12 @@ const reducers = {
   [ROOM_FETCHING]: (state, action) =>
     Object.assign({}, state, {
       fetching: true
+    }),
+  [NEW_ATTEMPT]: (state, action) =>
+    Object.assign({}, state, {
+      attempts: Object.assign(state.attempts, {
+        [state.attempts.length - 1]: Object.assign(state.attempts[state.attempts.length - 1], action.attempt)
+      })
     }),
 }
 

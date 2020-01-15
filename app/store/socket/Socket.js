@@ -1,6 +1,8 @@
 import * as Protocol from '../../lib/protocol.js';
 import io from 'socket.io-client';
 
+const makeURI = () => `http://${document.location.hostname}:9000/`;
+
 // Socket manager
 export default class Socket {
   constructor(props) {
@@ -9,35 +11,37 @@ export default class Socket {
     this.onMessage = props.onMessage;
     this.onUpdateRooms = props.onUpdateRooms;
     this.onUpdateRoom = props.onUpdateRoom;
+    this.onRoomCreated = props.onRoomCreated;
+    this.onForceJoin = props.onForceJoin;
     this.socket = null;
   }
 
   // attempt to connect to server
   connect = () => {
     // Connect
-    const host = `http://${document.location.hostname}:9000`;
-    this.socket = io.connect(host);
+    this.socket = io.connect(makeURI());
 
     // Set listeners
     this.socket.on(Protocol.CONNECT, this.onConnected);
     this.socket.on(Protocol.DISCONNECT, this.onDisconnected);
     this.socket.on(Protocol.CONNECT_ERR, this.onError);
     this.socket.on(Protocol.RECONNECT_ERR, this.onError);
+
+    this.socket.on(Protocol.UPDATE_ROOMS, this.onUpdateRooms);
+    this.socket.on(Protocol.UPDATE_ROOM, this.onUpdateRoom);
+    this.socket.on(Protocol.ROOM_CREATED, this.onRoomCreated);
+    this.socket.on('force_join', this.onForceJoin);
+
+    this.socket.on('join', function () {
+      console.log(36, 'joined room', arguments);
+    });
   };
 
   // Received connect event from socket
-  onConnected = () => {
-    this.socket.on(Protocol.MESSAGE, this.onMessage);
-    this.socket.on(Protocol.UPDATE_ROOMS, this.onUpdateRooms);
-    this.socket.on(Protocol.UPDATE_ROOM, this.onUpdateRoom);
-    this.onChange(true);
-  };
+  onConnected = () => this.onChange(true);
 
   // Received disconnect event from socket
   onDisconnected = () => this.onChange(false);
-
-  // Send a message over the socket
-  sendMessage = message => this.socket.emit(Protocol.MESSAGE, message);
 
   // Close the socket
   disconnect = () => this.socket.close();

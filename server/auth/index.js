@@ -17,6 +17,7 @@ module.exports = (app, passport) => {
 
   passport.use(new WCAStrategy(options,
     (accessToken, refreshToken, profile, done) => {
+      console.log(20, profile)
       User.findOneAndUpdate({
         id: profile.id,
       }, {
@@ -25,6 +26,7 @@ module.exports = (app, passport) => {
         email: profile.emails[0].value,
         wcaId: profile.wca.id,
         accessToken: accessToken,
+        avatar: profile._json.me.avatar
       }, {
         upsert: true,
         useFindAndModify: false
@@ -76,7 +78,7 @@ module.exports = (app, passport) => {
     res.redirect(req.session.redirect);
   });
 
-  const userMask = _.partial(_.pick,  _, ['id', 'name', 'email', 'wcaId']);
+  const userMask = _.partial(_.pick,  _, ['id', 'name', 'email', 'wcaId', 'avatar']);
   app.get('/api/me', isUserAuthenticated, (req, res) => {
     res.json(userMask(req.user));
   });

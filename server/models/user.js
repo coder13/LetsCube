@@ -19,6 +19,9 @@ module.exports = new mongoose.Schema({
     type: String,
     required: true
   },
+  avatar: {
+    type: Object
+  }
 }, {
   _id: false
 });

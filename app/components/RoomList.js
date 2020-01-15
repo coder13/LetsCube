@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { connect } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { makeStyles } from '@material-ui/core/styles';
 import Fab from '@material-ui/core/Fab';
 import Button from '@material-ui/core/Button';
@@ -22,6 +23,7 @@ import ListSubheader from '@material-ui/core/ListSubheader';
 import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import AddIcon from '@material-ui/icons/Add';
+import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles(theme => ({
   fab: {
@@ -31,7 +33,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-const RoomList = ({ rooms, fetching }) => {
+const RoomList = ({ rooms, fetching, createRoom }) => {
   const publicRooms = rooms.filter(room => !room.password);
   const privateRooms = rooms.filter(room => !!room.password);
 
@@ -58,21 +60,21 @@ const RoomList = ({ rooms, fetching }) => {
           ))}
         </List>
       </Paper>
-      <AddRoomFab />
+      <AddRoomFab createRoom={createRoom}/>
     </Container>
   );
 }
 
 function ListItemLink (props) {
   return (
-    <ListItem button component="a" {...props} />
+    <ListItem button component={Link} {...props} />
   );
 }
 
 function Room ({ room }) {
   return (
     <ListItemLink
-      href={`/rooms/${room._id}`}
+      to={`/rooms/${room._id}`}
     >
       <ListItemIcon>
         { room.private ?
@@ -85,7 +87,7 @@ function Room ({ room }) {
   );  
 }
 
-function AddRoomFab (props) {
+function AddRoomFab ({ createRoom }) {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [roomName, setRoomName] = useState('');
@@ -116,22 +118,9 @@ function AddRoomFab (props) {
   }
 
   const handleSubmit = () => {
-    fetch('/api/rooms', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: roomName,
-        password: password
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log(137, 'created room!', data)
-      handleClose();
-    }).catch(err => {
-      console.error('Error when creating room: ', err);
+    createRoom({
+      name: roomName,
+      password
     });
   }
 
@@ -180,8 +169,8 @@ const mapStateToProps = (state) => ({
   user: state.user
 });
 
-// const mapDispatchToProps = (dispatch) => ({
-//   fetchRooms: dispatch(fetchRooms()),
-// });
+const mapDispatchToProps = (dispatch) => ({
+  createRoom: room => dispatch(createRoom(room)),
+});
 
-export default connect(mapStateToProps)(RoomList);
+export default connect(mapStateToProps, mapDispatchToProps)(RoomList);
