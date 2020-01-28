@@ -19,12 +19,6 @@ const Protocol = require('../app/lib/protocol.js');
 const { Room, User } = require('./models');
 
 function initSocket (app, io) {
-  function initRoom (room) {
-    io.of('/' + room.accessCode).on('connection', socket => {
-      console.log(19, socket.id, 'connected to room', room.name)
-    })
-  }
-
   io.sockets.on('connection', function (socket) {
     console.log(`socket ${socket.id} connected logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
@@ -33,7 +27,24 @@ function initSocket (app, io) {
       socket.emit(Protocol.UPDATE_ROOMS, rooms);
     });
 
-    const roomState = {};
+    socket.on(Protocol.JOIN_ROOM, (accessCode, cb) => {
+      Room.findOne({accessCode}).then(room => {
+        if (room) {
+          socket.join(accessCode, () => {
+            if (socket.user) {
+              room.users.push(socket.user);
+              room.save().then(r => {
+                socket.room = room;
+                socket.emit(Protocol.JOIN, room);
+                broadcast(Protocol.USER_JOIN, socket.user);
+              });
+            }
+          });
+        } else {
+          console.log(47, 'room unable to be found with accessCode ', accessCode);
+        }
+      });
+    });
 
     socket.on(Protocol.CREATE_ROOM, (room) => {
       if (!socket.user) {
@@ -59,7 +70,11 @@ function initSocket (app, io) {
       newRoom.save()
         .then(room => {
           io.emit(Protocol.ROOM_CREATED, room);
-          io.emit('force_join', room.id);
+          socket.emit(Protocol.FORCE_JOIN, room.id);
+          socket.join(room.accessCode, () => {
+            socket.room = room;
+            socket.emit(Protocol.JOIN, room);
+          });
         })
         .catch(err => {
           console.error(err);
@@ -73,12 +88,41 @@ function initSocket (app, io) {
     });
 
     socket.on(Protocol.DISCONNECT, () => {
+      if (socket.room) {
+        leaveRoom();
+      } else {
+        console.log(97, 'socket has no room')
+      }
       console.log(`socket ${socket.id} disconnected`)
     });
-  });
 
-  Room.find().then(rooms => {
-    rooms.forEach(room => initRoom(room));
+    socket.on(Protocol.LEAVE_ROOM, () => {
+      if (socket.room) {
+        leaveRoom();
+      }
+    });
+
+    function leaveRoom () {
+      const { room, user } = socket;
+      if (user) {
+        Room.update({ _id: room._id }, {
+          '$pull': {
+            users: {
+              id: user.id
+            }
+          }
+        }, {
+          safe: true,
+          multi:true
+        }, function(err, obj) {
+          broadcast(Protocol.USER_LEFT, user.id);
+        });
+      }
+    }
+
+    function broadcast (event, data) {
+      socket.broadcast.to(socket.room.accessCode).emit(...arguments);
+    }
   });
 }
 
@@ -188,4 +232,4 @@ const init = async () => {
 
 init().catch(err => {
   console.error(err);
-})
+});

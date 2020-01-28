@@ -63,23 +63,7 @@ module.exports = (app) => {
     Body 
   */
   router.post('/rooms', auth, (req, res) => {
-    const newRoom = new Room({
-      name: req.body.name,
-      accessCode: uuidv1(),
-      private: !!req.body.password,
-      users: [req.user]
-    });
-
-    if (req.body.password) {
-      newRoom.password = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(5));
-    }
-
-    newRoom.save()
-      .then(room => {
-        app.createRoom(room);
-        res.send(room);
-      })
-      .catch(sendError(res))
+    
   });
 
   /*

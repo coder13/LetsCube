@@ -15,7 +15,7 @@ const styles = {
   },
 };
 
-function App ({ classes, fetching, user }) {
+function App ({ classes, fetching, user, room }) {
   if (fetching) {
     return (<Loading/>);
   }
@@ -50,6 +50,7 @@ function Preferences () {
 
 const mapStateToProps = (state) => ({
   connected: state.connected,
+  room: state.room,
   user: state.user,
 });
 
