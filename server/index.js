@@ -135,8 +135,15 @@ const init = async () => {
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+  console.log('Attempting to connect to mongodb at:', config.mongodb);
   await mongoose.connect(config.mongodb, {
     useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }).then(() => {
+    console.log(`Connected to mongo database at ${config.mongodb}`);
+  }).catch(err => {
+    console.error('Error when connecting to database', err);
+    process.exit();
   });
 
   /* Logging */
@@ -209,15 +216,6 @@ const init = async () => {
 
   app.use('/*', () => {
     throw new NotFound();
-  });
-
-  await mongoose.connect(config.mongodb, {
-    useNewUrlParser: true
-  }).then(() => {
-    console.log(`Connected to mongo database at ${config.mongodb}`);
-  }).catch(err => {
-    console.error('Error when connecting to database', err);
-    process.exit();
   });
 
   const server = app.listen(config.server.port, '0.0.0.0', (err) => {
