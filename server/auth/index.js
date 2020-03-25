@@ -70,12 +70,14 @@ module.exports = (app, passport) => {
       let redirect = req.session.redirect;
       delete req.session.redirect;
 
+      console.log(73, redirect)
       res.redirect(redirect);
     });
 
   router.get('/logout', (req, res) => {
     req.logout();
-    res.redirect(req.session.redirect);
+    console.log(79, req.query.redirect)
+    res.redirect(req.query.redirect);
   });
 
   const userMask = _.partial(_.pick,  _, ['id', 'name', 'email', 'wcaId', 'avatar']);

@@ -46,7 +46,8 @@ function Header (props) {
   };
 
   const logout = () => {
-    window.location = `/auth/logout?redirect=http://${document.location.host}/`;
+    console.log(document.location.origin);
+    window.location = `/auth/logout?redirect=${document.location.origin}/`;
   };
 
   return (
