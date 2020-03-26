@@ -52,8 +52,9 @@ const socketMiddleware = store => {
       [Protocol.ROOM_CREATED]: room => {
         store.dispatch(roomCreated(room));
       },
-      [Protocol.FORCE_JOIN]: roomId => {
-        store.dispatch(push(`/rooms/${roomId}`));
+      [Protocol.FORCE_JOIN]: room => {
+        store.dispatch(roomUpdated(room));
+        store.dispatch(push(`/rooms/${room.id}`));
       },
       [Protocol.JOIN]: room => {
         store.dispatch(roomJoined(room.accessCode));

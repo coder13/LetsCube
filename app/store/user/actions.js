@@ -18,4 +18,7 @@ export const fetchUser = () =>
     return fetch('/api/me')
       .then(res => res.json())
       .then(data => dispatch(userChanged(data)))
+      .catch(err => {
+        console.error('Could not Fetch User');
+      })
   }

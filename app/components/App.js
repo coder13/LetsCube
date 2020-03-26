@@ -23,6 +23,7 @@ function App ({ classes, fetching, user, room }) {
   return (
     <div className={classes.root}>
       <Header user={user} />
+      <br/>
       <Switch>
         <Route exact path="/" component={RoomList}/>
         <Route path="/rooms/:roomId" component={Room} />
