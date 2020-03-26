@@ -11,12 +11,13 @@ import {
   FETCH_ROOM,
   JOIN_ROOM,
   LEAVE_ROOM,
-  NEW_ATTEMPT,
+  SUBMIT_RESULT,
   fetchingRoom,
   roomUpdated,
   userJoined,
   userLeft,
-  newAttempt
+  newAttempt,
+  newResult
 } from '../room/actions';
 import {
   CREATE_ROOM,
@@ -68,8 +69,12 @@ const socketMiddleware = store => {
         store.dispatch(userLeft(user));  
       },
       [Protocol.NEW_ATTEMPT]: attempt => {
-        console.log(64);
+        console.log(64, attempt);
         store.dispatch(newAttempt(attempt));
+      },
+      [Protocol.NEW_RESULT]: result => {
+        console.log(75, result);
+        store.dispatch(newResult(result));
       }
     },
   });
@@ -99,8 +104,8 @@ const socketMiddleware = store => {
     [LEAVE_ROOM]: () => {
       socket.emit(Protocol.LEAVE_ROOM)
     },
-    [NEW_ATTEMPT]: (event) => {
-      socket.emit(Protocol.NEW_ATTEMPT, event.attempt);
+    [SUBMIT_RESULT]: (event) => {
+      socket.emit(Protocol.SUBMIT_RESULT, event.result);
     }
   };
 

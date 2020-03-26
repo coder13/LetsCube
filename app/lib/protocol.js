@@ -17,7 +17,7 @@ module.exports = {
   JOIN          : 'join',
   USER_JOIN     : 'user_join',
   USER_LEFT     : 'user_left',
-  SUBMIT_ATTEMPT: 'submit_attempt',
-  NEW_TIME      : 'new_time',
+  SUBMIT_RESULT : 'submit_result',
+  NEW_RESULT    : 'new_result',
   NEW_ATTEMPT   : 'new_attempt',
 };

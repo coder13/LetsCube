@@ -5,6 +5,7 @@ import {
   USER_LEFT,
   NEW_ATTEMPT,
   LEAVE_ROOM,
+  NEW_RESULT,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -38,12 +39,23 @@ const reducers = {
     }),
   [NEW_ATTEMPT]: (state, action) =>
     Object.assign({}, state, {
-      attempts: state.attempts.concat(action.attempt)
+      attempts: state.attempts.concat(action.attempt),
+      new_scramble: true,
     }),
-  [LEAVE_ROOM]: (state, action) =>
-    Object.assign({}, state, {
-      room: null
-    }),
+  [LEAVE_ROOM]: (state) => {
+    console.log(46);
+    return Object.assign({}, state, {
+      id: undefined,
+      accessCode: undefined,
+      users: undefined,
+      attempts: undefined,
+    })
+  },
+  [NEW_RESULT]: (state, action) => {
+    state.attempts[action.result.id].results[action.result.userId] = action.result.result;
+
+    return {...state};    
+  }
 }
 
 // Socket reducer

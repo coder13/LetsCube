@@ -4,7 +4,8 @@ export const FETCH_ROOM       = 'room/fetch';
 export const JOIN_ROOM        = 'room/join';
 export const LEAVE_ROOM       = 'room/leave';
 export const UPDATE_ATTEMPTS  = 'room/update_attempts';
-export const SUBMIT_ATTEMPT   = 'room/submit_attempt';
+export const SUBMIT_RESULT    = 'room/submit_result';
+export const NEW_RESULT       = 'room/new_result';
 export const USER_JOIN        = 'room/user_join';
 export const USER_LEFT        = 'room/user_left';
 export const NEW_ATTEMPT      = 'room/new_attempt';
@@ -30,16 +31,25 @@ export const joinRoom = (accessCode) => ({
   accessCode
 })
 
+// Maybe not needed
 export const updateAttempts = attempts => ({
   type: UPDATE_ATTEMPTS,
   attempts,
 });
 
-export const submitAttempt = attempt => ({
-  type: SUBMIT_ATTEMPT,
-  attempt,
+// We're submitting a new result
+export const submitResult = result => ({
+  type: SUBMIT_RESULT,
+  result,
 });
 
+// A new result came in
+export const newResult = result => ({
+  type: NEW_RESULT,
+  result,
+});
+
+// We got a new attempt (scramble)
 export const newAttempt = attempt => ({
   type: NEW_ATTEMPT,
   attempt,

@@ -13,7 +13,7 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { fetchRoom, joinRoom, leaveRoom, submitAttempt } from '../store/room/actions';
+import { fetchRoom, joinRoom, leaveRoom, submitResult } from '../store/room/actions';
 import Timer from './Timer';
 import { formatTime } from '../lib/utils';
 
@@ -26,7 +26,6 @@ import { formatTime } from '../lib/utils';
     If no error, start listening with socketio
 */
 
-let lastRoomId = null;
 const useStyles = withStyles(theme => ({
   root: {
     flexGrow: 1,
@@ -56,72 +55,8 @@ const useStyles = withStyles(theme => ({
   },
 }));
 
-const scramble = `U' R L2 D2 L2 D' R2 U L2 F2 R2 U' B' U R2 U2 L' D R2 F'`;
-/*const users = [{
-  id: 8184,
-  name: 'Caleb Hoover',
-  username: 'Kleb',
-  wcaId: '2016HOOV01',
-}, {
-  id: 6969,
-  name: 'Anto Kam',
-  username: 'Rouxles',
-  wcaId: '2016HOOV01',
-}, {
-  id: 5690,
-  name: 'Stuart Clark',
-  username: 'Stewy',
-  wcaId: '2015CLAR14',
-}, {
-  id: 1234,
-  name: 'Louis de Mendonça',
-  username: 'TLDM',
-  wcaId: '2013MEND03',
-}]*/
-
-/*const attempts = [1,2,3,4,5].map(i => ({
-  scramble: `U' R L2 D2 L2 D' R2 U L2 F2 R2 U' B' U R2 U2 L' D R2 F'`,
-  results: [{
-    user: 8184,
-    time: Math.round(Math.random()*100000),
-    penalty: Math.random() > 0,
-    state: 'Submitted',
-  }, {
-    user: 6969,
-    time: Math.round(Math.random()*100000),
-    penalty: Math.random() > 0,
-    state: 'Submitted',
-  }, {
-    user: 5690,
-    time: Math.round(Math.random()*100000),
-    penalty: Math.random() > 0,
-    state: 'Submitted',
-  }, {
-    user: 1234,
-    time: Math.round(Math.random()*100000),
-    penalty: Math.random() > 0,
-    state: 'Submitted',
-  }]
-}));*/
-
 class Room extends React.Component {
   displayName: 'Room'
-
-  // if (!room.id) {
-  //   dispatch(fetchRoom(roomId));
-  // }
-
-  // if (room.id && !roomId) {
-  //   dispatch(joinRoom(accessCode))
-  // }
-
-  // useEffect(() => {
-  //   console.log(115, !!dispatch, roomId, room)
-  //   // if we don't have a room, fetch it.
-
-  //   // if we don't have a roomId, that means we aren't joined to a room. So join it.
-  //   console.log(119, room.id, roomId)
-  // }, [dispatch, roomId, id]);
 
   componentDidMount () {
     const { dispatch, match, room, roomCode } = this.props;
@@ -138,7 +73,7 @@ class Room extends React.Component {
   }
 
   componentDidUpdate (prevProps) {
-    const { dispatch, match, room, roomCode } = this.props;
+    const { dispatch, room, roomCode } = this.props;
 
     if (!roomCode && room.accessCode) {
       dispatch(joinRoom(room.accessCode))
@@ -147,6 +82,7 @@ class Room extends React.Component {
   }
 
   componentWillUnmount () {
+    console.log(85, 'unmounting..')
     this.props.dispatch(leaveRoom());
   }
 
@@ -155,16 +91,26 @@ class Room extends React.Component {
   }
 
   onSubmitTime (event) {
-    const { dispatch } = this.props;
-    dispatch(submitAttempt({
-      time: event.time,
-      scramble: scramble,
+    const { dispatch, room } = this.props;
+    const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
+    dispatch(submitResult({
+      id: latestAttempt.id,
+      result: {
+        time: event.time,
+      }
     }));
   }
 
   render () {
-    const { classes, roomCode, room } = this.props;
-    const { fetching, id, password, users, attempts, accessCode } = this.props.room;
+    console.log(this.props.room);
+    if (!this.props.room || !this.props.roomCode || this.props.fetching) {
+      return this.renderLoadingRoom();
+    }
+
+    const { classes, room } = this.props;
+    const { users, attempts } = room;
+    const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
+    const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
 
     return (
       <div className={classes.root}>        
@@ -173,12 +119,9 @@ class Room extends React.Component {
               <Paper className={classes.paper}>
                 <div className={classes.center}>
                   <Typography variant="subtitle2">&nbsp;</Typography>
-                  <Typography variant="subtitle2">{scramble}</Typography>
+                  <Typography variant="subtitle2">{scrambles}</Typography>
                   <Typography variant="subtitle2">&nbsp;</Typography>
                   <Divider />
-                  {fetching ? 'Fetching ' : 'Not Fetching '}
-                  <br/>
-                  {roomCode ? roomCode : ''}
                   <Timer
                     onStatusChange={this.onStatusChange}
                     onSubmitTime={this.onSubmitTime.bind(this)}
@@ -218,6 +161,13 @@ class Room extends React.Component {
 
       </div>
     );
+  }
+
+  renderLoadingRoom () {
+    return (<div>
+      Fetching...
+
+    </div>)
   }
 }
 
