@@ -15,41 +15,108 @@ const { NotFound } = require('rest-api-errors');
 const bcrypt = require('bcrypt');
 const uuidv1 = require('uuid/v1');
 const socketLogger = require('./middlewares/socketLogger');
+const Scrambo = require('scrambo');
 const Protocol = require('../app/lib/protocol.js');
-const { Room, User } = require('./models');
+const { User } = require('./models');
+
+class Room {
+  constructor (options) {
+    this.id = uuidv1();
+    this.name = options.name;
+    this.event = options.event || '333';
+    this.scrambler = new Scrambo().type(this.event);
+    this.accessCode = uuidv1(); // unique ID to use for rooms; #SecurityThroughObscurity
+    this.private = !!options.password; // determine if room is private based on if password is defined
+    if (options.password) {
+      this.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+    }
+    this.users = options.users;
+    this.attempts = [];
+  }
+
+  addUser (user) {
+    this.users.push(user);
+  }
+
+  doneWithScramble () {
+    if (this.users.length === 0) {
+      return 'empty';
+    }
+  
+    if (this.attempts.length === 0) {
+      return 'first'
+    } else {
+      const latest = this.attempts[this.attempts.length - 1];
+      // check that for every user, there exists a result.
+      return this.users.every(user => latest.results[user.id]);
+    }
+  }
+
+  newAttempt () {
+    this.attempts.push({
+      scramble: this.scrambler.get(1), 
+      results: {},
+    });
+  }
+}
+
+const Rooms = [];
+
+const getRoom = (options) => Rooms.find(i => options.id ? i.id === options.id : i.accessCode === options.accessCode);
+
+const createRoom = () => {
+
+}
+// const Room_Users = {};
 
 function initSocket (app, io) {
   io.sockets.on('connection', function (socket) {
-    console.log(`socket ${socket.id} connected logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+    console.log(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     // give them the list of rooms
-    Room.find().then(rooms => {
-      socket.emit(Protocol.UPDATE_ROOMS, rooms);
-    });
+    socket.emit(Protocol.UPDATE_ROOMS, Rooms);
 
+    // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, (accessCode, cb) => {
-      Room.findOne({accessCode}).then(room => {
-        if (room) {
-          socket.join(accessCode, () => {
-            if (socket.user) {
-              room.users.push(socket.user);
-              room.save().then(r => {
-                socket.room = room;
-                socket.emit(Protocol.JOIN, room);
-                broadcast(Protocol.USER_JOIN, socket.user);
-              });
-            }
-          });
+      // get room
+      console.log(82, accessCode);
+      const room = getRoom({accessCode});
+      if (!room) {
+        console.log(84, 'room unable to be found with accessCode ', accessCode);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 404,
+          message: `Could not find room with accessCode ${accessCode}`
+        });
+        return;
+      }
+
+      socket.join(accessCode, () => {
+        socket.room = room;
+        if (socket.user) {
+          room.addUser(socket.user);
+
+          socket.emit(Protocol.JOIN, room); // tell the user they're cool and give them the info
+          broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+          
+          if (room.doneWithScramble()) {
+            console.log(61, 'everyone done, sending new scramble');
+            sendNewScramble();
+          }
         } else {
-          console.log(47, 'room unable to be found with accessCode ', accessCode);
+          socket.emit(Protocol.JOIN, room); // still give them the data
         }
       });
+    });
+
+    socket.on(Protocol.SUBMIT_ATTEMPT, (attempt) => {
+      console.log(106, socket.room, attempt);
     });
 
     socket.on(Protocol.CREATE_ROOM, (room) => {
       if (!socket.user) {
         // TODO: expand on handling errors
         socket.emit(Protocol.ERROR, {
+          statusCode: 403,
           event: Protocol.CREATE_ROOM,
           message: 'Must be logged in to create room',
         });
@@ -58,33 +125,33 @@ function initSocket (app, io) {
 
       const newRoom = new Room({
         name: room.name,
-        accessCode: uuidv1(), // unique ID to use for rooms; #SecurityThroughObscurity
-        private: !!room.password, // determine if room is private based on if password is defined
         users: [socket.user]
       });
 
-      if (room.password) {
-        newRoom.password = bcrypt.hashSync(room.password, bcrypt.genSaltSync(5));
-      }
+      Rooms.push(newRoom);
 
-      newRoom.save()
-        .then(room => {
-          io.emit(Protocol.ROOM_CREATED, room);
-          socket.emit(Protocol.FORCE_JOIN, room.id);
-          socket.join(room.accessCode, () => {
-            socket.room = room;
-            socket.emit(Protocol.JOIN, room);
-          });
-        })
-        .catch(err => {
-          console.error(err);
-        });
+      io.emit(Protocol.ROOM_CREATED, newRoom);
+      socket.emit(Protocol.FORCE_JOIN, room.id);
+      socket.join(room.accessCode, () => {
+        socket.room = room;
+        socket.emit(Protocol.JOIN, room);
+      });
     });
 
     socket.on(Protocol.FETCH_ROOM, id => {
-      Room.findById(id).then(room => {
+      console.log(141,  id);
+      const room = getRoom({id});
+
+      if (!room) {
+        console.log(145, 'room unable to be found with id', id);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 404,
+          event: Protocol.FETCH_ROOM,
+          message: `Could not find room with id ${id}`
+        });
+      } else {
         socket.emit(Protocol.UPDATE_ROOM, room);
-      });
+      }
     });
 
     socket.on(Protocol.DISCONNECT, () => {
@@ -104,24 +171,23 @@ function initSocket (app, io) {
 
     function leaveRoom () {
       const { room, user } = socket;
-      if (user) {
-        Room.update({ _id: room._id }, {
-          '$pull': {
-            users: {
-              id: user.id
-            }
-          }
-        }, {
-          safe: true,
-          multi:true
-        }, function(err, obj) {
-          broadcast(Protocol.USER_LEFT, user.id);
-        });
-      }
+      broadcast(Protocol.USER_LEFT, user.id);
+      if (room.users)
+        room.users = room.users.filter(i => i.id !== user.id);
+    }
+
+    function sendNewScramble () {
+      const attempt = socket.room.newAttempt()
+    
+      emit(Protocol.NEW_ATTEMPT, attempt)
     }
 
     function broadcast (event, data) {
       socket.broadcast.to(socket.room.accessCode).emit(...arguments);
+    }
+
+    function emit (event, data) {
+      socket.to(socket.room.accessCode).emit(...arguments);
     }
   });
 }
@@ -225,7 +291,15 @@ const init = async () => {
 
     console.log(`Listening on port ${config.server.port}. Access at: http://localhost:${config.server.port}/`);
   });
+  
+  // nodemon
+  function shutdownSocket () {
+    socketServer.close(function () {
+      process.exit(0);
+    });
+  }
 
+  process.once('SIGTERM', shutdownSocket);
 };
 
 init().catch(err => {

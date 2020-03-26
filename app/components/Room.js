@@ -13,7 +13,7 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { fetchRoom, joinRoom, leaveRoom } from '../store/room/actions';
+import { fetchRoom, joinRoom, leaveRoom, submitAttempt } from '../store/room/actions';
 import Timer from './Timer';
 import { formatTime } from '../lib/utils';
 
@@ -126,6 +126,8 @@ class Room extends React.Component {
   componentDidMount () {
     const { dispatch, match, room, roomCode } = this.props;
     
+    console.log(129, this.props);
+
     if (!room.id) {
       dispatch(fetchRoom(match.params.roomId));
     }
@@ -152,12 +154,16 @@ class Room extends React.Component {
 
   }
 
-  onSubmitTime () {
-
+  onSubmitTime (event) {
+    const { dispatch } = this.props;
+    dispatch(submitAttempt({
+      time: event.time,
+      scramble: scramble,
+    }));
   }
 
   render () {
-    const { classes, connected, roomCode, room } = this.props;
+    const { classes, roomCode, room } = this.props;
     const { fetching, id, password, users, attempts, accessCode } = this.props.room;
 
     return (
@@ -171,12 +177,12 @@ class Room extends React.Component {
                   <Typography variant="subtitle2">&nbsp;</Typography>
                   <Divider />
                   {fetching ? 'Fetching ' : 'Not Fetching '}
+                  <br/>
                   {roomCode ? roomCode : ''}
-                  {/*<Timer
-                    
+                  <Timer
                     onStatusChange={this.onStatusChange}
-                    onSubmitTime={this.onSubmitTime}
-                  />*/}
+                    onSubmitTime={this.onSubmitTime.bind(this)}
+                  />
                   <Divider />
                 </div>
 
@@ -198,7 +204,7 @@ class Room extends React.Component {
                           <TableCell className={classes.tableResultCell} align="left">{i + 1}</TableCell>
                           {users.map((user, j) =>
                             <TableCell key={j} className={classes.tableResultCell} align="left">
-                              {formatTime(attempt.results.find(result => result.user === user.id).time)}
+                              {attempt.results[user.id] ? formatTime(attempt.results[user.id].time) : ''}
                             </TableCell>
                           )}
                         </TableRow>

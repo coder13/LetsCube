@@ -5,7 +5,7 @@ module.exports = {
   DISCONNECT    : 'disconnect',
   CONNECT_ERR   : 'connect_error',
   RECONNECT_ERR : 'reconnect_error',
-  ERROR         : 'error',
+  ERROR         : 'errorrr',
   UPDATE_ROOMS  : 'update_rooms',
   UPDATE_ROOM   : 'update_room',
   CREATE_ROOM   : 'create_room',
@@ -17,6 +17,7 @@ module.exports = {
   JOIN          : 'join',
   USER_JOIN     : 'user_join',
   USER_LEFT     : 'user_left',
+  SUBMIT_ATTEMPT: 'submit_attempt',
   NEW_TIME      : 'new_time',
-  NEW_Scramble  : 'new_scramble',
+  NEW_ATTEMPT   : 'new_attempt',
 };

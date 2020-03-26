@@ -12,7 +12,7 @@ export const NEW_ATTEMPT      = 'room/new_attempt';
 export const roomUpdated = room => ({
   type: ROOM_UPDATED,
   fetching: false,
-  room: room,
+  room,
 });
 
 export const fetchingRoom = () => ({

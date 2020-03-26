@@ -11,10 +11,12 @@ import {
   FETCH_ROOM,
   JOIN_ROOM,
   LEAVE_ROOM,
+  NEW_ATTEMPT,
   fetchingRoom,
   roomUpdated,
   userJoined,
   userLeft,
+  newAttempt
 } from '../room/actions';
 import {
   CREATE_ROOM,
@@ -35,6 +37,12 @@ const socketMiddleware = store => {
   const socket = new Socket({
     onChange,
     events: {
+      [Protocol.ERROR]: error => {
+        console.log(41, error);
+        if (error.statusCode === 404) {
+          store.dispatch(push('/'));
+        }
+      },
       [Protocol.UPDATE_ROOMS]: rooms => {
         store.dispatch(roomsUpdated(rooms));
       },
@@ -53,10 +61,14 @@ const socketMiddleware = store => {
         console.log(38, Protocol.JOIN, room)
       },
       [Protocol.USER_JOIN]: user => {
-        store.dispatch(userJoined(user));  
+        store.dispatch(userJoined(user));
       },
       [Protocol.USER_LEFT]: user => {
         store.dispatch(userLeft(user));  
+      },
+      [Protocol.NEW_ATTEMPT]: attempt => {
+        console.log(64);
+        store.dispatch(newAttempt(attempt));
       }
     },
   });
@@ -71,6 +83,7 @@ const socketMiddleware = store => {
     },
     [FETCH_ROOM]: ({id}) => {
       store.dispatch(fetchingRoom());
+      console.log(86, id);
       socket.emit(Protocol.FETCH_ROOM, id);
     },
     [JOIN_ROOM]: ({accessCode}) => {
@@ -84,6 +97,9 @@ const socketMiddleware = store => {
     },
     [LEAVE_ROOM]: () => {
       socket.emit(Protocol.LEAVE_ROOM)
+    },
+    [NEW_ATTEMPT]: (event) => {
+      socket.emit(Protocol.NEW_ATTEMPT, event.attempt);
     }
   };
 

@@ -67,3 +67,13 @@ This section has moved here: https://facebook.github.io/create-react-app/docs/de
 
 This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
 # Let's Cube
+
+Attempt object: 
+
+```
+{
+    time: milliseconds,
+    userId: number,
+}
+
+```

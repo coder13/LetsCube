@@ -19,12 +19,11 @@ const INITIAL_STATE = {
 };
 
 const reducers = {
-  [ROOM_UPDATED]: (state, action) => {
-    return Object.assign({}, state, {
+  [ROOM_UPDATED]: (state, action) =>
+    Object.assign({}, state, {
       fetching: false,
       ...action.room
-    })
-  },
+    }),
   [ROOM_FETCHING]: (state, action) =>
     Object.assign({}, state, {
       fetching: true
@@ -33,15 +32,13 @@ const reducers = {
     Object.assign({}, state, {
       users: state.users.concat(action.user)
     }),
-  [USER_LEFT]: (state, action) => {
-    return Object.assign({}, state, {
+  [USER_LEFT]: (state, action) =>
+    Object.assign({}, state, {
       users: state.users.filter(user => user.id !== action.user)
-    })},
+    }),
   [NEW_ATTEMPT]: (state, action) =>
     Object.assign({}, state, {
-      attempts: Object.assign(state.attempts, {
-        [state.attempts.length - 1]: Object.assign(state.attempts[state.attempts.length - 1], action.attempt)
-      })
+      attempts: state.attempts.concat(action.attempt)
     }),
   [LEAVE_ROOM]: (state, action) =>
     Object.assign({}, state, {

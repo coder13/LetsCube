@@ -139,6 +139,11 @@ class Timer extends React.Component {
           this.setStatus(STATUS.SUBMITTING);
           break;
         case STATUS.SUBMITTING:
+          if (this.props.onSubmitTime) {
+            this.props.onSubmitTime({
+              time: this.state.time,
+            });
+          }
           this.setStatus(STATUS.RESTING);
           break;
         case STATUS.PRIMING:
