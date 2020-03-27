@@ -12,10 +12,12 @@ export const fetchingUser = () => ({
   fetching: true
 });
 
+const url = () => document.location.hostname === 'localhost' ? '/api/me' : 'https://letscube.calebhoover.com/api/me';
+
 export const fetchUser = () =>
   dispatch => {
     dispatch(fetchingUser());
-    return fetch('/api/me')
+    return fetch(url())
       .then(res => res.json())
       .then(data => dispatch(userChanged(data)))
       .catch(err => {
