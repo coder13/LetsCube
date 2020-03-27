@@ -2,7 +2,7 @@ import * as Protocol from '../../lib/protocol.js';
 import io from 'socket.io-client';
 
 const dev = document.location.hostname === 'localhost';
-const makeURI = () => `http://${dev ? document.location.hostname : 'letscube.calebhoover.com'}:9000/`;
+const makeURI = () => `${dev ? document.location.origin : 'https://letscube.calebhoover.com'}:9000/`;
 
 // Socket manager
 export default class Socket {
