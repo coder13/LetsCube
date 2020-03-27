@@ -86,7 +86,11 @@ function Header (props) {
             </Menu> 
           </React.Fragment>:
           <Button color="inherit" onClick={() => {
-            window.location = `/auth/login?redirect=http://${document.location.host}/`
+            if (window.location.hostname === 'localhost') {
+              window.location = `/auth/login?redirect=http://${document.location.host}/`;
+            } else {
+              window.location = `https://letscube.calebhoover.com/auth/login?redirect=${document.location.origin}/`;
+            }
           }}>Login</Button>
         }
       </Toolbar>
