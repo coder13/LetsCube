@@ -60,7 +60,6 @@ const socketMiddleware = store => {
       [Protocol.JOIN]: room => {
         store.dispatch(roomJoined(room.accessCode));
         store.dispatch(roomUpdated(room));
-        console.log(38, Protocol.JOIN, room)
       },
       [Protocol.USER_JOIN]: user => {
         store.dispatch(userJoined(user));
@@ -69,11 +68,9 @@ const socketMiddleware = store => {
         store.dispatch(userLeft(user));  
       },
       [Protocol.NEW_ATTEMPT]: attempt => {
-        console.log(64, attempt);
         store.dispatch(newAttempt(attempt));
       },
       [Protocol.NEW_RESULT]: result => {
-        console.log(75, result);
         store.dispatch(newResult(result));
       }
     },
@@ -89,20 +86,16 @@ const socketMiddleware = store => {
     },
     [FETCH_ROOM]: ({id}) => {
       store.dispatch(fetchingRoom());
-      console.log(86, id);
       socket.emit(Protocol.FETCH_ROOM, id);
     },
     [JOIN_ROOM]: ({accessCode}) => {
-      console.log(56, accessCode)
-      socket.emit(Protocol.JOIN_ROOM, accessCode, (room) => {
-        console.log(57, room);
-      });
+      socket.emit(Protocol.JOIN_ROOM, accessCode);
     },
     [CREATE_ROOM]: ({room}) => {
       socket.emit(Protocol.CREATE_ROOM, room);
     },
     [LEAVE_ROOM]: () => {
-      socket.emit(Protocol.LEAVE_ROOM)
+      socket.emit(Protocol.LEAVE_ROOM);
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);
@@ -112,7 +105,7 @@ const socketMiddleware = store => {
   // Return the handler that will be called for each action dispatched
   return next => action => {
     if (reducers[action.type]) {
-      return reducers[action.type](action);
+      reducers[action.type](action);
     }
     next(action); // This is a middleware, we still need to call this!
   };

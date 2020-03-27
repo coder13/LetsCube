@@ -1,16 +1,13 @@
 const path = require('path');
 const http = require('http');
 const express = require('express');
-const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 const passport = require('passport');
-const session = require('express-session');
 const expressSocketSession = require('express-socket.io-session');
 const cookieSession = require('cookie-session');
-const MongoStore = require('connect-mongo')(session);
 const { NotFound } = require('rest-api-errors');
 const bcrypt = require('bcrypt');
 const uuidv1 = require('uuid/v1');
@@ -21,16 +18,18 @@ const { User } = require('./models');
 
 class Room {
   constructor (options) {
-    this.id = uuidv1();
+    this.id = options.id || uuidv1();
     this.name = options.name;
     this.event = options.event || '333';
     this.scrambler = new Scrambo().type(this.event);
     this.accessCode = uuidv1(); // unique ID to use for rooms; #SecurityThroughObscurity
     this.private = !!options.password; // determine if room is private based on if password is defined
+
     if (options.password) {
       this.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
     }
-    this.users = options.users;
+
+    this.users = options.users || [];
     this.attempts = [];
   }
 
@@ -40,7 +39,7 @@ class Room {
 
   doneWithScramble () {
     if (this.users.length === 0) {
-      return 'empty';
+      return false;
     }
   
     if (this.attempts.length === 0) {
@@ -53,21 +52,26 @@ class Room {
   }
 
   newAttempt () {
-    this.attempts.push({
-      scramble: this.scrambler.get(1), 
+    const attempt = {
+      id: this.attempts.length,
+      scrambles: this.scrambler.get(1),
       results: {},
-    });
+    };
+
+    this.attempts.push(attempt);
+    return attempt;
   }
 }
 
 const Rooms = [];
 
+Rooms.push(new Room({
+  id: '62a53540-6f81-11ea-af07-c1038094a32d',
+  name: 'Default',
+  password: false,
+}))
+
 const getRoom = (options) => Rooms.find(i => options.id ? i.id === options.id : i.accessCode === options.accessCode);
-
-const createRoom = () => {
-
-}
-// const Room_Users = {};
 
 function initSocket (app, io) {
   io.sockets.on('connection', function (socket) {
@@ -79,10 +83,8 @@ function initSocket (app, io) {
     // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, (accessCode, cb) => {
       // get room
-      console.log(82, accessCode);
       const room = getRoom({accessCode});
       if (!room) {
-        console.log(84, 'room unable to be found with accessCode ', accessCode);
         socket.emit(Protocol.ERROR, {
           statusCode: 404,
           message: `Could not find room with accessCode ${accessCode}`
@@ -99,7 +101,7 @@ function initSocket (app, io) {
           broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
           
           if (room.doneWithScramble()) {
-            console.log(61, 'everyone done, sending new scramble');
+            console.log(104, 'everyone done, sending new scramble');
             sendNewScramble();
           }
         } else {
@@ -108,11 +110,24 @@ function initSocket (app, io) {
       });
     });
 
-    socket.on(Protocol.SUBMIT_ATTEMPT, (attempt) => {
-      console.log(106, socket.room, attempt);
+    socket.on(Protocol.SUBMIT_RESULT, (result) => {
+      if (socket.room && socket.room.attempts[result.id]) {
+        socket.room.attempts[result.id].results[socket.user.id] = result.result;
+        broadcastToAll(Protocol.NEW_RESULT, {
+          id: result.id,
+          userId: socket.user.id,
+          result: result.result,
+        });
+
+        console.log(122, socket.room)
+        if (socket.room.doneWithScramble()) {
+          console.log(123, 'everyone done, sending new scramble');
+          sendNewScramble();
+        }
+      }
     });
 
-    socket.on(Protocol.CREATE_ROOM, (room) => {
+    socket.on(Protocol.CREATE_ROOM, (options) => {
       if (!socket.user) {
         // TODO: expand on handling errors
         socket.emit(Protocol.ERROR, {
@@ -123,27 +138,27 @@ function initSocket (app, io) {
         return;
       }
 
-      const newRoom = new Room({
-        name: room.name,
-        users: [socket.user]
+      const room = new Room({
+        name: options.name,
+        password: options.password,
+        users: []
       });
 
-      Rooms.push(newRoom);
+      Rooms.push(room);
 
-      io.emit(Protocol.ROOM_CREATED, newRoom);
-      socket.emit(Protocol.FORCE_JOIN, room.id);
+      io.emit(Protocol.ROOM_CREATED, room);
+      socket.emit(Protocol.FORCE_JOIN, room);
       socket.join(room.accessCode, () => {
         socket.room = room;
         socket.emit(Protocol.JOIN, room);
       });
     });
 
+    // Given ID, fetches room, authenticates, and returns room data.
     socket.on(Protocol.FETCH_ROOM, id => {
-      console.log(141,  id);
       const room = getRoom({id});
 
       if (!room) {
-        console.log(145, 'room unable to be found with id', id);
         socket.emit(Protocol.ERROR, {
           statusCode: 404,
           event: Protocol.FETCH_ROOM,
@@ -170,20 +185,32 @@ function initSocket (app, io) {
     });
 
     function leaveRoom () {
-      const { room, user } = socket;
-      broadcast(Protocol.USER_LEFT, user.id);
-      if (room.users)
-        room.users = room.users.filter(i => i.id !== user.id);
+      if (socket.user) {
+        broadcast(Protocol.USER_LEFT, socket.user.id);
+      }
+
+      if (socket.room) {
+        socket.room.users = socket.room.users.filter(i => i.id !== socket.user.id);
+        if (socket.room.doneWithScramble()) {
+          console.log(196, 'everyone done, sending new scramble');
+          sendNewScramble();
+        }
+     }
     }
 
     function sendNewScramble () {
-      const attempt = socket.room.newAttempt()
+      const attempt = socket.room.newAttempt();
     
-      emit(Protocol.NEW_ATTEMPT, attempt)
+      console.log(Protocol.NEW_ATTEMPT, attempt)
+      broadcastToAll(Protocol.NEW_ATTEMPT, attempt);
     }
 
     function broadcast (event, data) {
       socket.broadcast.to(socket.room.accessCode).emit(...arguments);
+    }
+
+    function broadcastToAll (event, data) {
+      io.in(socket.room.accessCode).emit(...arguments);
     }
 
     function emit (event, data) {

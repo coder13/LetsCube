@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 // import { AutoSizer, Column, Table } from 'react-virtualized';
@@ -61,8 +60,6 @@ class Room extends React.Component {
   componentDidMount () {
     const { dispatch, match, room, roomCode } = this.props;
     
-    console.log(129, this.props);
-
     if (!room.id) {
       dispatch(fetchRoom(match.params.roomId));
     }
@@ -78,12 +75,14 @@ class Room extends React.Component {
     if (!roomCode && room.accessCode) {
       dispatch(joinRoom(room.accessCode))
     }
-
   }
 
   componentWillUnmount () {
-    console.log(85, 'unmounting..')
-    this.props.dispatch(leaveRoom());
+    const { dispatch, room, roomCode } = this.props;
+
+    if (roomCode && room.accessCode) {
+      dispatch(leaveRoom())
+    }
   }
 
   onStatusChange () {

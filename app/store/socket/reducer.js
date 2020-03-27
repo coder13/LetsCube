@@ -1,4 +1,5 @@
 import { CONNECTION_CHANGED, SOCKET_JOIN_ROOM } from './actions';
+import { LEAVE_ROOM } from '../room/actions';
 
 const INITIAL_STATE = {
   connected: false,
@@ -15,6 +16,10 @@ const reducers = {
   [SOCKET_JOIN_ROOM]: (state, action) => 
     Object.assign({}, state, {
       room: action.room
+    }),
+  [LEAVE_ROOM]: (state, action) =>
+    Object.assign({}, state, {
+      room: null,
     }),
 }
 

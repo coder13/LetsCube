@@ -43,8 +43,8 @@ const reducers = {
       new_scramble: true,
     }),
   [LEAVE_ROOM]: (state) => {
-    console.log(46);
     return Object.assign({}, state, {
+      name: undefined,
       id: undefined,
       accessCode: undefined,
       users: undefined,
@@ -52,9 +52,19 @@ const reducers = {
     })
   },
   [NEW_RESULT]: (state, action) => {
-    state.attempts[action.result.id].results[action.result.userId] = action.result.result;
+    return Object.assign({}, state, {
+      attempts: state.attempts.map((attempt) => {
+        if (attempt.id === action.result.id) {
+          return Object.assign({}, attempt, {
+            results: Object.assign({}, attempt.results, {
+              [action.result.userId]: action.result.result
+            })
+          });
+        }
 
-    return {...state};    
+        return attempt;
+      })
+    });
   }
 }
 
