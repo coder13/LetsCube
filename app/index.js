@@ -5,7 +5,7 @@ import { Provider } from 'react-redux'
 import { ConnectedRouter } from 'connected-react-router';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { ThemeProvider } from '@material-ui/core/styles';
-import './css/index.scss';
+import './css/index.css';
 import App from './components/App';
 import * as serviceWorker from './serviceWorker';
 import theme from './theme';

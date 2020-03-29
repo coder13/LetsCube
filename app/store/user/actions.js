@@ -12,7 +12,7 @@ export const fetchingUser = () => ({
   fetching: true
 });
 
-const url = () => document.location.hostname === 'localhost' ? '/api/me' : 'https://letscube.calebhoover.com/api/me';
+const url = () => document.location.hostname === 'localhost' ? '/api/me' : '/api/me';
 
 export const fetchUser = () =>
   dispatch => {

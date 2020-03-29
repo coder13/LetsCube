@@ -187,15 +187,15 @@ function initSocket (app, io) {
     function leaveRoom () {
       if (socket.user) {
         broadcast(Protocol.USER_LEFT, socket.user.id);
-      }
 
-      if (socket.room) {
-        socket.room.users = socket.room.users.filter(i => i.id !== socket.user.id);
-        if (socket.room.doneWithScramble()) {
-          console.log(196, 'everyone done, sending new scramble');
-          sendNewScramble();
+        if (socket.room) {
+          socket.room.users = socket.room.users.filter(i => i.id !== socket.user.id);
+          if (socket.room.doneWithScramble()) {
+            console.log(196, 'everyone done, sending new scramble');
+            sendNewScramble();
+          }
         }
-     }
+      }
     }
 
     function sendNewScramble () {
@@ -228,6 +228,8 @@ const init = async () => {
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+	console.log(config);
+
   console.log('Attempting to connect to mongodb at:', config.mongodb);
   await mongoose.connect(config.mongodb, {
     useNewUrlParser: true,
@@ -253,10 +255,11 @@ const init = async () => {
 
   /* Auth */
 
+  console.log(config.auth.secret)
   let cookieAuth = cookieSession({
     name: 'session',
-    secret: config.auth.secret,
-    signed: false
+    secret: config.auth.secret || 'prod-secret',
+    signed: false,
   });
 
   app.use(cookieAuth);
@@ -294,7 +297,7 @@ const init = async () => {
   /* Cors */
 
   app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: '*',
     credentials: true
   }))
 

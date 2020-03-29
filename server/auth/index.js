@@ -11,15 +11,14 @@ module.exports = (app, passport) => {
   const options = config.auth;
   options.authorizationURL = `${config.wcaSource}/oauth/authorize`;
   options.tokenURL = `${config.wcaSource}/oauth/token`;
-  options.callbackURL = `http://localhost:8080/auth/callback`;
+  options.callbackURL = `https://letscube.calebhoover.com/auth/callback`;
   options.userProfileURL = `${config.wcaSource}/api/v0/me`;
   options.scope = 'email dob public';
 
   passport.use(new WCAStrategy(options,
     (accessToken, refreshToken, profile, done) => {
-      console.log(20, profile)
       User.findOneAndUpdate({
-        id: profile.id,
+        id: +profile.id,
       }, {
         id: +profile.id,
         name: profile.displayName,
@@ -29,9 +28,11 @@ module.exports = (app, passport) => {
         avatar: profile._json.me.avatar
       }, {
         upsert: true,
-        useFindAndModify: false
-      }, (err, user) => done(err, user)
-    );
+        useFindAndModify: false,
+        new: true,
+      }, (err, user) => {
+        done(err, user);
+      });
   }));
 
   passport.serializeUser((user, done) => {
@@ -46,7 +47,7 @@ module.exports = (app, passport) => {
 
   // Middleware to check if the user is authenticated
   function isUserAuthenticated(req, res, next) {
-    if (req.user) {
+    if (req.isAuthenticated()) {
       next();
     } else {
       res.status(403);
@@ -58,25 +59,19 @@ module.exports = (app, passport) => {
     req.session.redirect = req.query.redirect;
 
     next();
-  }, passport.authenticate('wca', {
-    failureRedirect: '/61',
-  }));
+  }, passport.authenticate('wca'));
 
   router.get('/callback',
-    passport.authenticate('wca', {
-      failureRedirect: '/66',
-    }),
+    passport.authenticate('wca'),
     (req, res) => {
-      let redirect = req.session.redirect;
+      const redirect = req.session.redirect || '/';
       delete req.session.redirect;
 
-      console.log(73, redirect)
-      res.redirect(redirect);
+      res.redirect('/');
     });
 
   router.get('/logout', (req, res) => {
     req.logout();
-    console.log(79, req.query.redirect)
     res.redirect(req.query.redirect);
   });
 

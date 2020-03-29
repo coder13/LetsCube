@@ -89,7 +89,7 @@ function Header (props) {
             if (window.location.hostname === 'localhost') {
               window.location = `/auth/login?redirect=http://${document.location.host}/`;
             } else {
-              window.location = `https://letscube.calebhoover.com/auth/login?redirect=${document.location.origin}/`;
+              window.location = `/auth/login?redirect=${document.location.origin}/`;
             }
           }}>Login</Button>
         }
