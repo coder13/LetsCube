@@ -6,6 +6,7 @@
   "mongodb": "mongodb://127.0.0.1/letscube",
   "wcaSource": "https://staging.worldcubeassociation.org",
   "auth": {
+    "callbackUrl": "",
     "clientID": "",
     "clientSecret": ""
   }

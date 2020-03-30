@@ -10,7 +10,7 @@ module.exports = (app, passport) => {
   const options = config.auth;
   options.authorizationURL = `${config.wcaSource}/oauth/authorize`;
   options.tokenURL = `${config.wcaSource}/oauth/token`;
-  options.callbackURL = `https://letscube.calebhoover.com/auth/callback`;
+  options.callbackURL = config.auth.callbackURL;
   options.userProfileURL = `${config.wcaSource}/api/v0/me`;
   options.scope = 'email dob public';
 
@@ -56,7 +56,7 @@ module.exports = (app, passport) => {
       const redirect = req.session.redirect || '/';
       delete req.session.redirect;
 
-      res.redirect('/');
+      res.redirect(redirect);
     });
 
   router.get('/logout', (req, res) => {

@@ -270,7 +270,7 @@ const init = async () => {
     cookie: {
       httpOnly: true,
       secure: app.get('prod'),
-      sameSite: 'strict'
+      sameSite: app.get('prod') ? 'strict' : false,
     },
     store: new MongoStore({
       mongooseConnection:  mongoose.connection,
