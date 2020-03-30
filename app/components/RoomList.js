@@ -72,7 +72,6 @@ function ListItemLink (props) {
 }
 
 function Room ({ room }) {
-  console.log(room.id);
   return (
     <ListItemLink
       to={`/rooms/${room.id}`}

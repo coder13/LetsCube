@@ -8,6 +8,7 @@ import roomsReducer from './rooms/reducer';
 import roomReducer from './room/reducer';
 import socketReducer from './socket/reducer';
 import userReducer from './user/reducer';
+import messageReducer from './messages/reducers';
 
 import socketMiddleware from './socket/middleware';
 
@@ -21,7 +22,8 @@ const rootReducer = combineReducers({
   roomList: roomsReducer,
   room: roomReducer,
   socket: socketReducer,
-  user: userReducer
+  user: userReducer,
+  messages: messageReducer
 });
 
 const middleware = applyMiddleware(

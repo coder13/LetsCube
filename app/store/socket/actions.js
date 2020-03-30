@@ -1,5 +1,7 @@
 export const CONNECTION_CHANGED = 'socket/connection-changed';
 export const CONNECT_SOCKET     = 'socket/connect';
+export const CONNECTED          = 'socket/connected';
+export const DISCONNECTED       = 'socket/disconnected';
 export const DISCONNECT_SOCKET  = 'socket/disconnect';
 export const SOCKET_JOIN_ROOM   = 'socket/join_room';
 
@@ -22,4 +24,14 @@ export const disconnectSocket = () => ({
 export const roomJoined = room => ({
   type: SOCKET_JOIN_ROOM,
   room
-})
+});
+
+export const connected = () => ({
+  type: CONNECTED,
+  connected: true
+});
+
+export const disconnected = () => ({
+  type: DISCONNECTED,
+  connected: false
+});

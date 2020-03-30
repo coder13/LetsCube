@@ -1,4 +1,7 @@
 {
   "verbose": false,
-  "ignore": ["node_modules/*", "app/*"]
+  "ignore": ["node_modules/*", "app/*"],
+  "env": {
+    "DEBUG": "socket.io*"
+  }
 }

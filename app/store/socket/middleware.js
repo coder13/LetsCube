@@ -2,10 +2,12 @@ import { push } from 'connected-react-router';
 import * as Protocol from '../../lib/protocol.js'
 import Socket from './Socket';
 import {
-  connectionChanged,
   CONNECT_SOCKET,
   DISCONNECT_SOCKET,
-  roomJoined
+  connectionChanged,
+  roomJoined,
+  connected,
+  disconnected,
 } from './actions';
 import {
   FETCH_ROOM,
@@ -24,6 +26,7 @@ import {
   roomCreated,
   roomsUpdated
 } from '../rooms/actions';
+import { createMessage } from '../messages/actions';
 
 const socketMiddleware = store => {
   // The socket's connection state changed
@@ -31,12 +34,14 @@ const socketMiddleware = store => {
     store.dispatch(connectionChanged(isConnected));
   };
 
-  const onSocketError = error => {
-    console.error('[SOCKET.IO]', error);
-  };
-
   const socket = new Socket({
     onChange,
+    onConnected: () => {
+      store.dispatch(connected());
+    },
+    onDisconnected: () => {
+      store.dispatch(disconnected());
+    },
     events: {
       [Protocol.ERROR]: error => {
         console.log(41, error);
@@ -60,6 +65,11 @@ const socketMiddleware = store => {
       [Protocol.JOIN]: room => {
         store.dispatch(roomJoined(room.accessCode));
         store.dispatch(roomUpdated(room));
+
+        store.dispatch(createMessage({
+          severity: 'success',
+          text: 'room joined'
+        }));
       },
       [Protocol.USER_JOIN]: user => {
         store.dispatch(userJoined(user));
@@ -103,7 +113,7 @@ const socketMiddleware = store => {
   };
 
   // Return the handler that will be called for each action dispatched
-  return next => action => {
+  return next => (action) => {
     if (reducers[action.type]) {
       reducers[action.type](action);
     }

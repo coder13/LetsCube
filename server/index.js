@@ -7,7 +7,8 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const passport = require('passport');
 const expressSocketSession = require('express-socket.io-session');
-const cookieSession = require('cookie-session');
+const session = require('express-session');
+const MongoStore = require('connect-mongo')(session);
 const { NotFound } = require('rest-api-errors');
 const bcrypt = require('bcrypt');
 const uuidv1 = require('uuid/v1');
@@ -15,6 +16,8 @@ const socketLogger = require('./middlewares/socketLogger');
 const Scrambo = require('scrambo');
 const Protocol = require('../app/lib/protocol.js');
 const { User } = require('./models');
+
+Error.stackTraceLimit = 100;
 
 class Room {
   constructor (options) {
@@ -223,12 +226,10 @@ const init = async () => {
   const app = express();
 
   app.set('config', config);
-  app.set('prod', process.env.NODE_ENV !== 'prod');
+  app.set('prod', process.env.NODE_ENV === 'prod');
   
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
-
-	console.log(config);
 
   console.log('Attempting to connect to mongodb at:', config.mongodb);
   await mongoose.connect(config.mongodb, {
@@ -255,29 +256,53 @@ const init = async () => {
 
   /* Auth */
 
-  console.log(config.auth.secret)
-  let cookieAuth = cookieSession({
-    name: 'session',
-    secret: config.auth.secret || 'prod-secret',
-    signed: false,
-  });
+  // console.log(config.auth.secret)
+  // let cookieAuth = cookieSession({
+  //   name: 'session',
+  //   secret: config.auth.secret || 'prod-secret',
+  //   signed: false,
+  // });
 
-  app.use(cookieAuth);
+  const sessionOptions = {
+    secret: config.auth.secret,
+    saveUninitialized: false, // don't create session until something stored
+    resave: false, // don't save session if unmodified,
+    cookie: {
+      httpOnly: true,
+      secure: app.get('prod'),
+      sameSite: 'strict'
+    },
+    store: new MongoStore({
+      mongooseConnection:  mongoose.connection,
+    }),
+  };
 
+  if (app.get('prod')) {
+    app.set('trust proxy', 1) // trust first proxy
+    sessionOptions.cookie.secure = true // serve secure cookies
+  }
+
+  const expressSession = session(sessionOptions)
+  
+  // app.use(cookieAuth);
+  app.use(expressSession);
+  
   app.use(passport.initialize());
   app.use(passport.session());
 
   const socketServer = http.Server(app);
   const io = app.io = require('socket.io')(socketServer);
   /* socket.handshake.session.passport.user */
-  io.use(expressSocketSession(cookieAuth, {
+  io.use(expressSocketSession(expressSession, {
     autoSave: true
   }));
+  
   io.use((socket, next) => {
+    console.log(287, socket.handshake.session);
     const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
 
     if (!userId) {
-      next();
+      return next();
     }
 
     User.findOne({id: userId}).then(user => {
@@ -320,16 +345,7 @@ const init = async () => {
     }
 
     console.log(`Listening on port ${config.server.port}. Access at: http://localhost:${config.server.port}/`);
-  });
-  
-  // nodemon
-  function shutdownSocket () {
-    socketServer.close(function () {
-      process.exit(0);
-    });
-  }
-
-  process.once('SIGTERM', shutdownSocket);
+  });  
 };
 
 init().catch(err => {

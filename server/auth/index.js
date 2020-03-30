@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const express = require('express');
 const WCAStrategy = require('passport-wca').Strategy;
-const OAuthStrategy = require('passport-oauth2');
 const { User } = require('../models');
 const auth = require('../middlewares/auth');
 
@@ -45,16 +44,6 @@ module.exports = (app, passport) => {
     });
   });
 
-  // Middleware to check if the user is authenticated
-  function isUserAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-      next();
-    } else {
-      res.status(403);
-      res.send('You must login!');
-    }
-  }
-
   router.get('/login', (req, res, next) => {
     req.session.redirect = req.query.redirect;
 
@@ -76,7 +65,7 @@ module.exports = (app, passport) => {
   });
 
   const userMask = _.partial(_.pick,  _, ['id', 'name', 'email', 'wcaId', 'avatar']);
-  app.get('/api/me', isUserAuthenticated, (req, res) => {
+  app.get('/api/me', auth, (req, res) => {
     res.json(userMask(req.user));
   });
 
