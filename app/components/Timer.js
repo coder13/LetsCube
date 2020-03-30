@@ -243,7 +243,7 @@ class Timer extends React.Component {
         <Typography variant='h1' style={{
           color: (status === STATUS.PRIMING || status === STATUS.SUBMITTING_DOWN) ? 'green' : 'black'
         }}>{this.timerText()}</Typography>
-        <Typography variant='subtitle1'>{status}</Typography>
+        <Typography variant='subtitle1'>{status === 'SUBMITTING' ? 'Press Space to Submit' : status}</Typography>
       </div>
     );
   }
