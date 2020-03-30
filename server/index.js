@@ -114,19 +114,43 @@ function initSocket (app, io) {
     });
 
     socket.on(Protocol.SUBMIT_RESULT, (result) => {
-      if (socket.room && socket.room.attempts[result.id]) {
-        socket.room.attempts[result.id].results[socket.user.id] = result.result;
-        broadcastToAll(Protocol.NEW_RESULT, {
-          id: result.id,
-          userId: socket.user.id,
-          result: result.result,
+      // TODO: expand on handling errors
+      if (!socket.user) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.SUBMIT_RESULT,
+          message: 'Must be logged in submit result',
         });
+        return;
+      } else if (!socket.room) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.SUBMIT_RESULT,
+          message: 'Must be in a room to submit a result',
+        });        
+        return;
+      }
 
-        console.log(122, socket.room)
-        if (socket.room.doneWithScramble()) {
-          console.log(123, 'everyone done, sending new scramble');
-          sendNewScramble();
-        }
+      if (!socket.room.attempts[result.id]) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.SUBMIT_RESULT,
+          message: 'Invalid ID for attempt submission',
+        });     
+        return;
+      }
+
+      socket.room.attempts[result.id].results[socket.user.id] = result.result;
+      broadcastToAll(Protocol.NEW_RESULT, {
+        id: result.id,
+        userId: socket.user.id,
+        result: result.result,
+      });
+
+      console.log(122, socket.room)
+      if (socket.room.doneWithScramble()) {
+        console.log(123, 'everyone done, sending new scramble');
+        sendNewScramble();
       }
     });
 

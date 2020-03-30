@@ -90,7 +90,17 @@ class Room extends React.Component {
   }
 
   onSubmitTime (event) {
-    const { dispatch, room } = this.props;
+    const { dispatch, room, user } = this.props;
+    if (!room.attempts.length) {
+      console.error('No attempt with which to submit time!');
+      return;
+    }
+
+    // Don't even bother sending the result.
+    if (!user.id) {
+      return;
+    }
+
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
     dispatch(submitResult({
       id: latestAttempt.id,
@@ -182,6 +192,7 @@ const mapStateToProps = (state) => ({
   room: state.room,
   connected: state.socket.connected,
   roomCode: state.socket.room,
+  user: state.user,
 })
 
 export default connect(mapStateToProps)(useStyles(Room));

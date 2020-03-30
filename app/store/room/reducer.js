@@ -47,8 +47,8 @@ const reducers = {
       name: undefined,
       id: undefined,
       accessCode: undefined,
-      users: undefined,
-      attempts: undefined,
+      users: [],
+      attempts: [],
     })
   },
   [NEW_RESULT]: (state, action) => {
