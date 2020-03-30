@@ -256,31 +256,21 @@ const init = async () => {
 
   /* Auth */
 
-  // console.log(config.auth.secret)
-  // let cookieAuth = cookieSession({
-  //   name: 'session',
-  //   secret: config.auth.secret || 'prod-secret',
-  //   signed: false,
-  // });
-
+  app.set('trust proxy', 1);
   const sessionOptions = {
     secret: config.auth.secret,
     saveUninitialized: false, // don't create session until something stored
     resave: false, // don't save session if unmodified,
+    proxy: true,
     cookie: {
       httpOnly: true,
       secure: app.get('prod'),
-      sameSite: app.get('prod') ? 'strict' : false,
+      sameSite: 'strict',
     },
     store: new MongoStore({
       mongooseConnection:  mongoose.connection,
     }),
   };
-
-  if (app.get('prod')) {
-    app.set('trust proxy', 1) // trust first proxy
-    sessionOptions.cookie.secure = true // serve secure cookies
-  }
 
   const expressSession = session(sessionOptions)
   
