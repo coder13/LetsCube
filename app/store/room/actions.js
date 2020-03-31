@@ -11,6 +11,7 @@ export const USER_JOIN        = 'room/user_join';
 export const USER_LEFT        = 'room/user_left';
 export const NEW_ATTEMPT      = 'room/new_attempt';
 export const UPDATE_ADMIN     = 'room/update_admin';
+export const REQUEST_SCRAMBLE = 'room/request_scramble';
 
 export const roomUpdated = room => ({
   type: ROOM_UPDATED,
@@ -78,5 +79,10 @@ export const userLeft = user => ({
 
 export const updateAdmin = admin => ({
   type: UPDATE_ADMIN,
+  admin
+});
+
+export const requestNewScramble = admin => ({
+  type: REQUEST_SCRAMBLE,
   admin
 });

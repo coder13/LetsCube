@@ -59,14 +59,22 @@ class Room {
   }
 
   newAttempt () {
-    const attempt = {
+    const attempt = this.genAttempt();
+
+    this.attempts.push(attempt);
+    return attempt;
+  }
+
+  genAttempt () {
+    return {
       id: this.attempts.length,
       scrambles: this.scrambler.get(1),
       results: {},
     };
+  }
 
-    this.attempts.push(attempt);
-    return attempt;
+  latestAttempt () {
+    return this.attempts[this.attempts.length - 1];
   }
 }
 
@@ -119,19 +127,7 @@ function initSocket (app, io) {
 
     socket.on(Protocol.SUBMIT_RESULT, (result) => {
       // TODO: expand on handling errors
-      if (!socket.user) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          event: Protocol.SUBMIT_RESULT,
-          message: 'Must be logged in submit result',
-        });
-        return;
-      } else if (!socket.room) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 400,
-          event: Protocol.SUBMIT_RESULT,
-          message: 'Must be in a room to submit a result',
-        });        
+      if (!isLoggedIn() || !isInRoom()) {
         return;
       }
 
@@ -151,7 +147,6 @@ function initSocket (app, io) {
         result: result.result,
       });
 
-      console.log(122, socket.room)
       if (socket.room.doneWithScramble()) {
         console.log(123, 'everyone done, sending new scramble');
         sendNewScramble();
@@ -159,13 +154,7 @@ function initSocket (app, io) {
     });
 
     socket.on(Protocol.CREATE_ROOM, (options) => {
-      if (!socket.user) {
-        // TODO: expand on handling errors
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          event: Protocol.CREATE_ROOM,
-          message: 'Must be logged in to create room',
-        });
+      if (!isLoggedIn()) {
         return;
       }
 
@@ -185,42 +174,6 @@ function initSocket (app, io) {
       });
     });
 
-    socket.on(Protocol.DELETE_ROOM, id => {
-      if (!socket.user) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          event: Protocol.DELETE_ROOM,
-          message: 'Must be logged in to delete room',
-        });
-        return;
-      } else if (!socket.room) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 400,
-          event: Protocol.DELETE_ROOM,
-          message: 'Have to be in a room to delete it',
-        });
-        return;        
-      } else if (socket.room.id !== id) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          event: Protocol.DELETE_ROOM,
-          message: 'Only allowed to delete your own room',
-        });
-        return;
-      } else if (socket.room.admin.id !== socket.user.id) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 403,
-            event: Protocol.DELETE_ROOM,
-            message: 'Must be admin of room',
-          });
-          return;
-      }
-
-      Rooms = Rooms.filter(room => room.id !== id);
-      socket.room = undefined;
-      broadcastToEveryone(Protocol.ROOM_DELETED, id);
-    });
-
     // Given ID, fetches room, authenticates, and returns room data.
     socket.on(Protocol.FETCH_ROOM, id => {
       const room = getRoom({id});
@@ -236,12 +189,37 @@ function initSocket (app, io) {
       }
     });
 
-    socket.on(Protocol.DISCONNECT, () => {
-      if (socket.room) {
-        leaveRoom();
-      } else {
-        console.log(97, 'socket has no room')
+    /* Admin Actions */
+    socket.on(Protocol.DELETE_ROOM, id => {
+      if (!checkAdmin()) {
+        return;
+      } else if (socket.room.id !== id) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.DELETE_ROOM,
+          message: 'Must be admin of your own room',
+        });
+        return;
       }
+
+      Rooms = Rooms.filter(room => room.id !== id);
+      socket.room = undefined;
+      broadcastToEveryone(Protocol.ROOM_DELETED, id);
+    });
+
+    socket.on(Protocol.REQUEST_SCRAMBLE, () => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      sendNewScramble();
+    });
+
+    socket.on(Protocol.DISCONNECT, () => {
+      if (isInRoom()) {
+        leaveRoom();
+      }
+
       console.log(`socket ${socket.id} disconnected`)
     });
 
@@ -250,6 +228,39 @@ function initSocket (app, io) {
         leaveRoom();
       }
     });
+
+    function checkAdmin() {
+      if (!isLoggedIn() || !isInRoom()) {
+        return false;        
+      } else if (socket.room.admin.id !== socket.user.id) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          message: 'Must be admin of room',
+        });
+        return false;
+      }
+      return true;
+    }
+
+    function isLoggedIn() {
+      if (!socket.user) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          message: `Must be logged in`,
+        });
+      }
+      return !!socket.user;
+    }
+
+    function isInRoom() {
+      if (!socket.room) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          message: `Have be in a room`,
+        });
+      }
+      return !!socket.room;
+    }
 
     function leaveRoom () {
       if (socket.user) {
@@ -273,11 +284,8 @@ function initSocket (app, io) {
       }
     }
 
-    function sendNewScramble () {
-      const attempt = socket.room.newAttempt();
-    
-      console.log(Protocol.NEW_ATTEMPT, attempt)
-      broadcastToAllInRoom(Protocol.NEW_ATTEMPT, attempt);
+    function sendNewScramble (attempt) {    
+      broadcastToAllInRoom(Protocol.NEW_ATTEMPT, socket.room.newAttempt());
     }
 
     function broadcast (event, data) {

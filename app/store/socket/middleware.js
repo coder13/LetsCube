@@ -15,6 +15,7 @@ import {
   JOIN_ROOM,
   LEAVE_ROOM,
   SUBMIT_RESULT,
+  REQUEST_SCRAMBLE,
   fetchingRoom,
   roomUpdated,
   leaveRoom,
@@ -126,7 +127,10 @@ const socketMiddleware = store => {
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);
-    }
+    },
+    [REQUEST_SCRAMBLE]: (event) => {
+      socket.emit(Protocol.REQUEST_SCRAMBLE, event.result);
+    },
   };
 
   // Return the handler that will be called for each action dispatched

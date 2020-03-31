@@ -19,7 +19,14 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { fetchRoom, deleteRoom, joinRoom, leaveRoom, submitResult } from '../store/room/actions';
+import {
+  fetchRoom,
+  deleteRoom,
+  joinRoom,
+  leaveRoom,
+  submitResult,
+  requestNewScramble,
+} from '../store/room/actions';
 import Timer from './Timer';
 import { formatTime } from '../lib/utils';
 
@@ -160,13 +167,18 @@ class Room extends React.Component {
   }
 
   isAdmin () {
-    return this.props.room.admin.id === this.props.user.id;
+    return this.props.room && this.props.user && this.props.room.admin.id === this.props.user.id;
+  }
+
+  canGenNewScramble  () {
+    const { room } = this.props;
+    return room && room.attempts.length && 
+      Object.keys(room.attempts[room.attempts.length - 1].results).length
   }
 
   eventChanged () {
     // todo
   }
-
   
   render () {
     console.log(this.props.room);
@@ -181,7 +193,15 @@ class Room extends React.Component {
 
     const handleDeleteRoom = () => {
       // todo: prompt for confirmation
-      dispatch(deleteRoom(room.id));
+      if (this.isAdmin()) {
+        dispatch(deleteRoom(room.id));
+      }
+    }
+
+    const handleNewScramble = () => {
+      if (this.isAdmin()) {
+        dispatch(requestNewScramble());
+      }
     }
 
     return (
@@ -191,19 +211,8 @@ class Room extends React.Component {
               { this.isAdmin() ?
                 <AppBar position="static" color="transparent">
                   <Toolbar className={classes.adminToolbar} disableGutters variant="dense">
-                    <FormControl id="event-selector-form">
-                      <Select
-                        className={classes.eventSelector}
-                        value={room.event}
-                        onChange={this.eventChanged}
-                      >
-                        {WCAEvents.map(event => 
-                          <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>
-                        )}
-                      </Select>
-                    </FormControl>
                     <ButtonGroup variant="outlined">
-                      <Button>New Scramble</Button>
+                      <Button disabled={!this.canGenNewScramble()} onClick={handleNewScramble}>New Scramble</Button>
                       <Button color="secondary" onClick={handleDeleteRoom}>Delete Room</Button>
                     </ButtonGroup>
                   </Toolbar>
@@ -260,6 +269,20 @@ class Room extends React.Component {
     </div>)
   }
 }
+
+/*
+                    <FormControl id="event-selector-form">
+                      <Select
+                        className={classes.eventSelector}
+                        value={room.event}
+                        onChange={this.eventChanged}
+                      >
+                        {WCAEvents.map(event => 
+                          <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>
+                        )}
+                      </Select>
+                    </FormControl>
+*/
 
 // function Login (props) {
 //   return (

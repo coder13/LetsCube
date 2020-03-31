@@ -18,6 +18,9 @@ const INITIAL_STATE = {
   private: null,
   users: [],
   attempts: [],
+  admin: {
+    id: null,
+  },
 };
 
 const reducers = {
@@ -50,6 +53,9 @@ const reducers = {
       accessCode: undefined,
       users: [],
       attempts: [],
+      admin: {
+        id: null,
+      },
     }),
   [NEW_RESULT]: (state, action) =>
     Object.assign({}, state, {
