@@ -49,7 +49,7 @@ const socketMiddleware = store => {
     },
     events: {
       [Protocol.ERROR]: error => {
-        console.log(41, error);
+        console.log('SOCKET.IO', error);
         if (error.statusCode === 404) {
           store.dispatch(push('/'));
         }
@@ -76,7 +76,7 @@ const socketMiddleware = store => {
         store.dispatch(roomUpdated(room));
         store.dispatch(push(`/rooms/${room.id}`));
       },
-      [Protocol.JOIN]: room => {
+      [Protocol.JOIN]: (room) => {
         store.dispatch(roomJoined(room.accessCode));
         store.dispatch(roomUpdated(room));
 
