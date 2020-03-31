@@ -401,8 +401,8 @@ const init = async () => {
   app.use('/auth', require('./auth')(app, passport));
   app.use('/api', require('./routes')(app));
 
-  app.use('/*', () => {
-    throw new NotFound();
+  app.use('/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../build/index.html'));
   });
 
   const server = app.listen(config.server.port, '0.0.0.0', (err) => {
