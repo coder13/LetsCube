@@ -6,6 +6,7 @@ import {
   NEW_ATTEMPT,
   LEAVE_ROOM,
   NEW_RESULT,
+  UPDATE_ADMIN,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -42,17 +43,16 @@ const reducers = {
       attempts: state.attempts.concat(action.attempt),
       new_scramble: true,
     }),
-  [LEAVE_ROOM]: (state) => {
-    return Object.assign({}, state, {
+  [LEAVE_ROOM]: (state) =>
+    Object.assign({}, state, {
       name: undefined,
       id: undefined,
       accessCode: undefined,
       users: [],
       attempts: [],
-    })
-  },
-  [NEW_RESULT]: (state, action) => {
-    return Object.assign({}, state, {
+    }),
+  [NEW_RESULT]: (state, action) =>
+    Object.assign({}, state, {
       attempts: state.attempts.map((attempt) => {
         if (attempt.id === action.result.id) {
           return Object.assign({}, attempt, {
@@ -64,8 +64,11 @@ const reducers = {
 
         return attempt;
       })
-    });
-  }
+    }),
+  [UPDATE_ADMIN]: (state, action) =>
+    Object.assign({}, state, {
+      admin: action.admin
+    }),
 }
 
 // Socket reducer

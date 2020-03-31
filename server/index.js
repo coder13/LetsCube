@@ -27,6 +27,7 @@ class Room {
     this.scrambler = new Scrambo().type(this.event);
     this.accessCode = uuidv1(); // unique ID to use for rooms; #SecurityThroughObscurity
     this.private = !!options.password; // determine if room is private based on if password is defined
+    this.admin = undefined;
 
     if (options.password) {
       this.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
@@ -38,6 +39,9 @@ class Room {
 
   addUser (user) {
     this.users.push(user);
+    if (this.users.length === 1) {
+      this.admin = user;
+    }
   }
 
   doneWithScramble () {
@@ -66,7 +70,7 @@ class Room {
   }
 }
 
-const Rooms = [];
+let Rooms = [];
 
 Rooms.push(new Room({
   id: '62a53540-6f81-11ea-af07-c1038094a32d',
@@ -141,7 +145,7 @@ function initSocket (app, io) {
       }
 
       socket.room.attempts[result.id].results[socket.user.id] = result.result;
-      broadcastToAll(Protocol.NEW_RESULT, {
+      broadcastToAllInRoom(Protocol.NEW_RESULT, {
         id: result.id,
         userId: socket.user.id,
         result: result.result,
@@ -181,6 +185,42 @@ function initSocket (app, io) {
       });
     });
 
+    socket.on(Protocol.DELETE_ROOM, id => {
+      if (!socket.user) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.DELETE_ROOM,
+          message: 'Must be logged in to delete room',
+        });
+        return;
+      } else if (!socket.room) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.DELETE_ROOM,
+          message: 'Have to be in a room to delete it',
+        });
+        return;        
+      } else if (socket.room.id !== id) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.DELETE_ROOM,
+          message: 'Only allowed to delete your own room',
+        });
+        return;
+      } else if (socket.room.admin.id !== socket.user.id) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 403,
+            event: Protocol.DELETE_ROOM,
+            message: 'Must be admin of room',
+          });
+          return;
+      }
+
+      Rooms = Rooms.filter(room => room.id !== id);
+      socket.room = undefined;
+      broadcastToEveryone(Protocol.ROOM_DELETED, id);
+    });
+
     // Given ID, fetches room, authenticates, and returns room data.
     socket.on(Protocol.FETCH_ROOM, id => {
       const room = getRoom({id});
@@ -217,10 +257,18 @@ function initSocket (app, io) {
 
         if (socket.room) {
           socket.room.users = socket.room.users.filter(i => i.id !== socket.user.id);
-          if (socket.room.doneWithScramble()) {
-            console.log(196, 'everyone done, sending new scramble');
-            sendNewScramble();
+
+          if (socket.room.users.length > 0) {
+            socket.room.admin = socket.room.users[0]; // pick new admin
+            broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
+            
+            if (socket.room.doneWithScramble()) {
+              console.log(196, 'everyone done, sending new scramble');
+              sendNewScramble();
+            }
           }
+
+          socket.room = undefined;
         }
       }
     }
@@ -229,15 +277,19 @@ function initSocket (app, io) {
       const attempt = socket.room.newAttempt();
     
       console.log(Protocol.NEW_ATTEMPT, attempt)
-      broadcastToAll(Protocol.NEW_ATTEMPT, attempt);
+      broadcastToAllInRoom(Protocol.NEW_ATTEMPT, attempt);
     }
 
     function broadcast (event, data) {
       socket.broadcast.to(socket.room.accessCode).emit(...arguments);
     }
 
-    function broadcastToAll (event, data) {
+    function broadcastToAllInRoom (event, data) {
       io.in(socket.room.accessCode).emit(...arguments);
+    }
+
+    function broadcastToEveryone (event, data) {
+      io.emit(...arguments);
     }
 
     function emit (event, data) {

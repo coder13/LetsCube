@@ -6,13 +6,20 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Typography from '@material-ui/core/Typography';
 import Divider from '@material-ui/core/Divider';
+import FormControl from '@material-ui/core/FormControl';
+import MenuItem from '@material-ui/core/MenuItem';
+import Select from '@material-ui/core/Select';
+import AppBar from '@material-ui/core/AppBar';
+import Toolbar from '@material-ui/core/Toolbar';
+import Button from '@material-ui/core/Button';
+import ButtonGroup from '@material-ui/core/ButtonGroup';
 import TableContainer from '@material-ui/core/TableContainer';
 import Table from '@material-ui/core/Table';
 import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { fetchRoom, joinRoom, leaveRoom, submitResult } from '../store/room/actions';
+import { fetchRoom, deleteRoom, joinRoom, leaveRoom, submitResult } from '../store/room/actions';
 import Timer from './Timer';
 import { formatTime } from '../lib/utils';
 
@@ -25,16 +32,50 @@ import { formatTime } from '../lib/utils';
     If no error, start listening with socketio
 */
 
+const WCAEvents = [{
+  id: '333',
+  name: '3x3',
+}, {
+  id: '444',
+  name: '4x4',
+}, {
+  id: '555',
+  name: '5x5',
+}, {
+  id: '666',
+  name: '6x6',
+}, {
+  id: '777',
+  name: '7x7',
+}, {
+  id: '222',
+  name: '2x2',
+}, {
+  id: '333oh',
+  name: '3x3 One-Handed',
+}];
+
 const useStyles = withStyles(theme => ({
   root: {
     flexGrow: 1,
   },
   paper: {
     padding: theme.spacing(0),
-    color: theme.palette.text.secondary,
+    // color: theme.palette.text.secondary,
   },
   center: {
     textAlign: 'center',
+  },
+  scramble: {
+    margin: '.5em',
+  },
+  adminToolbar: {
+    alignSelf: 'flex-end',
+    padding: theme.spacing(1),
+  },
+  eventSelector: {
+    marginLeft: theme.spacing(1),
+    marginRight: theme.spacing(1),
   },
   tableContainer: {
     maxHeight: '250px',
@@ -56,6 +97,14 @@ const useStyles = withStyles(theme => ({
 
 class Room extends React.Component {
   displayName: 'Room'
+
+  constructor (props) {
+    super(props);
+    this.anchorRef = React.createRef();
+    this.state = {
+      menuOpen: false,
+    };
+  }
 
   componentDidMount () {
     const { dispatch, match, room, roomCode } = this.props;
@@ -110,31 +159,64 @@ class Room extends React.Component {
     }));
   }
 
+  isAdmin () {
+    return this.props.room.admin.id === this.props.user.id;
+  }
+
+  eventChanged () {
+    // todo
+  }
+
+  
   render () {
     console.log(this.props.room);
     if (!this.props.room || !this.props.roomCode || this.props.fetching) {
       return this.renderLoadingRoom();
     }
-
-    const { classes, room } = this.props;
+    
+    const { dispatch, classes, room } = this.props;
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
 
+    const handleDeleteRoom = () => {
+      // todo: prompt for confirmation
+      dispatch(deleteRoom(room.id));
+    }
+
     return (
-      <div className={classes.root}>        
+      <div className={classes.root}>
           <Grid container justify="center">
-            <Grid item xs={12} sm={10} md={10} lg={10}>
+            <Grid item xs={12} sm={12} md={10} lg={10}>
+              { this.isAdmin() ?
+                <AppBar position="static" color="transparent">
+                  <Toolbar className={classes.adminToolbar} disableGutters variant="dense">
+                    <FormControl id="event-selector-form">
+                      <Select
+                        className={classes.eventSelector}
+                        value={room.event}
+                        onChange={this.eventChanged}
+                      >
+                        {WCAEvents.map(event => 
+                          <MenuItem key={event.id} value={event.id}>{event.name}</MenuItem>
+                        )}
+                      </Select>
+                    </FormControl>
+                    <ButtonGroup variant="outlined">
+                      <Button>New Scramble</Button>
+                      <Button color="secondary" onClick={handleDeleteRoom}>Delete Room</Button>
+                    </ButtonGroup>
+                  </Toolbar>
+                </AppBar> : <br/> }
               <Paper className={classes.paper}>
+
                 <div className={classes.center}>
-                  <Typography variant="subtitle2">&nbsp;</Typography>
-                  <Typography variant="subtitle2">{scrambles}</Typography>
-                  <Typography variant="subtitle2">&nbsp;</Typography>
+                  <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>
                   <Divider />
                   <Timer
                     onStatusChange={this.onStatusChange}
                     onSubmitTime={this.onSubmitTime.bind(this)}
-                  />
+                    />
                   <Divider />
                 </div>
 
@@ -167,7 +249,6 @@ class Room extends React.Component {
               </Paper>
             </Grid>
           </Grid>
-
       </div>
     );
   }

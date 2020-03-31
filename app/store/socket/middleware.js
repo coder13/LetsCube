@@ -11,19 +11,23 @@ import {
 } from './actions';
 import {
   FETCH_ROOM,
+  DELETE_ROOM,
   JOIN_ROOM,
   LEAVE_ROOM,
   SUBMIT_RESULT,
   fetchingRoom,
   roomUpdated,
+  leaveRoom,
   userJoined,
   userLeft,
   newAttempt,
-  newResult
+  newResult,
+  updateAdmin,
 } from '../room/actions';
 import {
   CREATE_ROOM,
   roomCreated,
+  roomDeleted,
   roomsUpdated
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
@@ -57,6 +61,15 @@ const socketMiddleware = store => {
       },
       [Protocol.ROOM_CREATED]: room => {
         store.dispatch(roomCreated(room));
+      },
+      [Protocol.ROOM_DELETED]: room => {
+        store.dispatch(roomDeleted(room));
+        if (room === store.getState().room.id) {
+          store.dispatch(leaveRoom());
+        }
+      },
+      [Protocol.UPDATE_ADMIN]: admin => {
+        store.dispatch(updateAdmin(admin));
       },
       [Protocol.FORCE_JOIN]: room => {
         store.dispatch(roomUpdated(room));
@@ -98,6 +111,9 @@ const socketMiddleware = store => {
       store.dispatch(fetchingRoom());
       socket.emit(Protocol.FETCH_ROOM, id);
     },
+    [DELETE_ROOM]: ({id}) => {
+      socket.emit(Protocol.DELETE_ROOM, id);
+    },
     [JOIN_ROOM]: ({accessCode}) => {
       socket.emit(Protocol.JOIN_ROOM, accessCode);
     },
@@ -106,6 +122,7 @@ const socketMiddleware = store => {
     },
     [LEAVE_ROOM]: () => {
       socket.emit(Protocol.LEAVE_ROOM);
+      store.dispatch(push(`/`));
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);

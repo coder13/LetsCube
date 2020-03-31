@@ -2,7 +2,7 @@ import {
   ROOMS_UPDATED,
   ROOMS_FETCHING,
   ROOM_CREATED,
-  ROOM_DESTROYED
+  ROOM_DELETED,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -25,10 +25,10 @@ const reducers = {
     Object.assign({}, state, {
       rooms: [...state.rooms, action.room]
     }),
-  [ROOM_DESTROYED]: (state, action) =>
+  [ROOM_DELETED]: (state, action) =>
     Object.assign({}, state, {
-      
-    })
+      rooms: state.rooms.filter(room => room.id !== action.room),
+    }),
 }
 
 // Socket reducer

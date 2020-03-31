@@ -18,6 +18,13 @@ export default createMuiTheme({
     },
   },
   typography: {
-    fontSize: 11
+    fontSize: 11,
+    subtitle2: { // scramble
+      fontFamily: '"Roboto", "Helvetica", "Arial", "sans-seri"',
+      fontWeight: 300,
+      fontSize: '1rem',
+      lineHeight: 1.5,
+      letterSpacving: '0.00938em',
+    }
   },
 });

@@ -1,5 +1,6 @@
 export const ROOM_UPDATED     = 'room/updated';
 export const ROOM_FETCHING    = 'room/fetching';
+export const DELETE_ROOM      = 'room/delete';
 export const FETCH_ROOM       = 'room/fetch';
 export const JOIN_ROOM        = 'room/join';
 export const LEAVE_ROOM       = 'room/leave';
@@ -9,6 +10,7 @@ export const NEW_RESULT       = 'room/new_result';
 export const USER_JOIN        = 'room/user_join';
 export const USER_LEFT        = 'room/user_left';
 export const NEW_ATTEMPT      = 'room/new_attempt';
+export const UPDATE_ADMIN     = 'room/update_admin';
 
 export const roomUpdated = room => ({
   type: ROOM_UPDATED,
@@ -25,6 +27,11 @@ export const fetchRoom = id => ({
   type: FETCH_ROOM,
   id,
 });
+
+export const deleteRoom = id => ({
+  type: DELETE_ROOM,
+  id,
+})
 
 export const joinRoom = (accessCode) => ({
   type: JOIN_ROOM,
@@ -67,4 +74,9 @@ export const userJoined = user => ({
 export const userLeft = user => ({
   type: USER_LEFT,
   user
+});
+
+export const updateAdmin = admin => ({
+  type: UPDATE_ADMIN,
+  admin
 });
