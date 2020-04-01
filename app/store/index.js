@@ -1,6 +1,7 @@
 import { createStore, compose, combineReducers, applyMiddleware } from 'redux';
 import thunkMiddleware from 'redux-thunk';
 import { createLogger } from 'redux-logger';
+import ReactGA from 'react-ga';
 import { connectRouter, routerMiddleware } from 'connected-react-router';
 import { createBrowserHistory } from 'history'
 
@@ -16,6 +17,22 @@ const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
 export const history = createBrowserHistory();
 
+ReactGA.initialize('UA-143761187-3', {
+  debug: false,
+});
+
+const gaTrackingMiddleware = store => next => action => {
+  if (action.type === '@@router/LOCATION_CHANGE') {
+    const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
+    trackPage(nextPage);
+  }
+   return next(action);
+};
+
+const trackPage = page => {
+  ReactGA.pageview(page);
+};
+
 // Root reducer
 const rootReducer = combineReducers({
   router: connectRouter(history),
@@ -28,6 +45,7 @@ const rootReducer = combineReducers({
 
 const middleware = applyMiddleware(
   routerMiddleware(history),
+  gaTrackingMiddleware,
   thunkMiddleware,
   socketMiddleware,
   createLogger(),
