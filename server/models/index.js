@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
-const Room = require('./room');
+const { Attempt, Room } = require('./room');
 const User = require('./user');
 
 module.exports = {
   Room: mongoose.model('Room', Room, 'rooms'),
-  User: mongoose.model('User', User, 'users')
+  User: mongoose.model('User', User, 'users'),
+  Attempt: mongoose.model('Attempt', Attempt, 'attempts'),
 };

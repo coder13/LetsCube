@@ -18,6 +18,7 @@ export default class Socket {
       this.onConnected = props.onConnected;
     if (props.onDisconnected)
       this.onDisconnected = props.onDisconnected;
+    this.onReconnect = props.onReconnect;
 
     this.events = props.events;
     this.socket = null;
@@ -43,6 +44,7 @@ export default class Socket {
     this.socket.on(Protocol.DISCONNECT, this.onDisconnected);
     this.socket.on(Protocol.CONNECT_ERR, this.onError);
     this.socket.on(Protocol.RECONNECT_ERR, this.onError);
+    this.socket.on(Protocol.reconnect, this.onReconnect);
     
     // Set listeners
     Object.keys(this.events).forEach(event => {

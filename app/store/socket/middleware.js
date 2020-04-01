@@ -17,6 +17,7 @@ import {
   SUBMIT_RESULT,
   REQUEST_SCRAMBLE,
   fetchingRoom,
+  joinRoom,
   roomUpdated,
   leaveRoom,
   userJoined,
@@ -48,6 +49,10 @@ const socketMiddleware = store => {
       store.dispatch(disconnected());
     },
     events: {
+      [Protocol.RECONNECT]: () => {
+        console.log('[SOCKET.IO] reconnected!');
+        store.dispatch(joinRoom(store.getState().room.accessCode));
+      },
       [Protocol.ERROR]: error => {
         console.log('SOCKET.IO', error);
         if (error.statusCode === 404) {
