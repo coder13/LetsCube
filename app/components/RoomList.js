@@ -33,34 +33,26 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-const RoomList = ({ rooms, fetching, createRoom }) => {
+const RoomList = ({ rooms, user, fetching, createRoom }) => {
   const publicRooms = rooms.filter(room => !room.password);
   const privateRooms = rooms.filter(room => !!room.password);
-
-  if (fetching) {
-    return (
-      <Container>
-        <p>Fetching...</p>
-      </Container>
-    );
-  }
 
   return (
     <Container>
       <Paper>
-        <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-          {publicRooms.map((room, index) => (
-            <Room key={index} room={room} />
-          ))}
-        </List>
-        <Divider/>
-        <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
-          {privateRooms.map((room, index) => (
-            <Room key={index} room={room} />
-          ))}
-        </List>
+          <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
+            {publicRooms.map((room, index) => (
+              <Room key={index} room={room} />
+              ))}
+          </List>
+          <Divider/>
+          <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
+            {privateRooms.map((room, index) => (
+              <Room key={index} room={room} />
+              ))}
+          </List>
       </Paper>
-      <AddRoomFab createRoom={createRoom}/>
+      {user.id && <AddRoomFab createRoom={createRoom}/>}
     </Container>
   );
 }
