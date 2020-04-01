@@ -160,9 +160,13 @@ module.exports = function ({app, expressSession}) {
           return;
         }
         
-        Room.deleteOne({id}).then(() => {
-          socket.room = undefined;
-          broadcastToEveryone(Protocol.ROOM_DELETED, id);
+        Room.deleteOne({_id: id}).then((foo) => {
+          if (foo.deletedCount > 0) {
+            socket.room = undefined;
+            broadcastToEveryone(Protocol.ROOM_DELETED, id);
+          } else if (foo.deletedCount > 1) {
+            console.error(168, 'big problemo');
+          }
         }).catch(console.error);
       }).catch(console.error);
     });
