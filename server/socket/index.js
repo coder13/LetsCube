@@ -53,22 +53,18 @@ module.exports = function ({app, expressSession}) {
         
         socket.join(accessCode, () => {
           if (socket.user) {
-            room.users.push(socket.user);
             socket.room = room;
-            socket.emit(Protocol.JOIN, room); // tell the user they're cool and give them the info
-            broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+            
+            room.addUser(socket.user).then(() => {
+              socket.emit(Protocol.JOIN, room); // tell the user they're cool and give them the info
+              broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
 
-            if (room.doneWithScramble()) {
-              console.log(104, 'everyone done, sending new scramble');
-              sendNewScramble();
-            }
-
-            if (room.users.length === 1) {
-              room.admin = socket.user;
-              room.save().then(r => {
-                broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.user);
-              }).catch(console.error);
-            }
+              broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
+              if (room.doneWithScramble()) {
+                console.log(104, 'everyone done, sending new scramble');
+                sendNewScramble();
+              }
+            }).catch(console.error);
           } else {
             socket.emit(Protocol.JOIN, room); // still give them the data
           }
@@ -82,28 +78,30 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      if (!socket.room.attempts[result.id]) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 400,
-          event: Protocol.SUBMIT_RESULT,
-          message: 'Invalid ID for attempt submission',
-        });
-        return;
-      }
-
-      socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
-      socket.room.save().then((r) => {
-        broadcastToAllInRoom(Protocol.NEW_RESULT, {
-          id: result.id,
-          userId: socket.user.id,
-          result: result.result,
-        });
-        
-        if (socket.room.doneWithScramble()) {
-          console.log(123, 'everyone done, sending new scramble');
-          sendNewScramble();
+      Room.findById(socket.room.id).then(room => {    
+        if (!room.attempts[result.id]) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 400,
+            event: Protocol.SUBMIT_RESULT,
+            message: 'Invalid ID for attempt submission',
+          });
+          return;
         }
-      });
+
+        room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+        room.save().then((r) => {
+          broadcastToAllInRoom(Protocol.NEW_RESULT, {
+            id: result.id,
+            userId: socket.user.id,
+            result: result.result,
+          });
+          
+          if (room.doneWithScramble()) {
+            console.log(123, 'everyone done, sending new scramble');
+            sendNewScramble();
+          }
+        });
+      }).catch(console.error);
     });
 
     socket.on(Protocol.CREATE_ROOM, (options) => {
@@ -148,29 +146,36 @@ module.exports = function ({app, expressSession}) {
 
     /* Admin Actions */
     socket.on(Protocol.DELETE_ROOM, id => {
-      if (!checkAdmin()) {
-        return;
-      } else if (socket.room.id !== id) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          event: Protocol.DELETE_ROOM,
-          message: 'Must be admin of your own room',
-        });
-        return;
-      }
+      Room.findById(socket.room.id).then(room => {
+        socket.room = room;
 
-      Room.deleteOne({id}).then(() => {
-        socket.room = undefined;
-        broadcastToEveryone(Protocol.ROOM_DELETED, id);
+        if (!checkAdmin()) {
+          return;
+        } else if (socket.room.id !== id) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 403,
+            event: Protocol.DELETE_ROOM,
+            message: 'Must be admin of your own room',
+          });
+          return;
+        }
+        
+        Room.deleteOne({id}).then(() => {
+          socket.room = undefined;
+          broadcastToEveryone(Protocol.ROOM_DELETED, id);
+        }).catch(console.error);
       }).catch(console.error);
     });
 
     socket.on(Protocol.REQUEST_SCRAMBLE, () => {
-      if (!checkAdmin()) {
-        return;
-      }
+      Room.findById(socket.room.id).then(room => {
+        socket.room = room;
+        if (!checkAdmin()) {
+          return;
+        }
 
-      sendNewScramble();
+        sendNewScramble();
+      }).catch(console.error);
     });
 
     socket.on(Protocol.DISCONNECT, () => {
@@ -183,7 +188,7 @@ module.exports = function ({app, expressSession}) {
 
     socket.on(Protocol.LEAVE_ROOM, () => {
       if (isLoggedIn() && isInRoom()) {
-        leaveRoom();
+        leaveRoom.call(this);
       }
     });
 
@@ -221,25 +226,17 @@ module.exports = function ({app, expressSession}) {
     }
 
     function leaveRoom () {
-      socket.room.users = socket.room.users.filter(i => i.id !== socket.user.id);
-
       broadcast(Protocol.USER_LEFT, socket.user.id);
-
-      if (socket.room.users.length > 0) {
-        socket.room.admin = socket.room.users[0]; // pick new admin
-        socket.room.save().then((r) => {
-          broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
-          
-          if (socket.room.doneWithScramble()) {
-            console.log(196, 'everyone done, sending new scramble');
-            sendNewScramble();
-          }
-          
-          socket.room = undefined;
-        });
-      } else if (socket.room.users.length === 0) {
-        socket.room.admin = undefined;
-        socket.room.save();
+      
+      socket.room.dropUser(socket.user).then((room) => {
+        broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
+      
+        socket.room = undefined;
+      }).catch(console.error);
+        
+      if (socket.room.doneWithScramble()) {
+        console.log(196, 'everyone done, sending new scramble');
+        sendNewScramble();
       }
     }
 

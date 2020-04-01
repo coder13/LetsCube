@@ -62,26 +62,46 @@ Room.virtual('scrambler').get(function () {
   return new Scrambo(this.event);
 });
 
+let Room_Users  = {};
+
 Room.virtual('users').get(function () {
-  if (!this._users) {
-    this._users = [];
+  if (!Room_Users[this._id]) {
+    Room_Users[this._id] = [];
+  }
+  
+  return Room_Users[this._id];
+});
+
+Room.methods.addUser = function(user) {
+  if (!Room_Users[this._id]) {
+    Room_Users[this._id] = [];
   }
 
-  return this._users;
-});
+  Room_Users[this._id].push(user);
+  if (this.users.length === 1) {
+    this.admin = this.users[0];
+  }
+  return this.save();
+}
+
+Room.methods.dropUser = function(user) {
+  if (!Room_Users[this._id]) {
+    Room_Users[this._id] = [];
+  } else if (!Room_Users[this._id].length) {
+    return;
+  }
+
+  Room_Users[this._id] = Room_Users[this._id].filter(i => i.id !== user.id);
+
+  if (this.users.length === 1) {
+    this.admin = this.users[0];
+  }
+  return this.save();
+}
 
 Room.set('toJSON', {
   virtuals: true
 });
-
-Room.methods.addUser = function (user) {
-  this._users.push(user);
-  if (this._users.length === 1) {
-    this.admin = user;
-    return this.save();
-  }
-  return false;
-}
 
 Room.methods.doneWithScramble = function () {
   if (this.users.length === 0) {
