@@ -24,7 +24,15 @@ const useStyles = makeStyles((theme) => ({
   backdropContainer: {
     textAlign: 'center',
     verticalAlign: 'middle'
-  }
+  },
+  drawerHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: theme.spacing(0, 1),
+    // necessary for content to be below app bar
+    ...theme.mixins.toolbar,
+    justifyContent: 'flex-end',
+  },
 }));
 
 function App ({ fetching, connected, user, room, messages, closeMessage }) {
@@ -52,21 +60,23 @@ function App ({ fetching, connected, user, room, messages, closeMessage }) {
           </Alert>
         </Snackbar>
       </Backdrop>
-      <Header user={user} />
+      
+      <Header user={user} room={room}>
+        <Switch>
+          <Route exact path="/" component={RoomList}/>
+          <Route path="/rooms/:roomId" component={Room} />
+          {user && 
+            (<Route exact path ="/preferences" component={Preferences}/>)}
+          <Redirect to="/" />
+        </Switch>
+      </Header>
 
-      <Switch>
-        <Route exact path="/" component={RoomList}/>
-        <Route path="/rooms/:roomId" component={Room} />
-        {user && 
-          (<Route exact path ="/preferences" component={Preferences}/>)}
-        <Redirect to="/" />
-      </Switch>
       {!!messages[0] ? 
         <Snackbar
-          open={!!messages[0]}
-          autoHideDuration={6000}
-          onClose={(event, reason) => handleClose(0, event, reason)}
-          anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
+        open={!!messages[0]}
+        autoHideDuration={6000}
+        onClose={(event, reason) => handleClose(0, event, reason)}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
         >
           <Alert onClose={(event, reason) => handleClose(0, event, reason)} severity={messages[0].severity}>
             {messages[0].text}

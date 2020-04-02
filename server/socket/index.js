@@ -96,7 +96,7 @@ module.exports = function ({app, expressSession}) {
             result: result.result,
           });
           
-          if (room.doneWithScramble()) {
+          if (r.doneWithScramble()) {
             console.log(123, 'everyone done, sending new scramble');
             sendNewScramble();
           }
@@ -236,6 +236,7 @@ module.exports = function ({app, expressSession}) {
         broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
       
         socket.room = undefined;
+        socket.leave(room.accessCode);
       }).catch(console.error);
         
       if (socket.room.doneWithScramble()) {

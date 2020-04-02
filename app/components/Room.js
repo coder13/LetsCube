@@ -8,7 +8,7 @@ import Typography from '@material-ui/core/Typography';
 import Divider from '@material-ui/core/Divider';
 import FormControl from '@material-ui/core/FormControl';
 import MenuItem from '@material-ui/core/MenuItem';
-import Select from '@material-ui/core/Select';
+import TextField from '@material-ui/core/TextField';
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Button from '@material-ui/core/Button';
@@ -68,6 +68,10 @@ const useStyles = withStyles(theme => ({
   },
   paper: {
     padding: theme.spacing(0),
+    borderColor: theme.divider,
+    borderRadius: 0,
+    flexGrow: 1,
+    flexBasis: 'auto',
     // color: theme.palette.text.secondary,
   },
   center: {
@@ -85,7 +89,6 @@ const useStyles = withStyles(theme => ({
     marginRight: theme.spacing(1),
   },
   tableContainer: {
-    maxHeight: '250px',
   },
   table: {
     padding: 'none',
@@ -136,9 +139,10 @@ class Room extends React.Component {
   componentWillUnmount () {
     const { dispatch, room, roomCode } = this.props;
 
-    if (roomCode && room.accessCode) {
-      dispatch(leaveRoom())
-    }
+    console.log(138);
+    // if (roomCode && room.accessCode) {
+    //   dispatch(leaveRoom())
+    // }
   }
 
   onStatusChange () {
@@ -181,43 +185,20 @@ class Room extends React.Component {
   }
   
   render () {
-    console.log(this.props.room);
     if (!this.props.room || !this.props.roomCode || this.props.fetching) {
       return this.renderLoadingRoom();
     }
     
-    const { dispatch, classes, room } = this.props;
+    const { classes, room } = this.props;
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
 
-    const handleDeleteRoom = () => {
-      // todo: prompt for confirmation
-      if (this.isAdmin()) {
-        dispatch(deleteRoom(room.id));
-      }
-    }
-
-    const handleNewScramble = () => {
-      if (this.isAdmin()) {
-        dispatch(requestNewScramble());
-      }
-    }
-
     return (
       <div className={classes.root}>
-          <Grid container justify="center">
-            <Grid item xs={12} sm={12} md={10} lg={10}>
-              { this.isAdmin() ?
-                <AppBar position="static" color="transparent">
-                  <Toolbar className={classes.adminToolbar} disableGutters variant="dense">
-                    <ButtonGroup variant="outlined">
-                      <Button disabled={!this.canGenNewScramble()} onClick={handleNewScramble}>New Scramble</Button>
-                      <Button color="secondary" onClick={handleDeleteRoom}>Delete Room</Button>
-                    </ButtonGroup>
-                  </Toolbar>
-                </AppBar> : <br/> }
-              <Paper className={classes.paper}>
+          <Grid container justify="center" style={{}}>
+            <Grid item xs={12} sm={12} md={12} lg={10}>
+              <Paper className={classes.paper} elevation={1}>
 
                 <div className={classes.center}>
                   <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>

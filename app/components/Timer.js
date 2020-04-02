@@ -85,9 +85,7 @@ class Timer extends React.Component {
       time: 0,
       focused: true
     };
-  }
 
-  componentWillMount () {
     window.addEventListener('keydown', this.keyDown.bind(this));
     window.addEventListener('keyup', this.keyUp.bind(this));
   }

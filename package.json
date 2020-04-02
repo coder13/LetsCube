@@ -176,6 +176,7 @@
     ]
   },
   "devDependencies": {
+    "clsx": "1.1.0",
     "nodemon": "^2.0.2",
     "react-ga": "2.7.0"
   }

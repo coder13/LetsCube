@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
-import ReactGA from 'react-ga';
 import { Provider } from 'react-redux'
 import { ConnectedRouter } from 'connected-react-router';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -13,10 +12,6 @@ import theme from './theme';
 import { store, history } from './store';
 import { connectSocket } from './store/socket/actions';
 import { fetchUser } from './store/user/actions';
-
-ReactGA.initialize('UA-143761187-3', {
-  debug: true,
-});
 
 store.dispatch(connectSocket());
 store.dispatch(fetchUser());
