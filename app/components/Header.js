@@ -56,15 +56,13 @@ const useStyles = makeStyles(theme => ({
     justifyContent: 'flex-end',
   },
   content: {
+    display: 'flex',
     flexGrow: 1,
+    height: '100vh',
+    flexDirection: 'column',
   },
   toolbarFix: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    padding: theme.spacing(0, 1),
-    // necessary for content to be below app bar
-    minHeight: '5em',
+    minHeight: '64px',
   },
   roomTitleGrid: {
     flexGrow: 1,

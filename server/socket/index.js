@@ -55,14 +55,14 @@ module.exports = function ({app, expressSession}) {
           if (socket.user) {
             socket.room = room;
             
-            room.addUser(socket.user).then(() => {
-              socket.emit(Protocol.JOIN, room); // tell the user they're cool and give them the info
+            room.addUser(socket.user).then((r) => {
+              socket.emit(Protocol.JOIN, r); // tell the user they're cool and give them the info
               broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
 
               broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
-              if (room.doneWithScramble()) {
+              if (r.doneWithScramble()) {
                 console.log(104, 'everyone done, sending new scramble');
-                sendNewScramble();
+                sendNewScramble(r);
               }
             }).catch(console.error);
           } else {
@@ -98,7 +98,7 @@ module.exports = function ({app, expressSession}) {
           
           if (r.doneWithScramble()) {
             console.log(123, 'everyone done, sending new scramble');
-            sendNewScramble();
+            sendNewScramble(r);
           }
         });
       }).catch(console.error);
@@ -178,7 +178,7 @@ module.exports = function ({app, expressSession}) {
           return;
         }
 
-        sendNewScramble();
+        sendNewScramble(room);
       }).catch(console.error);
     });
 
@@ -238,15 +238,15 @@ module.exports = function ({app, expressSession}) {
       
         if (room.doneWithScramble()) {
           console.log(196, 'everyone done, sending new scramble');
-          sendNewScramble();
+          sendNewScramble(room);
         }
 
         socket.room = undefined;
       }).catch(console.error);
     }
 
-    function sendNewScramble () {
-      socket.room.newAttempt(attempt => {
+    function sendNewScramble (room) {
+      room.newAttempt(attempt => {
         broadcastToAllInRoom(Protocol.NEW_ATTEMPT, attempt);
       });
     }

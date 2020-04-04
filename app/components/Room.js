@@ -31,9 +31,17 @@ import { formatTime } from '../lib/utils';
     If no error, start listening with socketio
 */
 
+const flexMixin = (direction) => ({
+  display: 'flex',
+  flexGrow: 1,
+  flexDirection: direction,
+});
+
 const useStyles = withStyles(theme => ({
   root: {
-    flexGrow: 1,
+    background: '#ccc',
+    ...flexMixin('column'),
+    height: '~calc(100vh - 64px)'
   },
   paper: {
     padding: theme.spacing(0),
@@ -53,21 +61,44 @@ const useStyles = withStyles(theme => ({
     marginLeft: theme.spacing(1),
     marginRight: theme.spacing(1),
   },
-  tableContainer: {
-  },
-  table: {
-    padding: 'none',
-  },
   tableHeaderIndex: {
     width: '1em',
   },
   tableHeaderTime: {
-    width: '12px',
-    maxWidth: '12px',
+    width: '1em',
+  },
+  tableResultCell: {
+    width: '1em',
   },
   noClick: {
     cursor: 'initial',
   },
+  tableContainer: {
+    height: '100%',
+  },
+  table: {
+    padding: 'none',
+    display: 'flex',
+    flexFlow: 'column',
+    height: '100%',
+    width: '100%',
+  },
+  thead: {
+    display: 'table',
+    tableLayout: 'fixed',
+    flex: '0 0 auto',
+    width: '~"calc(100% - 0.9em)"'
+  },
+  tbody: {
+    flex: '1 1 auto',
+    display: 'block',
+    overflowY: 'scroll',
+  },
+  tr: {
+    display: 'table',
+    tableLayout: 'fixed',
+    width: '100%',
+  }
 }));
 
 class Room extends React.Component {
@@ -76,6 +107,7 @@ class Room extends React.Component {
   constructor (props) {
     super(props);
     const { dispatch, match, room, roomCode } = this.props;
+    this.tableBodyRef = React.createRef();
     
     if (!room._id) {
       dispatch(fetchRoom(match.params.roomId));
@@ -144,59 +176,73 @@ class Room extends React.Component {
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
-    const timerDisabled = !!(user && scrambles && latestAttempt.results[user.id]);
+    const timerDisabled = !!(user && scrambles && latestAttempt.results && latestAttempt.results[user.id]);
+
+    if (this.tableBodyRef.current) {
+      // scrolls the times.
+      this.tableBodyRef.current.scrollTop = 0;
+    }
 
     return (
       <div className={classes.root}>
-          <Grid container justify="center" style={{}}>
-            <Grid item xs={12} sm={12} md={12} lg={10}>
-              <Paper className={classes.paper} elevation={1}>
-                { this.isAdmin() ?
-                  <React.Fragment>
-                    <AdminToolbar dispatch={dispatch} room={room}/>
-                    <Divider/>
-                  </React.Fragment> : <br/>}
+        <Grid container justify="center" style={flexMixin('row')}>
+          <Grid item xs={12} sm={12} md={12} lg={10} style={flexMixin('column')}>
+            <Paper className={classes.paper} elevation={1} style={{...flexMixin('column')}}>
+              { this.isAdmin() ?
+                <div style={{
+                  flex: 0
+                }}>
+                  <AdminToolbar dispatch={dispatch} room={room}/>
+                  <Divider/>
+                </div> : <br/>}
 
-                <div className={classes.center}>
-                  <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>
-                  <Divider />
-                  <Timer
-                    disabled={timerDisabled}
-                    onStatusChange={this.onStatusChange}
-                    onSubmitTime={this.onSubmitTime.bind(this)}
-                    />
-                  <Divider />
-                </div>
+              <div className={classes.center}  style={{
+                  flex: 0
+                }}>
+                <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>
+                <Divider />
+                <Timer
+                  disabled={timerDisabled}
+                  onStatusChange={this.onStatusChange}
+                  onSubmitTime={this.onSubmitTime.bind(this)}
+                  />
+                <Divider />
+              </div>
 
-                <TableContainer className={classes.tableContainer}>
-                  <Table className={classes.table} size="small">
-                    <TableHead>
-                      <TableRow className={classes.tableRow}>
-                        <TableCell align="left" className={classes.tableHeaderIndex}>#</TableCell>
-                        {users.map((user, index) =>
-                          <TableCell key={index} align="left" className={classes.tableHeaderTime}>
-                            {user.username || user.name}
+              
+              <TableContainer className={classes.tableContainer} style={{
+                flexGrow: 1,
+                display: 'flex',
+                height: '200px'
+              }}>
+                <Table stickyHeader className={classes.table} size="small">
+                  <TableHead className={classes.thead}>
+                    <TableRow className={classes.tr}>
+                      <TableCell align="left" className={classes.tableHeaderIndex}>#</TableCell>
+                      {users.map((user, index) =>
+                        <TableCell key={index} align="left" className={classes.tableHeaderTime}>
+                          {user.username || user.name}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody className={classes.tbody} ref={this.tableBodyRef}>
+                    {[...attempts].reverse().map((attempt,i) => (
+                      <TableRow className={classes.tr} key={i}>
+                        <TableCell className={classes.tableResultCell} align="left">{attempts.length - i}</TableCell>
+                        {users.map((user, j) =>
+                          <TableCell key={j} className={classes.tableResultCell} align="left">
+                            {attempt.results[user.id] ? formatTime(attempt.results[user.id].time) : ''}
                           </TableCell>
                         )}
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {attempts.map((attempt,i) => (
-                        <TableRow className={classes.tableRow} key={i}>
-                          <TableCell className={classes.tableResultCell} align="left">{i + 1}</TableCell>
-                          {users.map((user, j) =>
-                            <TableCell key={j} className={classes.tableResultCell} align="left">
-                              {attempt.results[user.id] ? formatTime(attempt.results[user.id].time) : ''}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Paper>
-            </Grid>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
           </Grid>
+        </Grid>
       </div>
     );
   }
