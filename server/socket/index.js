@@ -233,16 +233,16 @@ module.exports = function ({app, expressSession}) {
       broadcast(Protocol.USER_LEFT, socket.user.id);
       
       socket.room.dropUser(socket.user).then((room) => {
+        socket.leave(room.accessCode);
         broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
       
+        if (room.doneWithScramble()) {
+          console.log(196, 'everyone done, sending new scramble');
+          sendNewScramble();
+        }
+
         socket.room = undefined;
-        socket.leave(room.accessCode);
       }).catch(console.error);
-        
-      if (socket.room.doneWithScramble()) {
-        console.log(196, 'everyone done, sending new scramble');
-        sendNewScramble();
-      }
     }
 
     function sendNewScramble () {

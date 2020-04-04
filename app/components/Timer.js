@@ -85,7 +85,9 @@ class Timer extends React.Component {
       time: 0,
       focused: true
     };
+  }
 
+  componentDidMount () {
     window.addEventListener('keydown', this.keyDown.bind(this));
     window.addEventListener('keyup', this.keyUp.bind(this));
   }
@@ -95,12 +97,12 @@ class Timer extends React.Component {
       clearInterval(this.timerObj);
     }
 
-    window.removeEventListener('keydown', this.keyDown.bind(this));
-    window.removeEventListener('keyup', this.keyUp.bind(this));
+    window.removeEventListener('keydown', this.keyDown);
+    window.removeEventListener('keyup', this.keyUp);
   }
 
   keyDown(event) {
-    if (!this.state.focused || this.keyIsDown) {
+    if (!this.state.focused || this.keyIsDown || this.props.disabled) {
       return;
     }
 
@@ -185,9 +187,6 @@ class Timer extends React.Component {
         break;
       case STATUS.SUBMITTING_DOWN:
         clearInterval(this.timerObj);
-        if (this.props.updateTime) {
-          this.props.updateTime(this.state.time, this.state.inspectionHasBeenBroken, false);
-        }
         break;
       default:
         break;
@@ -227,7 +226,11 @@ class Timer extends React.Component {
   }
 
   render () {
+    const { disabled } = this.props;
     const { status } = this.state;
+    const statusText =
+      disabled ? 'disabled' :
+        (status === 'SUBMITTING' ? 'Press Space to Submit' : status);
 
     return (
       <div style={{
@@ -236,12 +239,18 @@ class Timer extends React.Component {
         flexGrow: 1,
         textAlign: 'center',
         flexDirection: 'column',
-        padding: 'auto'
+        padding: 'auto',
       }}>
         <Typography variant='h1' style={{
-          color: (status === STATUS.PRIMING || status === STATUS.SUBMITTING_DOWN) ? 'green' : 'black'
+          color: disabled ? '#7f7f7f' :
+            (status === STATUS.PRIMING || status === STATUS.SUBMITTING_DOWN) ? 'green' : 'black',
         }}>{this.timerText()}</Typography>
-        <Typography variant='subtitle1'>{status === 'SUBMITTING' ? 'Press Space to Submit' : status}</Typography>
+        <Typography
+          variant='subtitle1'
+          style={{
+            color: disabled ? '#7f7f7f' : 'black',
+          }}
+        >{statusText}</Typography>
       </div>
     );
   }

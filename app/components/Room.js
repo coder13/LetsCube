@@ -140,10 +140,11 @@ class Room extends React.Component {
       return this.renderLoadingRoom();
     }
     
-    const { dispatch, classes, room } = this.props;
+    const { dispatch, classes, room, user } = this.props;
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
+    const timerDisabled = !!(user && scrambles && latestAttempt.results[user.id]);
 
     return (
       <div className={classes.root}>
@@ -160,6 +161,7 @@ class Room extends React.Component {
                   <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>
                   <Divider />
                   <Timer
+                    disabled={timerDisabled}
                     onStatusChange={this.onStatusChange}
                     onSubmitTime={this.onSubmitTime.bind(this)}
                     />
