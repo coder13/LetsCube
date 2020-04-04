@@ -57,9 +57,6 @@ const socketMiddleware = store => {
       },
       [Protocol.ERROR]: error => {
         console.log('SOCKET.IO', error);
-        if (error.statusCode === 404) {
-          store.dispatch(push('/'));
-        }
       },
       [Protocol.UPDATE_ROOMS]: rooms => {
         store.dispatch(roomsUpdated(rooms));
@@ -109,6 +106,12 @@ const socketMiddleware = store => {
 
 // catch attempt to join room here and then fetch socket event
   const reducers = {
+    // no real point in this being here oper other places
+    '@@router/LOCATION_CHANGE': ({ payload }) => {
+      if (payload.location.pathname === '/') {
+        store.dispatch(leaveRoom());
+      }
+    },
     [CONNECT_SOCKET]: () => {
       socket.connect();
     },
@@ -130,7 +133,6 @@ const socketMiddleware = store => {
     },
     [LEAVE_ROOM]: () => {
       socket.emit(Protocol.LEAVE_ROOM);
-      store.dispatch(push(`/`));
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);

@@ -125,16 +125,8 @@ class Room extends React.Component {
     }
   }
 
-  componentWillUnmount () {
-    const { dispatch, room, roomCode } = this.props;
-
-    if (roomCode && room.accessCode) {
-      dispatch(leaveRoom())
-    }
-  }
-
   onStatusChange () {
-
+//
   }
 
   onSubmitTime (event) {
