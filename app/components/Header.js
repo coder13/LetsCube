@@ -111,9 +111,9 @@ function Header (props) {
             <MenuIcon/>
           </IconButton> */}
           <Grid className={classes.roomTitleGrid}>
-            { room.id ?
+            { room._id ?
               <Typography variant="h6">
-                <Link to={'/rooms/' + room.id} className={classes.titleLink}>{room.name}</Link>
+                <Link to={'/rooms/' + room._id} className={classes.titleLink}>{room.name}</Link>
               </Typography> : ''
             }
           </Grid>

@@ -40,7 +40,7 @@ const Room = new mongoose.Schema({
   // For socket: namespace
   accessCode: {
     type: String,
-    default: uuidv4(),
+    default: uuidv4,
   },
   private: {
     type: Boolean,
@@ -52,10 +52,6 @@ const Room = new mongoose.Schema({
     default: [],
   },
   admin: User,
-});
-
-Room.virtual('id').get(function() {
-  return this._id.toHexString();
 });
 
 Room.virtual('scrambler').get(function () {
@@ -87,13 +83,11 @@ Room.methods.addUser = function(user) {
 Room.methods.dropUser = function(user) {
   if (!Room_Users[this._id]) {
     Room_Users[this._id] = [];
-  } else if (!Room_Users[this._id].length) {
-    return;
   }
 
   Room_Users[this._id] = Room_Users[this._id].filter(i => i.id !== user.id);
 
-  if (this.users.length === 1) {
+  if (this.users.length > 0) {
     this.admin = this.users[0];
   }
   return this.save();

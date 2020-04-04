@@ -9,7 +9,6 @@ import { LEAVE_ROOM } from '../room/actions';
 const INITIAL_STATE = {
   connected: false,
   room: null,
- 
 };
 
 const reducers = {

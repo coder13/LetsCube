@@ -11,7 +11,6 @@ import {
 
 const INITIAL_STATE = {
   fetching: null,
-  id: null,
   name: null,
   accessCode: null,
   password: null,
@@ -36,7 +35,8 @@ const reducers = {
   [USER_JOIN]: (state, action) =>
     Object.assign({}, state, {
       users: state.users.concat(action.user)
-    }),
+    }),  id: null,
+
   [USER_LEFT]: (state, action) =>
     Object.assign({}, state, {
       users: state.users.filter(user => user.id !== action.user)
@@ -49,7 +49,7 @@ const reducers = {
   [LEAVE_ROOM]: (state) =>
     Object.assign({}, state, {
       name: undefined,
-      id: undefined,
+      _id: undefined,
       accessCode: undefined,
       users: [],
       attempts: [],

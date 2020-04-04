@@ -51,7 +51,9 @@ const socketMiddleware = store => {
     events: {
       [Protocol.RECONNECT]: () => {
         console.log('[SOCKET.IO] reconnected!');
-        store.dispatch(joinRoom(store.getState().room.accessCode));
+        if (store.getState().room.accessCode) {
+          store.dispatch(joinRoom(store.getState().room.accessCode));
+        }
       },
       [Protocol.ERROR]: error => {
         console.log('SOCKET.IO', error);

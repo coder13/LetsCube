@@ -73,10 +73,11 @@ const useStyles = withStyles(theme => ({
 class Room extends React.Component {
   displayName: 'Room'
 
-  componentDidMount () {
+  constructor (props) {
+    super(props);
     const { dispatch, match, room, roomCode } = this.props;
     
-    if (!room.id) {
+    if (!room._id) {
       dispatch(fetchRoom(match.params.roomId));
     }
 
@@ -217,7 +218,7 @@ class Room extends React.Component {
 const mapStateToProps = (state) => ({
   room: state.room,
   connected: state.socket.connected,
-  roomCode: state.socket.room,
+  roomCode: state.socket.room, // this tells us that we're actually in the room
   user: state.user,
 })
 
