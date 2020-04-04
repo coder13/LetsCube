@@ -15,17 +15,9 @@ import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
+import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import AppsIcon from '@material-ui/icons/Apps';
-import MenuIcon from '@material-ui/icons/Menu';
-import MoreVertIcon from '@material-ui/icons/MoreVert';
-import ExitToAppIcon from '@material-ui/icons/ExitToApp';
-import NavigateNextIcon from '@material-ui/icons/NavigateNext';
-import {
-  leaveRoom,
-  deleteRoom,
-  requestNewScramble,
-} from '../store/room/actions';
 
 const drawerWidth = 240;
 
@@ -72,7 +64,10 @@ const useStyles = makeStyles(theme => ({
     justifyContent: 'flex-end',
     padding: theme.spacing(0, 1),
     // necessary for content to be below app bar
-    ...theme.mixins.toolbar,
+    minHeight: '5em',
+  },
+  roomTitleGrid: {
+    flexGrow: 1,
   },
 }));
 
@@ -81,13 +76,12 @@ function ListItemLink(props) {
 }
 
 function Header (props) {
-  const { dispatch, user, room } = props;
+  const { user, room } = props;
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const open = Boolean(anchorEl);
-  const isAdmin = () => room.admin && user.id && room.admin.id === user.id;
 
   const handleMenu = event => {
     setAnchorEl(event.currentTarget);
@@ -106,53 +100,28 @@ function Header (props) {
     window.location = `/auth/logout?redirect=${document.location.origin}/`;
   };
 
-  const handleDeleteRoom = () => {
-    if (isAdmin()){
-      dispatch(deleteRoom(room.id));
-    }
-  }
-
-  const handleNewScramble = () => {
-    dispatch(requestNewScramble());
-  }
-
-  const handleLeaveRoom = () => {
-    dispatch(leaveRoom());
-  }
-
-  console.log(drawerOpen);
-
   return (
     <div style={{display: 'flex'}}>
       <AppBar position="fixed">
         <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={() => setDrawerOpen(true)}>
+          <Typography variant="h6" className={classes.title}>
+            <Link to="/" className={classes.titleLink}>Let's Cube</Link>
+          </Typography>
+          {/* <IconButton color="inherit" edge="start" onClick={() => setDrawerOpen(true)}>
             <MenuIcon/>
-          </IconButton>
-          <Grid container justify="center" style={{alignItems: 'center'}}>
-            { room ?
-              <Typography variant="h6" className={classes.title}>
+          </IconButton> */}
+          <Grid className={classes.roomTitleGrid}>
+            { room.id ?
+              <Typography variant="h6">
                 <Link to={'/rooms/' + room.id} className={classes.titleLink}>{room.name}</Link>
-              </Typography> : 
-              <Typography variant="h6" className={classes.title}>
-                <Link to="/" className={classes.titleLink}>Let's Cube</Link>
-              </Typography>
+              </Typography> : ''
             }
           </Grid>
 
-          { room.id &&
-            <IconButton onClick={handleLeaveRoom} color="inherit" >
-              <ExitToAppIcon/>
-            </IconButton>
-          }
-
-          { isAdmin() ?
+          { loggedIn ?
             <React.Fragment>
-              <IconButton onClick={handleNewScramble} color="inherit" >
-                <NavigateNextIcon/>
-              </IconButton>
               <IconButton onClick={handleMenu} color="inherit" >
-                <MoreVertIcon/>
+                <Avatar src={user.avatar.thumb_url} />
               </IconButton>
               <Menu
                 id="menu-appbar"
@@ -167,11 +136,13 @@ function Header (props) {
                   horizontal: 'right',
                 }}
                 open={open}
-                onClose={handleClose}>
+                onClose={handleClose}
+              >
                 <MenuItem component={Link} to="/preferences" variant="contained" color="primary">Preferences</MenuItem>
-                <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
+                <MenuItem onClick={logout}>Log out</MenuItem>
               </Menu> 
-            </React.Fragment> : ''
+            </React.Fragment> :
+            <Button color="inherit" onClick={login}>Login</Button>
           }
         </Toolbar>
       </AppBar>
@@ -184,22 +155,8 @@ function Header (props) {
           paper: classes.drawerPaper
         }}
       >
+        <div className={classes.toolbarFix}/>
         <List>
-          { loggedIn ?
-            <React.Fragment>
-              <ListItem key="avatar">
-                <ListItemIcon><Avatar src={user.avatar.thumb_url} /></ListItemIcon>
-                <ListItemText primary={user.name} secondary={user.wcaId}/>
-              </ListItem>
-              <ListItem button key="signout">
-                <ListItemText onClick={logout}>Sign out</ListItemText>
-              </ListItem>
-            </React.Fragment> :
-              <ListItem onClick={login} button key="signout">
-                <ListItemText>Sign in</ListItemText>
-              </ListItem>
-          }
-
           <Divider/>
           <ListItemLink to="/" key="home">
             <ListItemIcon><AppsIcon /></ListItemIcon>
@@ -219,4 +176,4 @@ const mapStateToProps = (state) => ({
   roomName: state.room.name
 });
 
-export default connect(mapStateToProps)(Header)
+export default connect(mapStateToProps)(Header);

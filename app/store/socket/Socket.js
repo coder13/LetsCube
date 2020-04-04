@@ -1,7 +1,7 @@
 import * as Protocol from '../../lib/protocol.js';
 import io from 'socket.io-client';
 
-const dev = document.location.hostname === 'localhost';
+const dev = document.location.hostname !== 'letscube.calebhoover.com';
 const makeURI = () => `${dev ? `http://${document.location.hostname}:9000` : 'https://letscube.calebhoover.com'}/`;
 console.log(makeURI());
 
