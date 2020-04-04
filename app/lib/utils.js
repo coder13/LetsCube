@@ -8,7 +8,7 @@ const fixed = (n,d) => Number(n).toFixed(d === undefined ? 2 : d);
     - inspecting: boolean
 */
 export const formatTime = (time, options) => {
-  if (time === undefined || time === null) {
+  if (time === undefined || time === null || time < 0) {
     return 'DNF';
   }
 

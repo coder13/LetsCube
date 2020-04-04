@@ -39,7 +39,6 @@ const flexMixin = (direction) => ({
 
 const useStyles = withStyles(theme => ({
   root: {
-    background: '#ccc',
     ...flexMixin('column'),
     height: '~calc(100vh - 64px)'
   },
@@ -87,7 +86,7 @@ const useStyles = withStyles(theme => ({
     display: 'table',
     tableLayout: 'fixed',
     flex: '0 0 auto',
-    width: '~"calc(100% - 0.9em)"'
+    boxShadow: theme.shadows[1]
   },
   tbody: {
     flex: '1 1 auto',
@@ -172,15 +171,40 @@ class Room extends React.Component {
       return this.renderLoadingRoom();
     }
     
-    const { dispatch, classes, room, user } = this.props;
+    const { dispatch, classes, room } = this.props;
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
-    const timerDisabled = !!(user && scrambles && latestAttempt.results && latestAttempt.results[user.id]);
+    const timerDisabled = !!(this.user && scrambles && latestAttempt.results && latestAttempt.results[this.user.id]);
 
     if (this.tableBodyRef.current) {
       // scrolls the times.
       this.tableBodyRef.current.scrollTop = 0;
+    }
+
+    const sum = (a,b) => a + b;
+    const mapToTime = (userId) => (i) => i.results[userId] ? i.results[userId].time : -1;
+    const ao5 = (userId) => {
+      if (!attempts) {
+        return undefined;
+      }
+
+      const last5 =
+        (latestAttempt.results[userId] ?
+          attempts.slice(-5) : attempts.slice(-6, -1)).map(mapToTime(userId));
+
+      if (last5.length < 5) {
+        return 0;
+      } else if (last5.indexOf(-1) > 0) {
+        last5.splice(last5.indexOf(-1));
+        if (last5.indexOf(-1) > 0) {
+          return -1; // DNF avg
+        }
+        
+        return (last5.reduce(sum) - Math.min(last5)) / 3;
+      }
+
+      return (last5.reduce(sum) - Math.min(...last5) - Math.max(...last5)) / 3;
     }
 
     return (
@@ -208,12 +232,11 @@ class Room extends React.Component {
                   />
                 <Divider />
               </div>
-
               
               <TableContainer className={classes.tableContainer} style={{
                 flexGrow: 1,
                 display: 'flex',
-                height: '200px'
+                height: '20px'
               }}>
                 <Table stickyHeader className={classes.table} size="small">
                   <TableHead className={classes.thead}>
@@ -221,22 +244,43 @@ class Room extends React.Component {
                       <TableCell align="left" className={classes.tableHeaderIndex}>#</TableCell>
                       {users.map((user, index) =>
                         <TableCell key={index} align="left" className={classes.tableHeaderTime}>
-                          {user.username || user.name}
+                          <span>{user.username || user.name}</span><br/>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    <TableRow className={classes.tr} key={-1}>
+                      <TableCell className={classes.tableResultCell} align="left">ao5</TableCell>
+                      {users.map((user, j) =>
+                        <TableCell className={classes.tableResultCell} align="left">
+                          <span>{formatTime(ao5(user.id)).toString()}</span>
                         </TableCell>
                       )}
                     </TableRow>
                   </TableHead>
                   <TableBody className={classes.tbody} ref={this.tableBodyRef}>
-                    {[...attempts].reverse().map((attempt,i) => (
-                      <TableRow className={classes.tr} key={i}>
-                        <TableCell className={classes.tableResultCell} align="left">{attempts.length - i}</TableCell>
-                        {users.map((user, j) =>
-                          <TableCell key={j} className={classes.tableResultCell} align="left">
-                            {attempt.results[user.id] ? formatTime(attempt.results[user.id].time) : ''}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
+                    {[...attempts].reverse().map((attempt,i) => {
+                      const results = users
+                        .map(user => attempt.results[user.id] ? attempt.results[user.id].time : undefined)
+                        .filter(i => !!i && i > -1);
+                      const best = Math.min(...results);
+                      
+                      return (
+                        <TableRow className={classes.tr} key={i}>
+                          <TableCell className={classes.tableResultCell} align="left">{attempts.length - i}</TableCell>
+                          {users.map((user, j) =>
+                            <TableCell key={j} className={classes.tableResultCell} align="left">
+                              {attempt.results[user.id] ?
+                                <span style={{
+                                  color: attempt.results[user.id].time === best ? 'red' : 'black',
+                                }}>
+                                  {formatTime(attempt.results[user.id].time)}
+                                </span> : ''
+                              }
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
