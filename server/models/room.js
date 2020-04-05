@@ -44,7 +44,6 @@ const Room = new mongoose.Schema({
     default: uuidv4,
   },
   password: String,
-  salt: String,
   attempts: {
     type: [Attempt],
     default: [],
@@ -104,15 +103,12 @@ Room.set('toJSON', {
 });
 
 Room.methods.authenticate = function (password) {
-  if (!this.salt) {
-    console.error('Salt undefined for some reason');
-    return false;
-  } else if (!this.password) {
+  if (!this.password) {
     console.error('No password given');
     return false;
   }
 
-  return bcrypt.hashSync(password, this.salt) === this.password;
+  return bcrypt.compareSync(password, this.password);
 }
 
 Room.methods.doneWithScramble = function () {

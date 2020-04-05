@@ -129,8 +129,7 @@ module.exports = function ({app, expressSession}) {
       });
 
       if (options.password) {
-        room.salt = bcrypt.genSaltSync(5);
-        room.password = bcrypt.hashSync(options.password, room.salt);
+        room.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
       }
 
       room.save().then(room => {
