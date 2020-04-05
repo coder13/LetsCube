@@ -53,10 +53,6 @@ function AdminToolbar ({ dispatch, room }) {
           onClick={handleNewScramble}
           >New Scramble</Button>
         <Button
-          color="secondary"
-          onClick={handleDeleteRoom}
-          >Delete Room</Button>
-        <Button
           color="inherit"
           edge="start"
           onClick={handleMenu}
