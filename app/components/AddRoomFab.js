@@ -20,7 +20,6 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-
 function AddRoomFab ({ createRoom }) {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
@@ -96,3 +95,5 @@ function AddRoomFab ({ createRoom }) {
     </div>
   );
 }
+
+export default AddRoomFab;
