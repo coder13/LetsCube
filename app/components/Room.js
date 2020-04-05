@@ -177,7 +177,7 @@ class Room extends React.Component {
     const sum = (a,b) => a + b;
     const mapToTime = (userId) => (i) => i.results[userId] ? i.results[userId].time : -1;
     const ao5 = (userId) => {
-      if (!attempts) {
+      if (!attempts || !attempts.length) {
         return undefined;
       }
 
