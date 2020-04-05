@@ -83,7 +83,7 @@ const socketMiddleware = store => {
       },
       [Protocol.ROOM_DELETED]: room => {
         store.dispatch(roomDeleted(room));
-        if (room === store.getState().room.id) {
+        if (room === store.getState().room._id) {
           store.dispatch(leaveRoom());
           store.dispatch(push('/'));
         }

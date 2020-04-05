@@ -42,7 +42,7 @@ function AdminToolbar ({ dispatch, room }) {
   }
 
   const handleDeleteRoom = () => {
-    dispatch(deleteRoom(room.id));
+    dispatch(deleteRoom(room._id));
   }
 
   return (

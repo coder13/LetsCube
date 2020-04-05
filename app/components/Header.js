@@ -18,6 +18,7 @@ import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import AppsIcon from '@material-ui/icons/Apps';
+import { getNameFromId } from '../lib/wca';
 
 const drawerWidth = 240;
 
@@ -110,9 +111,15 @@ function Header (props) {
           </IconButton> */}
           <Grid className={classes.roomTitleGrid}>
             { room._id ?
+              <React.Fragment>
+
               <Typography variant="h6">
                 <Link to={'/rooms/' + room._id} className={classes.titleLink}>{room.name}</Link>
-              </Typography> : ''
+              </Typography>
+              <Typography variant="caption">
+                {getNameFromId(room.event)}
+              </Typography>
+              </React.Fragment> : ''
             }
           </Grid>
 

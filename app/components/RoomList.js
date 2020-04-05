@@ -25,6 +25,7 @@ import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import AddIcon from '@material-ui/icons/Add';
 import { createRoom } from '../store/rooms/actions';
+import { getNameFromId } from '../lib/wca';
 
 const useStyles = makeStyles(theme => ({
   fab: {
@@ -83,7 +84,7 @@ function Room ({ room }) {
         </Typography>
       } secondary={
         <Typography>
-          {room.event} | {userText}
+          {getNameFromId(room.event)} | {userText}
         </Typography>
       }/>
     </ListItemLink>
