@@ -40,18 +40,27 @@ module.exports = function ({app, expressSession}) {
     });
     
     // Socket wants to join room.
-    socket.on(Protocol.JOIN_ROOM, (accessCode, cb) => {
+    socket.on(Protocol.JOIN_ROOM, ({id, password}) => {
       // get room
-      Room.findOne({accessCode}).then(room => {
+      Room.findById(id).then(room => {  
         if (!room) {
           socket.emit(Protocol.ERROR, {
             statusCode: 404,
-            message: `Could not find room with accessCode ${accessCode}`
+            message: `Could not find room with id ${id}`
+          });
+          return;
+        }
+
+        if (room.private && !room.authenticate(password)) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 403,
+            event: Protocol.JOIN_ROOM,
+            message: `Invalid password`
           });
           return;
         }
         
-        socket.join(accessCode, () => {
+        socket.join(room.accessCode, () => {
           if (socket.user) {
             socket.room = room;
             
@@ -110,13 +119,12 @@ module.exports = function ({app, expressSession}) {
       }
 
       const room = new Room({
-        name: options.name,
-        private: !!options.password, // determine if room is private based on if password is defined
-        users: []
+        name: options.name
       });
 
       if (options.password) {
-        room.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+        room.salt = bcrypt.genSaltSync(5);
+        room.password = bcrypt.hashSync(options.password, room.salt);
       }
 
       room.save().then(room => {
@@ -139,7 +147,13 @@ module.exports = function ({app, expressSession}) {
             message: `Could not find room with id ${id}`
           });
         } else {
-          socket.emit(Protocol.UPDATE_ROOM, room);
+          socket.emit(Protocol.UPDATE_ROOM, {
+            _id: room.id,
+            name: room.name,
+            usersLength: room.usersLength,
+            private: room.private,
+
+          });
         }
       }).catch(console.error);
     });

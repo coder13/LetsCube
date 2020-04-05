@@ -8,6 +8,7 @@ import {
   roomJoined,
   connected,
   disconnected,
+  loginFailed,
 } from './actions';
 import {
   FETCH_ROOM,
@@ -52,13 +53,23 @@ const socketMiddleware = store => {
       [Protocol.RECONNECT]: () => {
         console.log('[SOCKET.IO] reconnected!');
         if (store.getState().room.accessCode) {
-          store.dispatch(joinRoom(store.getState().room.accessCode));
+          store.dispatch(joinRoom(store.getState().room._id));
         }
       },
       [Protocol.ERROR]: error => {
-        console.log('SOCKET.IO', error);
+        console.log('[SOCKET.IO]', error);
         if (error.statusCode === 404) {
           store.dispatch(push('/'));
+        } else if (error.statusCode === 403 && error.event === Protocol.JOIN_ROOM) {
+          // Login failed attempt
+          store.dispatch(loginFailed({
+            error: error
+          }));
+
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: error.message
+          }));
         }
       },
       [Protocol.UPDATE_ROOMS]: rooms => {
@@ -129,8 +140,8 @@ const socketMiddleware = store => {
     [DELETE_ROOM]: ({id}) => {
       socket.emit(Protocol.DELETE_ROOM, id);
     },
-    [JOIN_ROOM]: ({accessCode}) => {
-      socket.emit(Protocol.JOIN_ROOM, accessCode);
+    [JOIN_ROOM]: ({id, password}) => {
+      socket.emit(Protocol.JOIN_ROOM, {id, password});
     },
     [CREATE_ROOM]: ({room}) => {
       socket.emit(Protocol.CREATE_ROOM, room);

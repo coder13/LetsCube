@@ -34,9 +34,10 @@ export const deleteRoom = id => ({
   id,
 })
 
-export const joinRoom = (accessCode) => ({
+export const joinRoom = (id, password) => ({
   type: JOIN_ROOM,
-  accessCode
+  id,
+  password,
 })
 
 // Maybe not needed

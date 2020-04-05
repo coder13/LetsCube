@@ -142,9 +142,9 @@ function AddRoomFab ({ createRoom }) {
             type="password"
             disabled={!isPrivate}
             onChange={handlePasswordChange}
-            autoComplete="off"
             autoFocus
-            fullWidth/>
+            fullWidth
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleSubmit} color="primary" disabled={!roomName || (isPrivate && !password)}>Create</Button>

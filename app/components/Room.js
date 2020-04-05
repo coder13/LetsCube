@@ -12,10 +12,12 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
+import TextField from '@material-ui/core/TextField';
+import Button from '@material-ui/core/Button';
+import Input from '@material-ui/core/Input';
 import {
   fetchRoom,
   joinRoom,
-  leaveRoom,
   submitResult,
 } from '../store/room/actions';
 import AdminToolbar from './AdminToolbar';
@@ -108,12 +110,16 @@ class Room extends React.Component {
     const { dispatch, match, room, roomCode } = this.props;
     this.tableBodyRef = React.createRef();
     
+    this.state = {
+      password: '',
+    };
+
     if (!room._id) {
       dispatch(fetchRoom(match.params.roomId));
     }
 
     if (!roomCode && room.accessCode) {
-      dispatch(joinRoom(room.accessCode))
+      dispatch(joinRoom(room._id, room.password));
     }
   }
 
@@ -121,7 +127,7 @@ class Room extends React.Component {
     const { dispatch, room, roomCode } = this.props;
 
     if (!roomCode && room.accessCode) {
-      dispatch(joinRoom(room.accessCode))
+      dispatch(joinRoom(room._id, room.password));
     }
   }
 
@@ -159,15 +165,21 @@ class Room extends React.Component {
   }
   
   render () {
-    if (!this.props.room || !this.props.roomCode || this.props.fetching) {
+    const { dispatch, classes, room } = this.props;
+
+    if (!room || !room._id) {
       return this.renderLoadingRoom();
     }
     
-    const { dispatch, classes, room } = this.props;
+    if (room.private && !room.accessCode) {
+      return this.renderLogin();
+    }
+
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
     const timerDisabled = !!(this.user && scrambles && latestAttempt.results && latestAttempt.results[this.user.id]);
+
 
     if (this.tableBodyRef.current) {
       // scrolls the times.
@@ -283,6 +295,70 @@ class Room extends React.Component {
     );
   }
 
+  renderLogin () {
+    const { dispatch, classes, room, loginFailed } = this.props;
+    const { password } = this.state;
+
+    // Forgive me lord
+    if (loginFailed && password && !this.resetPassword) {
+      this.setState({
+        password: '',
+      });
+
+      this.resetPassword = true;
+    }
+
+    const login = (event) => {
+      event.preventDefault();
+      this.resetPassword = false;
+      dispatch(joinRoom(room._id, password));
+    }
+
+    const updatePassword = (event) => {
+      this.setState({
+        password: event.target.value,
+      });
+    }
+
+    return (
+      <div className={classes.root}>
+        <Grid container justify="center" style={flexMixin('row')}>
+          <Grid item xs={12} sm={12} md={12} lg={10} style={flexMixin('column')}>
+            <Paper className={classes.paper} elevation={1} style={{
+              padding: '1em',
+              paddingTop: '10em',
+            }}>
+              <Paper elevation={2} style={{
+                padding: '1em',
+                width: '320px',
+                margin: 'auto'
+              }}>
+                <form style={{
+                  display: 'flex',
+                  justifyContent: 'center'
+                }} onSubmit={login}>
+                  <TextField
+                    label="Password"
+                    type="password"
+                    autoFocus={true}
+                    helperText="Enter password to login"
+                    value={password}
+                    onChange={updatePassword}
+                  />
+                  <Button
+                    variant="contained"
+                    style={{margin: '1em'}}
+                    onClick={login}
+                  >Log in</Button>
+                </form>
+              </Paper>
+            </Paper>
+          </Grid>
+        </Grid>
+      </div>
+    )
+  }
+
   renderLoadingRoom () {
     return (<div>
       Fetching...
@@ -291,18 +367,11 @@ class Room extends React.Component {
   }
 }
 
-// function Login (props) {
-//   return (
-//     <Container>
-//         <Paper></Paper>
-//     </Container>
-//   );
-// }
-
 const mapStateToProps = (state) => ({
   room: state.room,
   connected: state.socket.connected,
   roomCode: state.socket.room, // this tells us that we're actually in the room
+  loginFailed: state.socket.loginFailed,
   user: state.user,
 })
 

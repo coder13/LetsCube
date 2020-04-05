@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Scrambo = require('scrambo');
+const bcrypt = require('bcrypt');
 const User = require('./user');
 const uuidv4 = require('uuid/v4');
 
@@ -42,11 +43,8 @@ const Room = new mongoose.Schema({
     type: String,
     default: uuidv4,
   },
-  private: {
-    type: Boolean,
-    required: true,
-  },
   password: String,
+  salt: String,
   attempts: {
     type: [Attempt],
     default: [],
@@ -66,6 +64,14 @@ Room.virtual('users').get(function () {
   }
   
   return Room_Users[this._id];
+});
+
+Room.virtual('usersLength').get(function () {
+  return Room_Users[this._id] ? Room_Users[this._id].length : 0;
+})
+
+Room.virtual('private').get(function () {
+  return !!this.password;
 });
 
 Room.methods.addUser = function(user) {
@@ -96,6 +102,18 @@ Room.methods.dropUser = function(user) {
 Room.set('toJSON', {
   virtuals: true
 });
+
+Room.methods.authenticate = function (password) {
+  if (!this.salt) {
+    console.error('Salt undefined for some reason');
+    return false;
+  } else if (!this.password) {
+    console.error('No password given');
+    return false;
+  }
+
+  return bcrypt.hashSync(password, this.salt) === this.password;
+}
 
 Room.methods.doneWithScramble = function () {
   if (this.users.length === 0) {

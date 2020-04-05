@@ -3,12 +3,14 @@ import {
   SOCKET_JOIN_ROOM,
   CONNECTED,
   DISCONNECTED,
+  LOGIN_FAILED
 } from './actions';
 import { LEAVE_ROOM } from '../room/actions';
 
 const INITIAL_STATE = {
   connected: false,
   room: null,
+  loginFailed: null,
 };
 
 const reducers = {
@@ -32,6 +34,10 @@ const reducers = {
   [LEAVE_ROOM]: (state) =>
     Object.assign({}, state, {
       room: null,
+    }),
+  [LOGIN_FAILED]: (state, action) =>
+    Object.assign({}, state, {
+      loginFailed: action.error,
     }),
 }
 
