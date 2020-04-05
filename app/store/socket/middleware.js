@@ -57,6 +57,9 @@ const socketMiddleware = store => {
       },
       [Protocol.ERROR]: error => {
         console.log('SOCKET.IO', error);
+        if (error.statusCode === 404) {
+          store.dispatch(push('/'));
+        }
       },
       [Protocol.UPDATE_ROOMS]: rooms => {
         store.dispatch(roomsUpdated(rooms));
@@ -71,6 +74,7 @@ const socketMiddleware = store => {
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room.id) {
           store.dispatch(leaveRoom());
+          store.dispatch(push('/'));
         }
       },
       [Protocol.UPDATE_ADMIN]: admin => {
