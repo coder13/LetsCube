@@ -1,9 +1,14 @@
+const _ = require('lodash');
 const http = require('http');
 const Protocol = require('../../app/lib/protocol.js');
 const bcrypt = require('bcrypt');
 const socketLogger = require('./logger');
 const expressSocketSession = require('express-socket.io-session');
 const { User, Room } = require('../models');
+
+const roomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', 'private']);
+const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'accessCode', 'usersLength', 'private']);
+const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
 function attachUser (socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
@@ -36,7 +41,8 @@ module.exports = function ({app, expressSession}) {
     
     // give them the list of rooms
     Room.find().then(rooms => {
-      socket.emit(Protocol.UPDATE_ROOMS, rooms);
+      console.log(43, rooms);
+      socket.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
     });
     
     // Socket wants to join room.
@@ -65,7 +71,7 @@ module.exports = function ({app, expressSession}) {
             socket.room = room;
             
             room.addUser(socket.user).then((r) => {
-              socket.emit(Protocol.JOIN, r); // tell the user they're cool and give them the info
+              socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
               broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
 
               broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
@@ -75,7 +81,7 @@ module.exports = function ({app, expressSession}) {
               }
             }).catch(console.error);
           } else {
-            socket.emit(Protocol.JOIN, room); // still give them the data
+            socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
           }
         });
       }).catch(console.error);
@@ -132,7 +138,7 @@ module.exports = function ({app, expressSession}) {
         socket.emit(Protocol.FORCE_JOIN, room);
         socket.join(room.accessCode, () => {
           socket.room = room;
-          socket.emit(Protocol.JOIN, room);
+          socket.emit(Protocol.JOIN, joinRoomMask(room));
         });
       }).catch(console.error);
     });
@@ -147,13 +153,7 @@ module.exports = function ({app, expressSession}) {
             message: `Could not find room with id ${id}`
           });
         } else {
-          socket.emit(Protocol.UPDATE_ROOM, {
-            _id: room.id,
-            name: room.name,
-            usersLength: room.usersLength,
-            private: room.private,
-
-          });
+          socket.emit(Protocol.UPDATE_ROOM, room.private ? roomMask(room) : publicRoomMask(room));
         }
       }).catch(console.error);
     });
