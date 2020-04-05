@@ -11,9 +11,10 @@ import {
 
 const INITIAL_STATE = {
   fetching: null,
+  _id: null,
   name: null,
+  event: null,
   accessCode: null,
-  password: null,
   private: null,
   users: [],
   attempts: [],
@@ -35,8 +36,7 @@ const reducers = {
   [USER_JOIN]: (state, action) =>
     Object.assign({}, state, {
       users: state.users.concat(action.user)
-    }),  id: null,
-
+    }),
   [USER_LEFT]: (state, action) =>
     Object.assign({}, state, {
       users: state.users.filter(user => user.id !== action.user)

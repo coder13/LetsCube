@@ -21,7 +21,7 @@ const reducers = {
     }),
   [ROOM_DELETED]: (state, action) =>
     Object.assign({}, state, {
-      rooms: state.rooms.filter(room => room.id !== action.room),
+      rooms: state.rooms.filter(room => room._id !== action.room),
     }),
 }
 

@@ -14,7 +14,8 @@ import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
-import Input from '@material-ui/core/Input';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
 import {
   fetchRoom,
   joinRoom,
@@ -99,7 +100,10 @@ const useStyles = withStyles(theme => ({
     display: 'table',
     tableLayout: 'fixed',
     width: '100%',
-  }
+  },
+  backdrop: {
+    zIndex: theme.zIndex.drawer + 1
+  },
 }));
 
 class Room extends React.Component {
@@ -255,7 +259,7 @@ class Room extends React.Component {
                     <TableRow className={classes.tr} key={-1}>
                       <TableCell className={classes.tableResultCell} align="left">ao5</TableCell>
                       {users.map((user, j) =>
-                        <TableCell className={classes.tableResultCell} align="left">
+                        <TableCell key={j} className={classes.tableResultCell} align="left">
                           <span>{formatTime(ao5(user.id)).toString()}</span>
                         </TableCell>
                       )}
@@ -360,10 +364,11 @@ class Room extends React.Component {
   }
 
   renderLoadingRoom () {
-    return (<div>
-      Fetching...
-
-    </div>)
+    return (
+      <Backdrop className={this.props.classes.backdrop} open={true}>
+        <CircularProgress color="inherit" />
+      </Backdrop>
+    );
   }
 }
 

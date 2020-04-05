@@ -20,6 +20,7 @@ import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListSubheader from '@material-ui/core/ListSubheader';
+import Typography from '@material-ui/core/Typography';
 import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import AddIcon from '@material-ui/icons/Add';
@@ -34,23 +35,23 @@ const useStyles = makeStyles(theme => ({
 }));
 
 const RoomList = ({ rooms, user, fetching, createRoom }) => {
-  const publicRooms = rooms.filter(room => !room.password);
-  const privateRooms = rooms.filter(room => !!room.password);
+  const publicRooms = rooms.filter(room => !room.private);
+  const privateRooms = rooms.filter(room => !!room.private);
 
   return (
-    <Container>
+    <Container maxWidth="md" disableGutters style={{padding: '1em'}}>
       <Paper>
-          <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-            {publicRooms.map((room, index) => (
-              <Room key={index} room={room} />
-              ))}
-          </List>
-          <Divider/>
-          <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
-            {privateRooms.map((room, index) => (
-              <Room key={index} room={room} />
-              ))}
-          </List>
+        <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
+          {publicRooms.map((room, index) => (
+            <Room key={index} room={room} />
+            ))}
+        </List>
+        <Divider/>
+        <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
+          {privateRooms.map((room, index) => (
+            <Room key={index} room={room} />
+            ))}
+        </List>
       </Paper>
       {user.id && <AddRoomFab createRoom={createRoom}/>}
     </Container>
@@ -64,9 +65,11 @@ function ListItemLink (props) {
 }
 
 function Room ({ room }) {
+  const userText = room.usersLength === 0 ? 'nobody' : `${room.usersLength} user${room.usersLength > 1 ? 's' : ''}`;
+
   return (
     <ListItemLink
-      to={`/rooms/${room.id}`}
+      to={`/rooms/${room._id}`}
     >
       <ListItemIcon>
         { room.private ?
@@ -74,7 +77,15 @@ function Room ({ room }) {
           <PublicIcon />
         }
       </ListItemIcon>
-      <ListItemText primary={room.name}/>
+      <ListItemText primary={
+        <Typography variant="h6">
+          {room.name}
+        </Typography>
+      } secondary={
+        <Typography>
+          {room.event} | {userText}
+        </Typography>
+      }/>
     </ListItemLink>
   );  
 }
