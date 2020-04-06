@@ -1,5 +1,5 @@
 import { push } from 'connected-react-router';
-import * as Protocol from '../../lib/protocol.js'
+import * as Protocol from '../../lib/protocol';
 import Socket from './Socket';
 import {
   CONNECT_SOCKET,
@@ -17,7 +17,6 @@ import {
   LEAVE_ROOM,
   SUBMIT_RESULT,
   REQUEST_SCRAMBLE,
-  fetchingRoom,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -31,13 +30,13 @@ import {
   CREATE_ROOM,
   roomCreated,
   roomDeleted,
-  roomsUpdated
+  roomsUpdated,
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 
-const socketMiddleware = store => {
+const socketMiddleware = (store) => {
   // The socket's connection state changed
-  const onChange = isConnected => {
+  const onChange = (isConnected) => {
     store.dispatch(connectionChanged(isConnected));
   };
 
@@ -53,73 +52,72 @@ const socketMiddleware = store => {
       [Protocol.RECONNECT]: () => {
         console.log('[SOCKET.IO] reconnected!');
         if (store.getState().room.accessCode) {
-          store.dispatch(joinRoom(store.getState().room._id));
+          store.dispatch(joinRoom(store.getState().room._id, store.getState().room.password));
         }
       },
-      [Protocol.ERROR]: error => {
+      [Protocol.ERROR]: (error) => {
         console.log('[SOCKET.IO]', error);
         if (error.statusCode === 404) {
           store.dispatch(push('/'));
         } else if (error.statusCode === 403 && error.event === Protocol.JOIN_ROOM) {
           // Login failed attempt
           store.dispatch(loginFailed({
-            error: error
+            error,
           }));
 
           store.dispatch(createMessage({
             severity: 'error',
-            text: error.message
+            text: error.message,
           }));
         }
       },
-      [Protocol.UPDATE_ROOMS]: rooms => {
+      [Protocol.UPDATE_ROOMS]: (rooms) => {
         store.dispatch(roomsUpdated(rooms));
       },
-      [Protocol.UPDATE_ROOM]: room => {
+      [Protocol.UPDATE_ROOM]: (room) => {
         store.dispatch(roomUpdated(room));
       },
-      [Protocol.ROOM_CREATED]: room => {
+      [Protocol.ROOM_CREATED]: (room) => {
         store.dispatch(roomCreated(room));
       },
-      [Protocol.ROOM_DELETED]: room => {
+      [Protocol.ROOM_DELETED]: (room) => {
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room._id) {
           store.dispatch(leaveRoom());
           store.dispatch(push('/'));
         }
       },
-      [Protocol.UPDATE_ADMIN]: admin => {
+      [Protocol.UPDATE_ADMIN]: (admin) => {
         store.dispatch(updateAdmin(admin));
       },
-      [Protocol.FORCE_JOIN]: room => {
-        store.dispatch(roomUpdated(room));
+      [Protocol.FORCE_JOIN]: (room) => {
         store.dispatch(push(`/rooms/${room.id}`));
       },
       [Protocol.JOIN]: (room) => {
-        store.dispatch(roomJoined(room.accessCode));
+        store.dispatch(roomJoined(room.accessCode)); // update socket store
         store.dispatch(roomUpdated(room));
 
         store.dispatch(createMessage({
           severity: 'success',
-          text: 'room joined'
+          text: 'room joined',
         }));
       },
-      [Protocol.USER_JOIN]: user => {
+      [Protocol.USER_JOIN]: (user) => {
         store.dispatch(userJoined(user));
       },
-      [Protocol.USER_LEFT]: user => {
-        store.dispatch(userLeft(user));  
+      [Protocol.USER_LEFT]: (user) => {
+        store.dispatch(userLeft(user));
       },
-      [Protocol.NEW_ATTEMPT]: attempt => {
+      [Protocol.NEW_ATTEMPT]: (attempt) => {
         store.dispatch(newAttempt(attempt));
       },
-      [Protocol.NEW_RESULT]: result => {
+      [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));
-      }
+      },
     },
   });
 
-// catch attempt to join room here and then fetch socket event
+  // catch attempt to join room here and then fetch socket event
   const reducers = {
     // no real point in this being here oper other places
     '@@router/LOCATION_CHANGE': ({ payload }) => {
@@ -133,18 +131,17 @@ const socketMiddleware = store => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({id}) => {
-      store.dispatch(fetchingRoom());
+    [FETCH_ROOM]: ({ id }) => {
       socket.emit(Protocol.FETCH_ROOM, id);
     },
-    [DELETE_ROOM]: ({id}) => {
+    [DELETE_ROOM]: ({ id }) => {
       socket.emit(Protocol.DELETE_ROOM, id);
     },
-    [JOIN_ROOM]: ({id, password}) => {
-      socket.emit(Protocol.JOIN_ROOM, {id, password});
+    [JOIN_ROOM]: ({ id, password }) => {
+      socket.emit(Protocol.JOIN_ROOM, { id, password });
     },
-    [CREATE_ROOM]: ({room}) => {
-      socket.emit(Protocol.CREATE_ROOM, room);
+    [CREATE_ROOM]: ({ options }) => {
+      socket.emit(Protocol.CREATE_ROOM, options);
     },
     [LEAVE_ROOM]: () => {
       socket.emit(Protocol.LEAVE_ROOM);
@@ -158,7 +155,7 @@ const socketMiddleware = store => {
   };
 
   // Return the handler that will be called for each action dispatched
-  return next => (action) => {
+  return (next) => (action) => {
     if (reducers[action.type]) {
       reducers[action.type](action);
     }

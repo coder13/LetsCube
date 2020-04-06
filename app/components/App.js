@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import { connect } from 'react-redux';
 import Container from '@material-ui/core/Container';
@@ -23,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   },
   backdropContainer: {
     textAlign: 'center',
-    verticalAlign: 'middle'
+    verticalAlign: 'middle',
   },
   drawerHeader: {
     display: 'flex',
@@ -35,18 +36,24 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function App ({ fetching, connected, user, room, messages, closeMessage }) {
+function Preferences() {
+  return (
+    <Container>
+      <h1>Prefs!</h1>
+    </Container>
+  );
+}
+
+function App({
+  connected, user, room, messages,
+}) {
   const classes = useStyles();
-  if (fetching) {
-    return (<Loading/>);
-  }
 
   const handleClose = (index, event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
 
-    console.log('closing', index);
     closeMessage(index);
   };
 
@@ -54,53 +61,57 @@ function App ({ fetching, connected, user, room, messages, closeMessage }) {
     <div className={classes.root}>
       <Backdrop className={classes.backdrop} open={!connected}>
         <CircularProgress color="inherit" />
-        <Snackbar open={true} anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}>
+        <Snackbar open anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
           <Alert severity="error">
             Disconnected from server.
           </Alert>
         </Snackbar>
       </Backdrop>
-      
+
       <Header user={user} room={room}>
         <Switch>
-          <Route exact path="/" component={RoomList}/>
+          <Route exact path="/" component={RoomList} />
           <Route path="/rooms/:roomId" component={Room} />
-          {user && 
-            (<Route exact path ="/preferences" component={Preferences}/>)}
+          {user
+            && (<Route exact path="/preferences" component={Preferences} />)}
           <Redirect to="/" />
         </Switch>
       </Header>
 
-      {!!messages[0] ? 
+      {messages[0] ? (
         <Snackbar
-        open={!!messages[0]}
-        autoHideDuration={6000}
-        onClose={(event, reason) => handleClose(0, event, reason)}
-        anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
+          open={!!messages[0]}
+          autoHideDuration={6000}
+          onClose={(event, reason) => handleClose(0, event, reason)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         >
-          <Alert onClose={(event, reason) => handleClose(0, event, reason)} severity={messages[0].severity}>
+          <Alert
+            onClose={(event, reason) => handleClose(0, event, reason)}
+            severity={messages[0].severity}
+          >
             {messages[0].text}
           </Alert>
         </Snackbar>
-        : ''
-      }
+      )
+        : ''}
     </div>
   );
 }
 
-function Loading () {
-  return (
-    <div>Loading...</div>
-  );
-}
+App.propTypes = {
+  connected: PropTypes.bool,
+  user: PropTypes.shape().isRequired,
+  room: PropTypes.shape().isRequired,
+  messages: PropTypes.arrayOf(PropTypes.shape({
+    severity: PropTypes.string,
+    text: PropTypes.string,
+  })),
+};
 
-function Preferences () {
-  return (
-    <Container>
-      <h1>Prefs!</h1>
-    </Container>
-  );
-}
+App.defaultProps = {
+  connected: false,
+  messages: [],
+};
 
 const mapStateToProps = (state) => ({
   connected: state.socket.connected,
@@ -110,7 +121,7 @@ const mapStateToProps = (state) => ({
 });
 
 const mapDispatchToProps = (dispatch) => ({
-  closeMessage: message => dispatch(closeMessage(message)),
+  closeMessage: (message) => dispatch(closeMessage(message)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(App);

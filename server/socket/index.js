@@ -41,10 +41,30 @@ module.exports = function ({app, expressSession}) {
     
     // give them the list of rooms
     Room.find().then(rooms => {
-      console.log(43, rooms);
       socket.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
     });
     
+    function joinRoom(room) {
+      socket.join(room.accessCode, () => {
+        if (socket.user) {
+          socket.room = room;
+
+          room.addUser(socket.user).then((r) => {
+            socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
+            broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+
+            broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
+            if (r.doneWithScramble()) {
+              console.log(104, 'everyone done, sending new scramble');
+              sendNewScramble(r);
+            }
+          }).catch(console.error);
+        } else {
+          socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
+        }
+      });
+    }
+
     // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, ({id, password}) => {
       // get room
@@ -66,56 +86,26 @@ module.exports = function ({app, expressSession}) {
           return;
         }
         
-        socket.join(room.accessCode, () => {
-          if (socket.user) {
-            socket.room = room;
-            
-            room.addUser(socket.user).then((r) => {
-              socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
-              broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
-
-              broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
-              if (r.doneWithScramble()) {
-                console.log(104, 'everyone done, sending new scramble');
-                sendNewScramble(r);
-              }
-            }).catch(console.error);
-          } else {
-            socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
-          }
-        });
+        joinRoom(room);
       }).catch(console.error);
     });
 
-    socket.on(Protocol.SUBMIT_RESULT, (result) => {
-      // TODO: expand on handling errors
-      if (!isLoggedIn() || !isInRoom()) {
-        return;
-      }
-
-      Room.findById(socket.room.id).then(room => {    
-        if (!room.attempts[result.id]) {
+    // Given ID, fetches room, authenticates, and returns room data.
+    socket.on(Protocol.FETCH_ROOM, (id) => {
+      Room.findById(id).then(room => {
+        if (!room) {
           socket.emit(Protocol.ERROR, {
-            statusCode: 400,
-            event: Protocol.SUBMIT_RESULT,
-            message: 'Invalid ID for attempt submission',
+            statusCode: 404,
+            event: Protocol.FETCH_ROOM,
+            message: `Could not find room with id ${id}`
           });
-          return;
-        }
-
-        room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
-        room.save().then((r) => {
-          broadcastToAllInRoom(Protocol.NEW_RESULT, {
-            id: result.id,
-            userId: socket.user.id,
-            result: result.result,
-          });
-          
-          if (r.doneWithScramble()) {
-            console.log(123, 'everyone done, sending new scramble');
-            sendNewScramble(r);
+        } else {
+          if (room.private) {
+            socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
+          } else {
+            joinRoom(room);
           }
-        });
+        }
       }).catch(console.error);
     });
 
@@ -134,26 +124,8 @@ module.exports = function ({app, expressSession}) {
 
       room.save().then(room => {
         io.emit(Protocol.ROOM_CREATED, room);
+        joinRoom(room);
         socket.emit(Protocol.FORCE_JOIN, room);
-        socket.join(room.accessCode, () => {
-          socket.room = room;
-          socket.emit(Protocol.JOIN, joinRoomMask(room));
-        });
-      }).catch(console.error);
-    });
-
-    // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, (id) => {
-      Room.findById(id).then(room => {
-        if (!room) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 404,
-            event: Protocol.FETCH_ROOM,
-            message: `Could not find room with id ${id}`
-          });
-        } else {
-          socket.emit(Protocol.UPDATE_ROOM, room.private ? roomMask(room) : publicRoomMask(room));
-        }
       }).catch(console.error);
     });
 
@@ -181,6 +153,37 @@ module.exports = function ({app, expressSession}) {
             console.error(168, 'big problemo');
           }
         }).catch(console.error);
+      }).catch(console.error);
+    });
+
+    socket.on(Protocol.SUBMIT_RESULT, (result) => {
+      if (!isLoggedIn() || !isInRoom()) {
+        return;
+      }
+
+      Room.findById(socket.room.id).then(room => {    
+        if (!room.attempts[result.id]) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 400,
+            event: Protocol.SUBMIT_RESULT,
+            message: 'Invalid ID for attempt submission',
+          });
+          return;
+        }
+
+        room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+        room.save().then((r) => {
+          broadcastToAllInRoom(Protocol.NEW_RESULT, {
+            id: result.id,
+            userId: socket.user.id,
+            result: result.result,
+          });
+
+          if (r.doneWithScramble()) {
+            console.log(123, 'everyone done, sending new scramble');
+            sendNewScramble(r);
+          }
+        });
       }).catch(console.error);
     });
 
@@ -236,7 +239,7 @@ module.exports = function ({app, expressSession}) {
       if (!socket.room) {
         socket.emit(Protocol.ERROR, {
           statusCode: 400,
-          message: `Have be in a room`,
+          message: `Must be in a room`,
         });
       }
       return !!socket.room;

@@ -1,6 +1,6 @@
 import {
   USER_CHANGED,
-  USER_FETCHING
+  USER_FETCHING,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -15,24 +15,20 @@ const INITIAL_STATE = {
 };
 
 const reducers = {
-  [USER_CHANGED]: (state, action) =>
-    Object.assign({}, state, {
-      fetching: false,
-      ...action.user
-    }),
-  [USER_FETCHING]: (state, action) =>
-    Object.assign({}, state, {
-      fetching: true
-    })
-}
+  [USER_CHANGED]: (state, action) => ({
+    ...state,
+    fetching: false,
+    ...action.user,
+  }),
+  [USER_FETCHING]: (state) => ({ ...state, fetching: true }),
+};
 
 // User reducer
 function userReducer(state = INITIAL_STATE, action) {
   if (reducers[action.type]) {
-    return reducers[action.type](state, action)
-  } else {
-    return state;
+    return reducers[action.type](state, action);
   }
+  return state;
 }
 
 export default userReducer;

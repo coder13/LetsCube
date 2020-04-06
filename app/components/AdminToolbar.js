@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Toolbar from '@material-ui/core/Toolbar';
 import Menu from '@material-ui/core/Menu';
@@ -11,7 +12,7 @@ import {
   requestNewScramble,
 } from '../store/room/actions';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   adminToolbar: {
     flexDirection: 'row-reverse',
     alignItems: 'stretch',
@@ -20,30 +21,29 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function AdminToolbar ({ dispatch, room }) {
+function AdminToolbar({ dispatch, room }) {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const menuOpen = Boolean(anchorEl);
 
-  const canGenNewScramble = () =>
-    room && room.attempts.length && 
-      Object.keys(room.attempts[room.attempts.length - 1].results).length;
+  const canGenNewScramble = () => room && room.attempts.length
+    && Object.keys(room.attempts[room.attempts.length - 1].results).length;
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
-  }
+  };
 
-  const handleClose = (open) => {
+  const handleClose = () => {
     setAnchorEl(null);
-  }
-    
+  };
+
   const handleNewScramble = () => {
     dispatch(requestNewScramble());
-  }
+  };
 
   const handleDeleteRoom = () => {
     dispatch(deleteRoom(room._id));
-  }
+  };
 
   return (
     <Toolbar className={classes.adminToolbar}>
@@ -51,14 +51,16 @@ function AdminToolbar ({ dispatch, room }) {
         <Button
           disabled={!canGenNewScramble()}
           onClick={handleNewScramble}
-          >New Scramble</Button>
+        >
+          New Scramble
+        </Button>
         <Button
           color="inherit"
           edge="start"
           onClick={handleMenu}
-          style={{paddingLeft: '1em'}}
-          >
-          <MoreVertIcon/>
+          style={{ paddingLeft: '1em' }}
+        >
+          <MoreVertIcon />
         </Button>
       </ButtonGroup>
       <Menu
@@ -75,11 +77,26 @@ function AdminToolbar ({ dispatch, room }) {
         }}
         open={menuOpen}
         onClose={handleClose}
-        >
+      >
         <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
       </Menu>
     </Toolbar>
-  )
+  );
 }
+
+AdminToolbar.propTypes = {
+  dispatch: PropTypes.func.isRequired,
+  room: PropTypes.shape({
+    _id: PropTypes.string,
+    attempts: PropTypes.array,
+  }),
+};
+
+AdminToolbar.defaultProps = {
+  room: {
+    _id: undefined,
+    attempts: [],
+  },
+};
 
 export default AdminToolbar;

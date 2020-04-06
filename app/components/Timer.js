@@ -1,19 +1,23 @@
 import React from 'react';
+import PropTypes from 'prop-types';
+import clsx from 'clsx';
 import { withStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
-import { formatTime } from '../lib/utils';
+import {
+  formatTime, setInterval, clearInterval, now,
+} from '../lib/utils';
 
 /*
   Complicated beast.
 
-  Hold spacebar for X seconds before timer is priming. Holding spacebar makes it priming. 
+  Hold spacebar for X seconds before timer is priming. Holding spacebar makes it priming.
   Based on different settings, needs to either start inspection, or start timer.
   Once spacebar is pressed again (again, need to prime)
 
 
   Status: Resting, priming, inspecting, inspecting-priming, timing, submitting
 
-  submitting: needs to display buttons to ask if it was a penalty. 
+  submitting: needs to display buttons to ask if it was a penalty.
     - Comment?
     - OK
     - +2
@@ -31,63 +35,26 @@ const STATUS = {
   SUBMITTING: 'SUBMITTING',
 };
 
-// Better refresh and cross compatability. 
-const requestAnimationFrame =
-  window.requestAnimationFrame || window.webkitRequestAnimationFrame ||
-  window.mozRequestAnimationFrame || window.oRequestAnimationFrame ||
-  window.msRequestAnimationFrame ||
-  function(fn) { return window.setTimeout(fn, 1000 / 60); };
-
-const cancelAnimationFrame =
-  window.cancelAnimationFrame || window.webkitCancelAnimationFrame ||
-  window.mozCancelRequestAnimationFrame ||
-  window.oCancelRequestAnimationFrame ||
-  window.msCancelRequestAnimationFrame || window.clearTimeout;
-
-const setInterval = function (fn, delay) {
-  // Have to use an object here to store a reference
-  // to the requestAnimationFrame ID.
-  let handle = {};
-
-  let interval = function () {
-    fn.call();
-    handle.value = requestAnimationFrame(interval);
-  };
-
-  handle.value = requestAnimationFrame(interval);
-  return handle;
-};
-
-const clearInterval = function (interval) {
-  if (interval) {
-    cancelAnimationFrame(interval.value);
-  }
-};
-
-const now = function () {
-  return (window.performance && window.performance.now
-    ? window.performance.now.bind(window.performance)
-    : Date.now)();
-};
-
-const styles = theme => ({
-
-});
+const useStyles = withStyles(() => ({
+  disabled: {
+    color: '#7f7f7f',
+  },
+  priming: {
+    color: 'green',
+  },
+}));
 
 class Timer extends React.Component {
-  displayName: 'Timer'
-
-  constructor (props) {
-    super(props)
+  constructor(props) {
+    super(props);
 
     this.state = {
       status: STATUS.RESTING,
       time: 0,
-      focused: true
     };
   }
 
-  componentDidMount () {
+  componentDidMount() {
     window.addEventListener('keydown', this.keyDown.bind(this));
     window.addEventListener('keyup', this.keyUp.bind(this));
   }
@@ -101,15 +68,51 @@ class Timer extends React.Component {
     window.removeEventListener('keyup', this.keyUp);
   }
 
+  setStatus(status) {
+    this.setState({ status });
+
+    switch (status) {
+      case STATUS.INSPECTING:
+        this.setState({
+          started: now(),
+          time: 0,
+        });
+        if (this.timerObj) {
+          clearInterval(this.timerObj);
+        }
+        this.timerObj = setInterval(this.tick.bind(this), 1000);
+        break;
+      case STATUS.TIMING:
+        clearInterval(this.timerObj);
+        this.setState({
+          started: now(),
+          time: 0,
+        });
+        if (this.timerObj) {
+          clearInterval(this.timerObj);
+        }
+        this.timerObj = setInterval(this.tick.bind(this), 10);
+        break;
+      case STATUS.SUBMITTING_DOWN:
+        clearInterval(this.timerObj);
+        break;
+      default:
+        break;
+    }
+  }
+
   keyDown(event) {
-    if (!this.state.focused || this.keyIsDown || this.props.disabled) {
+    const { focused, disabled } = this.props;
+    const { status } = this.state;
+
+    if (!focused || this.keyIsDown || disabled) {
       return;
     }
 
     if (event.keyCode === 32) {
       event.preventDefault();
 
-      switch (this.state.status) {
+      switch (status) {
         case STATUS.TIMING:
           this.setStatus(STATUS.SUBMITTING_DOWN);
           break;
@@ -126,28 +129,31 @@ class Timer extends React.Component {
   }
 
   keyUp(event) {
+    const { focused, onSubmitTime, useInspection } = this.props;
+    const { status, time } = this.state;
+
     this.keyIsDown = false;
-    if (!this.state.focused) {
+    if (!focused) {
       return;
     }
 
     if (event.keyCode === 32) {
       event.preventDefault();
 
-      switch (this.state.status) {
+      switch (status) {
         case STATUS.SUBMITTING_DOWN:
           this.setStatus(STATUS.SUBMITTING);
           break;
         case STATUS.SUBMITTING:
-          if (this.props.onSubmitTime) {
-            this.props.onSubmitTime({
-              time: this.state.time,
+          if (onSubmitTime) {
+            onSubmitTime({
+              time,
             });
           }
           this.setStatus(STATUS.RESTING);
           break;
         case STATUS.PRIMING:
-          this.setStatus(this.props.inspection ? STATUS.INSPECTING : STATUS.TIMING);
+          this.setStatus(useInspection ? STATUS.INSPECTING : STATUS.TIMING);
           break;
         case STATUS.INSPECTING_PRIMING:
           this.setStatus(STATUS.TIMING);
@@ -160,77 +166,55 @@ class Timer extends React.Component {
     this.forceUpdate();
   }
 
-  setStatus(status) {
-    this.setState({status});
-
-    switch (status) {
-      case STATUS.INSPECTING:
-        this.setState({
-          started: now(),
-          time: 0
-        });
-        if (this.timerObj) {
-          clearInterval(this.timerObj);
-        }
-        this.timerObj = setInterval(this.tick.bind(this), 1000);
-        break;
-      case STATUS.TIMING:
-        clearInterval(this.timerObj);
-        this.setState({
-          started: now(),
-          time: 0
-        });
-        if (this.timerObj) {
-          clearInterval(this.timerObj);
-        }
-        this.timerObj = setInterval(this.tick.bind(this), 10);
-        break;
-      case STATUS.SUBMITTING_DOWN:
-        clearInterval(this.timerObj);
-        break;
-      default:
-        break;
-    }
-  }
-
   tick() {
-    if (this.state.status === STATUS.INSPECTING) {
-      if (this.state.time < 0) {
-        this.setState({
-          inspectionHasBeenBroken: true
-        });
+    const { status, time, started } = this.state;
+
+    if (status === STATUS.INSPECTING) {
+      if (time < 0) {
+        // TODO: implement inspection
+        // this.setState({
+        //   inspectionHasBeenBroken: true,
+        // });
       }
-  
+
       this.setState({
-        time: 15 * 1000 - (now() - this.state.started)
+        time: 15 * 1000 - (now() - started),
       });
     } else {
       this.setState({
-        time: now() - this.state.started
+        time: now() - started,
       });
     }
   }
 
   timerText() {
+    const { hideTime } = this.props;
+    const { time, status } = this.state;
+
     // let milli = !(this.state.status === STATUS.INSPECTING);
-    let text = formatTime(this.state.time, {
+    let text = formatTime(time, {
       milli: 2,
-      inspecting: this.state.status === STATUS.INSPECTING
+      inspecting: status === STATUS.INSPECTING,
     });
 
-    if (this.props.hideTime && this.state.status === STATUS.TIMING) {
+    if (hideTime && status === STATUS.TIMING) {
       text = 'Solving...';
     }
 
     return text;
   }
 
-  render () {
-    const { disabled } = this.props;
+  render() {
+    const { classes, disabled } = this.props;
     const { status } = this.state;
-    const statusText =
-      disabled ? 'disabled' :
-        (status === 'SUBMITTING' ? 'Press Space to Submit' : status);
+
+    let statusText;
+
+    if (disabled) {
+      statusText = 'disabled';
+    } else {
+      statusText = status === 'SUBMITTING' ? 'Press Space to Submit' : status;
+    }
 
     return (
       <div style={{
@@ -240,19 +224,43 @@ class Timer extends React.Component {
         textAlign: 'center',
         flexDirection: 'column',
         padding: 'auto',
-      }}>
-        <Typography variant='h1' style={{
-          color: disabled ? '#7f7f7f' :
-            (status === STATUS.PRIMING || status === STATUS.SUBMITTING_DOWN) ? 'green' : 'black',
-        }}>{this.timerText()}</Typography>
+      }}
+      >
         <Typography
-          variant='subtitle1'
-          style={{
-            color: disabled ? '#7f7f7f' : 'black',
-          }}
-        >{statusText}</Typography>
+          variant="h1"
+          className={clsx({
+            [classes.disabled]: disabled,
+            [classes.priming]: status === STATUS.PRIMING,
+          })}
+        >
+          {this.timerText()}
+        </Typography>
+        <Typography
+          variant="subtitle1"
+          className={clsx({
+            [classes.disabled]: disabled,
+          })}
+        >
+          {statusText}
+        </Typography>
       </div>
     );
   }
 }
-export default withStyles(styles)(Timer);
+
+Timer.propTypes = {
+  disabled: PropTypes.bool,
+  focused: PropTypes.bool,
+  onSubmitTime: PropTypes.func.isRequired,
+  useInspection: PropTypes.bool.isRequired,
+  hideTime: PropTypes.bool,
+  classes: PropTypes.shape().isRequired,
+};
+
+Timer.defaultProps = {
+  disabled: false,
+  focused: true,
+  hideTime: false,
+};
+
+export default useStyles(Timer);

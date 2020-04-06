@@ -1,9 +1,11 @@
-import { createStore, compose, combineReducers, applyMiddleware } from 'redux';
+import {
+  createStore, compose, combineReducers, applyMiddleware,
+} from 'redux';
 import thunkMiddleware from 'redux-thunk';
 import { createLogger } from 'redux-logger';
 import ReactGA from 'react-ga';
 import { connectRouter, routerMiddleware } from 'connected-react-router';
-import { createBrowserHistory } from 'history'
+import { createBrowserHistory } from 'history';
 
 import roomsReducer from './rooms/reducer';
 import roomReducer from './room/reducer';
@@ -21,16 +23,16 @@ ReactGA.initialize('UA-143761187-3', {
   debug: false,
 });
 
-const gaTrackingMiddleware = store => next => action => {
+const trackPage = (page) => {
+  ReactGA.pageview(page);
+};
+
+const gaTrackingMiddleware = () => (next) => (action) => {
   if (action.type === '@@router/LOCATION_CHANGE') {
     const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
     trackPage(nextPage);
   }
-   return next(action);
-};
-
-const trackPage = page => {
-  ReactGA.pageview(page);
+  return next(action);
 };
 
 // Root reducer
@@ -40,7 +42,7 @@ const rootReducer = combineReducers({
   room: roomReducer,
   socket: socketReducer,
   user: userReducer,
-  messages: messageReducer
+  messages: messageReducer,
 });
 
 const middleware = applyMiddleware(
@@ -49,7 +51,7 @@ const middleware = applyMiddleware(
   thunkMiddleware,
   socketMiddleware,
   createLogger(),
-)
+);
 
 // Store
 export const store = createStore(rootReducer, composeEnhancer(middleware));

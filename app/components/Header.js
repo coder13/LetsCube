@@ -1,6 +1,7 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom';
 import { makeStyles } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 import AppBar from '@material-ui/core/AppBar';
@@ -11,18 +12,18 @@ import Avatar from '@material-ui/core/Avatar';
 import Drawer from '@material-ui/core/Drawer';
 import Divider from '@material-ui/core/Divider';
 import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import AppsIcon from '@material-ui/icons/Apps';
+import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/wca';
 
 const drawerWidth = 240;
 
-const useStyles = makeStyles(theme => ({
+const useStyles = makeStyles((theme) => ({
   title: {
     flexGrow: 1,
   },
@@ -70,19 +71,14 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-function ListItemLink(props) {
-  return <ListItem button component={Link} {...props} />;
-}
-
-function Header (props) {
-  const { user, room } = props;
+function Header({ children, user, room }) {
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const open = Boolean(anchorEl);
 
-  const handleMenu = event => {
+  const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -100,55 +96,57 @@ function Header (props) {
   };
 
   return (
-    <div style={{display: 'flex'}}>
+    <div style={{ display: 'flex' }}>
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" className={classes.title}>
-            <Link to="/" className={classes.titleLink}>Let's Cube</Link>
+            <Link to="/" className={classes.titleLink}>Let&apos;s Cube</Link>
           </Typography>
           {/* <IconButton color="inherit" edge="start" onClick={() => setDrawerOpen(true)}>
             <MenuIcon/>
           </IconButton> */}
           <Grid className={classes.roomTitleGrid}>
-            { room._id ?
-              <React.Fragment>
+            { room._id
+              ? (
+                <>
 
-              <Typography variant="h6">
-                <Link to={'/rooms/' + room._id} className={classes.titleLink}>{room.name}</Link>
-              </Typography>
-              <Typography variant="caption">
-                {getNameFromId(room.event)}
-              </Typography>
-              </React.Fragment> : ''
-            }
+                  <Typography variant="h6">
+                    <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
+                  </Typography>
+                  <Typography variant="caption">
+                    {getNameFromId(room.event)}
+                  </Typography>
+                </>
+              ) : ''}
           </Grid>
 
-          { loggedIn ?
-            <React.Fragment>
-              <IconButton onClick={handleMenu} color="inherit" >
-                <Avatar src={user.avatar.thumb_url} />
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                open={open}
-                onClose={handleClose}
-              >
-                <MenuItem component={Link} to="/preferences" variant="contained" color="primary">Preferences</MenuItem>
-                <MenuItem onClick={logout}>Log out</MenuItem>
-              </Menu> 
-            </React.Fragment> :
-            <Button color="inherit" onClick={login}>Login</Button>
-          }
+          { loggedIn
+            ? (
+              <>
+                <IconButton onClick={handleMenu} color="inherit">
+                  <Avatar src={user.avatar.thumb_url} />
+                </IconButton>
+                <Menu
+                  id="menu-appbar"
+                  anchorEl={anchorEl}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  open={open}
+                  onClose={handleClose}
+                >
+                  <MenuItem component={Link} to="/preferences" variant="contained" color="primary">Preferences</MenuItem>
+                  <MenuItem onClick={logout}>Log out</MenuItem>
+                </Menu>
+              </>
+            )
+            : <Button color="inherit" onClick={login}>Login</Button>}
         </Toolbar>
       </AppBar>
       <Drawer
@@ -157,12 +155,12 @@ function Header (props) {
         onClose={() => setDrawerOpen(false)}
         className={classes.drawer}
         classes={{
-          paper: classes.drawerPaper
+          paper: classes.drawerPaper,
         }}
       >
-        <div className={classes.toolbarFix}/>
+        <div className={classes.toolbarFix} />
         <List>
-          <Divider/>
+          <Divider />
           <ListItemLink to="/" key="home">
             <ListItemIcon><AppsIcon /></ListItemIcon>
             <ListItemText>Home</ListItemText>
@@ -170,15 +168,44 @@ function Header (props) {
         </List>
       </Drawer>
       <main className={classes.content}>
-        <div className={classes.toolbarFix}/>
-          {props.children}
+        <div className={classes.toolbarFix} />
+        {children}
       </main>
     </div>
   );
 }
 
+Header.propTypes = {
+  user: PropTypes.shape({
+    id: PropTypes.number,
+    avatar: PropTypes.shape({
+      thumb_url: PropTypes.string,
+    }),
+  }),
+  room: PropTypes.shape({
+    _id: PropTypes.string,
+    name: PropTypes.string,
+    event: PropTypes.string,
+  }),
+  children: PropTypes.element.isRequired,
+};
+
+Header.defaultProps = {
+  user: {
+    id: undefined,
+    avatar: {
+      thumb_url: undefined,
+    },
+  },
+  room: {
+    _id: undefined,
+    name: undefined,
+    event: undefined,
+  },
+};
+
 const mapStateToProps = (state) => ({
-  roomName: state.room.name
+  roomName: state.room.name,
 });
 
 export default connect(mapStateToProps)(Header);

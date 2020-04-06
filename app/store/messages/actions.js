@@ -1,12 +1,12 @@
-export const NEW_MESSAGE     = 'messages/new';
-export const CLOSE_MESSAGE     = 'messages/close';
+export const NEW_MESSAGE = 'messages/new';
+export const CLOSE_MESSAGE = 'messages/close';
 
-export const createMessage = message => ({
+export const createMessage = (message) => ({
   type: NEW_MESSAGE,
-  message
+  message,
 });
 
-export const closeMessage = index => ({
+export const closeMessage = (index) => ({
   type: CLOSE_MESSAGE,
-  index
+  index,
 });

@@ -25,6 +25,6 @@ export default createMuiTheme({
       fontSize: '1rem',
       lineHeight: 1.5,
       letterSpacving: '0.00938em',
-    }
+    },
   },
 });

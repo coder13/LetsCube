@@ -54,4 +54,4 @@ export const Events = [{
   name: '3x3x3 Multi-Blind',
 }];
 
-export const getNameFromId = (eventId) => Events.find(e => e.id === eventId).name;
+export const getNameFromId = (eventId) => Events.find((e) => e.id === eventId).name;

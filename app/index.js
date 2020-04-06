@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
-import { Provider } from 'react-redux'
+import { Provider } from 'react-redux';
 import { ConnectedRouter } from 'connected-react-router';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { ThemeProvider } from '@material-ui/core/styles';
@@ -21,7 +21,7 @@ const render = () => {
   ReactDOM.render(
     <AppContainer>
       <Provider store={store}>
-        <ConnectedRouter history={history}>
+        <ConnectedRouter history={history} noInitialPop>
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <App />
