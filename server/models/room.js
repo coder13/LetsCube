@@ -78,6 +78,10 @@ Room.methods.addUser = function(user) {
     Room_Users[this._id] = [];
   }
 
+  if (Room_Users[this._id].find(i => i.id === user.id)) {
+    return false;
+  }
+
   Room_Users[this._id].push(user);
   if (this.users.length === 1) {
     this.admin = this.users[0];

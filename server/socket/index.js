@@ -49,7 +49,12 @@ module.exports = function ({app, expressSession}) {
         if (socket.user) {
           socket.room = room;
 
-          room.addUser(socket.user).then((r) => {
+          const p = room.addUser(socket.user);
+          if (!p) {
+            return;
+          }
+
+          p.then((r) => {
             socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
             broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
 

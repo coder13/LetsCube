@@ -41,19 +41,7 @@ const RoomList = ({
 };
 
 RoomList.propTypes = {
-  rooms: PropTypes.arrayOf(
-    PropTypes.shape({
-      _id: PropTypes.string,
-      private: PropTypes.bool,
-      users: PropTypes.arrayOf({
-        id: PropTypes.number,
-      }),
-      attempts: PropTypes.number,
-      admin: PropTypes.shape({
-        id: PropTypes.number,
-      }),
-    }),
-  ),
+  rooms: PropTypes.arrayOf(PropTypes.shape()),
   user: PropTypes.shape({
     id: PropTypes.number,
   }),

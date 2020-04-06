@@ -44,16 +44,8 @@ RoomListItem.propTypes = {
     _id: PropTypes.string,
     name: PropTypes.string,
     event: PropTypes.string,
-    usersLength: PropTypes.number,
     private: PropTypes.bool,
-    accessCode: PropTypes.string,
-    users: PropTypes.arrayOf({
-      id: PropTypes.number,
-    }),
-    attempts: PropTypes.number,
-    admin: PropTypes.shape({
-      id: PropTypes.number,
-    }),
+    usersLength: PropTypes.number,
   }),
 };
 
