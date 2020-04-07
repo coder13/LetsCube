@@ -155,6 +155,7 @@ class Room extends React.Component {
       id: latestAttempt.id,
       result: {
         time: event.time,
+        penalties: event.penalties,
       },
     }));
   }
@@ -248,8 +249,6 @@ Log in
       dispatch, classes, inRoom, room, user,
     } = this.props;
 
-    console.log(251, room);
-
     if (room.private && !inRoom) {
       return this.renderLogin();
     }
@@ -274,7 +273,10 @@ Log in
     }
 
     const sum = (a, b) => a + b;
-    const mapToTime = (userId) => (i) => (i.results[userId] ? i.results[userId].time : -1);
+    const mapToTime = (userId) => (i) => (i.results[userId]
+      && !(i.results[userId].penalties && i.results[userId].penalties.DNF)
+      ? i.results[userId].time : -1);
+
     const ao5 = (userId) => {
       if (!attempts || !attempts.length) {
         return undefined;
@@ -285,13 +287,13 @@ Log in
 
       if (last5.length < 5) {
         return 0;
-      } if (last5.indexOf(-1) > 0) {
-        last5.splice(last5.indexOf(-1));
-        if (last5.indexOf(-1) > 0) {
+      } if (last5.indexOf(-1) > -1) {
+        last5.splice(last5.indexOf(-1), 1);
+        if (last5.indexOf(-1) > -1) {
           return -1; // DNF avg
         }
 
-        return (last5.reduce(sum) - Math.min(last5)) / 3;
+        return (last5.reduce(sum) - Math.min(...last5)) / 3;
       }
 
       return (last5.reduce(sum) - Math.min(...last5) - Math.max(...last5)) / 3;
@@ -326,7 +328,7 @@ Log in
                   disabled={timerDisabled}
                   onStatusChange={this.onStatusChange}
                   onSubmitTime={(e) => this.onSubmitTime(e)}
-                  useInspection={false}
+                  useInspection
                 />
                 <Divider />
               </div>
@@ -363,6 +365,8 @@ Log in
                     {[...attempts].reverse().map((attempt, index) => {
                       const results = users
                         .map((u) => (attempt.results[u.id]
+                          && (attempt.results[u.id].penaltile
+                            && !attempt.results[u.id].penaltiles.DNF)
                           ? attempt.results[u.id].time : undefined))
                         .filter((r) => !!r && r > -1);
                       const best = Math.min(...results);
@@ -378,7 +382,10 @@ Log in
                                     color: attempt.results[u.id].time === best ? 'red' : 'black',
                                   }}
                                   >
-                                    {formatTime(attempt.results[u.id].time)}
+                                    {formatTime(
+                                      attempt.results[u.id].time,
+                                      attempt.results[u.id].penalties,
+                                    )}
                                   </span>
                                 ) : ''}
                             </TableCell>

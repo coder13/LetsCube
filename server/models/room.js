@@ -12,7 +12,8 @@ const Result = new mongoose.Schema({
  time: {
    type: Number,
    required: true,
- }
+ },
+ penalties: Object,
 });
 
 const Attempt = new mongoose.Schema({

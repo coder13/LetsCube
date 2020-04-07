@@ -5,20 +5,35 @@ const fixed = (n, d) => Number(n).toFixed(d === undefined ? 2 : d);
   time: number in terms of milliseconds
   Options:
     - milli:      number of decimals,
-    - inspecting: boolean
 */
-export const formatTime = (time) => {
+export const formatTime = (time, options) => {
+  const _options = { ...options };
+  const { inspection, AUF, DNF } = _options;
+
   if (time === undefined || time === null || time < 0) {
     return 'DNF';
   }
 
   let s = time / 1000;
+
+  if (_options.inspection) {
+    s += 2;
+  }
+
+  if (_options.auf) {
+    s += 2;
+  }
+
   const hours = Math.floor(s / 3600);
   s %= 3600;
   const minutes = Math.floor(s / 60);
-  const seconds = fixed(s % 60, (minutes + hours * 60) > 10 ? 0 : 2);
+  const seconds = _options.milli !== undefined
+    ? fixed(s % 60, _options.milli)
+    : fixed(s % 60, s > 600 ? 0 : 2);
 
-  return `${hours ? `${hours}:` : ''}${minutes ? `${hours ? pad(minutes, '0') : minutes}:` : ''}${minutes ? pad(seconds, '0') : seconds}`;
+  const formattedTime = `${hours ? `${hours}:` : ''}${minutes ? `${hours ? pad(minutes) : minutes}:` : ''}${minutes ? pad(seconds) : seconds}`;
+  const formattedTimeWithPenalties = `${inspection ? '+' : ''}${formattedTime}${AUF ? '+' : ''}`;
+  return DNF ? `DNF(${formattedTimeWithPenalties})` : formattedTimeWithPenalties;
 };
 
 // Better refresh and cross compatability.
