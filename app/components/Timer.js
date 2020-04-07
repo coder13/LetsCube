@@ -52,11 +52,14 @@ class Timer extends React.Component {
       status: STATUS.RESTING,
       time: 0,
     };
+
+    this._keyDown = this.keyDown.bind(this);
+    this._keyUp = this.keyUp.bind(this);
   }
 
   componentDidMount() {
-    window.addEventListener('keydown', this.keyDown.bind(this));
-    window.addEventListener('keyup', this.keyUp.bind(this));
+    window.addEventListener('keydown', this._keyDown, false);
+    window.addEventListener('keyup', this._keyUp, false);
   }
 
   componentWillUnmount() {
@@ -64,8 +67,8 @@ class Timer extends React.Component {
       clearInterval(this.timerObj);
     }
 
-    window.removeEventListener('keydown', this.keyDown);
-    window.removeEventListener('keyup', this.keyUp);
+    window.removeEventListener('keydown', this._keyDown, false);
+    window.removeEventListener('keyup', this._keyUp, false);
   }
 
   setStatus(status) {
