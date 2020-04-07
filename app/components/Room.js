@@ -328,7 +328,7 @@ Log in
                   disabled={timerDisabled}
                   onStatusChange={this.onStatusChange}
                   onSubmitTime={(e) => this.onSubmitTime(e)}
-                  useInspection
+                  useInspection="false"
                 />
                 <Divider />
               </div>

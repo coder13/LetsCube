@@ -244,7 +244,7 @@ class Timer extends React.Component {
       }
 
       this.setState({
-        time: 5 * 1000 - (now() - started),
+        time: 15 * 1000 - (now() - started),
       });
     } else if (status === STATUS.TIMING) {
       this.setState({
