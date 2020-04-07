@@ -28,7 +28,7 @@ const trackPage = (page) => {
 };
 
 const gaTrackingMiddleware = () => (next) => (action) => {
-  if (action.type === '@@router/LOCATION_CHANGE') {
+  if (action.type === '@@router/LOCATION_CHANGE' && process.env.NODE_ENV !== 'development') {
     const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
     trackPage(nextPage);
   }
