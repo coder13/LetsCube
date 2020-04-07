@@ -248,6 +248,8 @@ Log in
       dispatch, classes, inRoom, room, user,
     } = this.props;
 
+    console.log(251, room);
+
     if (room.private && !inRoom) {
       return this.renderLogin();
     }
@@ -416,7 +418,7 @@ Room.propTypes = {
   inRoom: PropTypes.bool,
   loginFailed: PropTypes.bool,
   dispatch: PropTypes.func.isRequired,
-  match: PropTypes.shape.isRequired,
+  match: PropTypes.shape().isRequired,
   classes: PropTypes.shape().isRequired,
 };
 

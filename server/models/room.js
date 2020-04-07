@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
-const Scrambo = require('scrambo');
+const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const User = require('./user');
 const uuidv4 = require('uuid/v4');
+
+// const lengths = {
+  
+// };
 
 const Result = new mongoose.Schema({
  time: {
@@ -52,7 +56,7 @@ const Room = new mongoose.Schema({
 });
 
 Room.virtual('scrambler').get(function () {
-  return new Scrambo(this.event);
+  return new Scrambow().setType(this.event);
 });
 
 let Room_Users  = {};
@@ -130,9 +134,10 @@ Room.methods.doneWithScramble = function () {
 }
 
 Room.methods.genAttempt = function () {
+  console.log(this.attempts.length, this.event);
   return {
     id: this.attempts.length,
-    scrambles: this.scrambler.get(1),
+    scrambles: this.scrambler.get(1).map(i => i.scramble_string),
     results: {},
   };
 }
@@ -144,6 +149,13 @@ Room.methods.newAttempt = function (cb) {
   this.save().then(() => {
     cb(attempt);
   }).catch(console.error);
+}
+
+Room.methods.changeEvent = function (event) {
+  this.event = event;
+  this.attempts = [];
+  this.attempts.push(this.genAttempt());
+  return this.save();
 }
 
 module.exports.Attempt = Attempt;

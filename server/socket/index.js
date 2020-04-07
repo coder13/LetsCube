@@ -203,6 +203,19 @@ module.exports = function ({app, expressSession}) {
       }).catch(console.error);
     });
 
+    socket.on(Protocol.CHANGE_EVENT, (event) => {
+      Room.findById(socket.room.id).then(room => {
+        socket.room = room;
+        if (!checkAdmin()) {
+          return;
+        }
+
+        room.changeEvent(event).then((r) => {
+          broadcastToAllInRoom(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        });
+      }).catch(console.error);
+    });
+
     socket.on(Protocol.DISCONNECT, () => {
       if (isLoggedIn() && isInRoom()) {
         leaveRoom();

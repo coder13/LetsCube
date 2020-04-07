@@ -25,4 +25,5 @@ module.exports = {
   NEW_RESULT: 'new_result',
   NEW_ATTEMPT: 'new_attempt',
   REQUEST_SCRAMBLE: 'request_scramble',
+  CHANGE_EVENT: 'change_event',
 };

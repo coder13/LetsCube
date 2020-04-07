@@ -17,6 +17,7 @@ import {
   LEAVE_ROOM,
   SUBMIT_RESULT,
   REQUEST_SCRAMBLE,
+  CHANGE_EVENT,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -151,6 +152,9 @@ const socketMiddleware = (store) => {
     },
     [REQUEST_SCRAMBLE]: (event) => {
       socket.emit(Protocol.REQUEST_SCRAMBLE, event.result);
+    },
+    [CHANGE_EVENT]: ({ event }) => {
+      socket.emit(Protocol.CHANGE_EVENT, event);
     },
   };
 

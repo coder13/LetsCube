@@ -106,18 +106,16 @@ function Header({ children, user, room }) {
             <MenuIcon/>
           </IconButton> */}
           <Grid className={classes.roomTitleGrid}>
-            { room._id
-              ? (
-                <>
-
-                  <Typography variant="h6">
-                    <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
-                  </Typography>
-                  <Typography variant="caption">
-                    {getNameFromId(room.event)}
-                  </Typography>
-                </>
-              ) : ''}
+            { room._id && (
+              <>
+                <Typography variant="h6">
+                  <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
+                </Typography>
+                <Typography variant="caption">
+                  {getNameFromId(room.event)}
+                </Typography>
+              </>
+            )}
           </Grid>
 
           { loggedIn
