@@ -83,6 +83,8 @@ Room.methods.addUser = function(user) {
     Room_Users[this._id] = [];
   }
 
+  // If user is already in the room, return false.
+  console.log(Room_Users[this._id].map(i => i.id), user.id);
   if (Room_Users[this._id].find(i => i.id === user.id)) {
     return false;
   }

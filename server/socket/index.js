@@ -10,6 +10,10 @@ const roomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', '
 const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'accessCode', 'usersLength', 'private']);
 const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
+// Keep track of users using multiple sockets.
+// Map of user.id -> [socket.id]
+const SocketUsers = {};
+
 function attachUser (socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
 
@@ -19,6 +23,11 @@ function attachUser (socket, next) {
 
   User.findOne({id: userId}).then(user => {
     socket.user = user;
+    if (socket.user && !SocketUsers[socket.user.id]) {
+      SocketUsers[socket.user.id] = [];
+    }
+    SocketUsers[socket.user.id].push(socket.id);
+
     next();
   }).catch(err => {
     console.error(err);
@@ -50,7 +59,9 @@ module.exports = function ({app, expressSession}) {
           socket.room = room;
 
           const p = room.addUser(socket.user);
+          console.log(54, !!p);
           if (!p) {
+            socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
             return;
           }
 
@@ -104,12 +115,10 @@ module.exports = function ({app, expressSession}) {
             event: Protocol.FETCH_ROOM,
             message: `Could not find room with id ${id}`
           });
+        } else if (room.private) {
+          socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
         } else {
-          if (room.private) {
-            socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
-          } else {
-            joinRoom(room);
-          }
+          joinRoom(room);
         }
       }).catch(console.error);
     });
@@ -149,7 +158,7 @@ module.exports = function ({app, expressSession}) {
           });
           return;
         }
-        
+
         Room.deleteOne({_id: id}).then((foo) => {
           if (foo.deletedCount > 0) {
             socket.room = undefined;
@@ -221,6 +230,13 @@ module.exports = function ({app, expressSession}) {
         leaveRoom();
       }
 
+      if (socket.user && SocketUsers[socket.user.id]) {
+        SocketUsers[socket.user.id].splice(SocketUsers[socket.user.id].indexOf(socket.id));
+        if (!SocketUsers[socket.user.id].length) {
+          delete SocketUsers[socket.user.id]; // Garbage collection
+        }
+      }
+
       console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`)
     });
 
@@ -264,19 +280,20 @@ module.exports = function ({app, expressSession}) {
     }
 
     function leaveRoom () {
-      broadcast(Protocol.USER_LEFT, socket.user.id);
-      
-      socket.room.dropUser(socket.user).then((room) => {
-        socket.leave(room.accessCode);
-        broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
-      
-        if (room.doneWithScramble()) {
-          console.log(196, 'everyone done, sending new scramble');
-          sendNewScramble(room);
-        }
+      if (socket.user && SocketUsers[socket.user.id].length === 1) {
+        broadcast(Protocol.USER_LEFT, socket.user.id);
+        socket.room.dropUser(socket.user).then((room) => {
+          socket.leave(room.accessCode);
+          broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
+        
+          if (room.doneWithScramble()) {
+            console.log(196, 'everyone done, sending new scramble');
+            sendNewScramble(room);
+          }
 
-        socket.room = undefined;
-      }).catch(console.error);
+          socket.room = undefined;
+        }).catch(console.error);
+      }
     }
 
     function sendNewScramble (room) {
