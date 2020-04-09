@@ -1,6 +1,7 @@
 import {
   USER_CHANGED,
   USER_FETCHING,
+  UPDATE_PROFILE,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -21,6 +22,7 @@ const reducers = {
     ...action.user,
   }),
   [USER_FETCHING]: (state) => ({ ...state, fetching: true }),
+  [UPDATE_PROFILE]: (state, action) => ({ ...state, ...action.profile }),
 };
 
 // User reducer

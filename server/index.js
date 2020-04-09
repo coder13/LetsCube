@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -19,6 +20,11 @@ const init = async () => {
   
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+
+  app.use(bodyParser.urlencoded({
+    extended: true
+  }));
+  app.use(bodyParser.json());
 
   console.log('Attempting to connect to mongodb at:', config.mongodb);
   await mongoose.connect(config.mongodb, {
@@ -84,7 +90,7 @@ const init = async () => {
   });
 
   app.use('/auth', require('./auth')(app, passport));
-  app.use('/api', require('./routes')(app));
+  app.use('/api', require('./api')(app));
 
   app.use('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../build/index.html'));

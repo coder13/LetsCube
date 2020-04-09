@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const express = require('express');
 const WCAStrategy = require('passport-wca').Strategy;
 const { User } = require('../models');
@@ -62,11 +61,6 @@ module.exports = (app, passport) => {
   router.get('/logout', (req, res) => {
     req.logout();
     res.redirect(req.query.redirect);
-  });
-
-  const userMask = _.partial(_.pick,  _, ['id', 'name', 'email', 'wcaId', 'avatar']);
-  app.get('/api/me', auth, (req, res) => {
-    res.json(userMask(req.user));
   });
 
   return router;

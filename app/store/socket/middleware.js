@@ -122,7 +122,8 @@ const socketMiddleware = (store) => {
   const reducers = {
     // no real point in this being here oper other places
     '@@router/LOCATION_CHANGE': ({ payload }) => {
-      if (payload.location.pathname === '/') {
+      // TODO: improve
+      if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
         store.dispatch(leaveRoom());
       }
     },

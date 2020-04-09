@@ -2,7 +2,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import { connect } from 'react-redux';
-import Container from '@material-ui/core/Container';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Snackbar from '@material-ui/core/Snackbar';
@@ -11,6 +10,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import Header from './Header';
 import RoomList from './RoomList';
 import Room from './Room';
+import Profile from './Profile';
 import { closeMessage } from '../store/messages/actions';
 
 const useStyles = makeStyles((theme) => ({
@@ -35,14 +35,6 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'flex-end',
   },
 }));
-
-function Preferences() {
-  return (
-    <Container>
-      <h1>Prefs!</h1>
-    </Container>
-  );
-}
 
 function App({
   connected, user, room, messages,
@@ -72,8 +64,8 @@ function App({
         <Switch>
           <Route exact path="/" component={RoomList} />
           <Route path="/rooms/:roomId" component={Room} />
-          {user
-            && (<Route exact path="/preferences" component={Preferences} />)}
+          { (user.id || user.fetching)
+            && (<Route exact path="/profile" component={Profile} user={user} />)}
           <Redirect to="/" />
         </Switch>
       </Header>

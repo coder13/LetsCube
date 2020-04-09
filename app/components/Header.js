@@ -139,7 +139,7 @@ function Header({ children, user, room }) {
                   open={open}
                   onClose={handleClose}
                 >
-                  <MenuItem component={Link} to="/preferences" variant="contained" color="primary">Preferences</MenuItem>
+                  <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
                   <MenuItem onClick={logout}>Log out</MenuItem>
                 </Menu>
               </>
