@@ -19,6 +19,7 @@ const useStyles = makeStyles((theme) => ({
     padding: '1em',
     justifyContent: 'space-between',
     borderRadius: theme.borderRadius,
+    marginBottom: '1em',
   },
   divider: {
     height: 28,

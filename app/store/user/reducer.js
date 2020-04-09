@@ -9,7 +9,9 @@ const INITIAL_STATE = {
   id: undefined,
   name: undefined,
   wcaId: undefined,
-  email: undefined,
+  showWCAID: undefined,
+  preferUsername: undefined,
+  displayName: undefined,
   avatar: {
     thumb_url: undefined,
   },

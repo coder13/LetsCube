@@ -328,7 +328,7 @@ Log in
                   disabled={timerDisabled}
                   onStatusChange={this.onStatusChange}
                   onSubmitTime={(e) => this.onSubmitTime(e)}
-                  useInspection="false"
+                  useInspection={user.useInspection}
                 />
                 <Divider />
               </div>
@@ -421,6 +421,7 @@ Room.propTypes = {
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
+    useInspection: PropTypes.bool,
   }),
   inRoom: PropTypes.bool,
   loginFailed: PropTypes.bool,
@@ -442,6 +443,7 @@ Room.defaultProps = {
   },
   user: {
     id: undefined,
+    useInspection: false,
   },
   inRoom: false,
   loginFailed: false,

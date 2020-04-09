@@ -49,8 +49,6 @@ function AdminToolbar({ dispatch, room }) {
   };
 
   const handleChangeEvent = (event) => {
-    console.log(event.target.value);
-
     dispatch(changeEvent(event.target.value));
   };
 

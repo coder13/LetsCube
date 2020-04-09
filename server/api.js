@@ -4,8 +4,6 @@ const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 
-const userMask = _.partial(_.pick,  _, ['id', 'name', 'username', 'email', 'wcaId', 'avatar']);
-
 module.exports = (app) => {
   const sendError = (res, err) => {
     res.status(err.statusCode || 500).send({
@@ -15,7 +13,7 @@ module.exports = (app) => {
   };
 
   router.get('/me', auth, (req, res) => {
-    res.json(userMask(req.user));
+    res.json(req.user.toObject());
   });
 
   router.put('/updateUsername', auth, (req, res) => {
@@ -52,6 +50,16 @@ module.exports = (app) => {
         message: err
       });
     });
+  });
+
+  router.put('/updatePrivacy', auth, async (req, res) => {
+    Object.keys(req.body).forEach((key) => {
+      req.user[key] = req.body[key];
+    });
+
+    const user = await req.user.save();
+    
+    res.json(req.user.toObject());
   });
 
   return router;

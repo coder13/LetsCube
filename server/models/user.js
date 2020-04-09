@@ -26,6 +26,10 @@ const schema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  useInspection: {
+    type: Boolean,
+    default: false,
+  },
   accessToken: {
     type: String,
     required: true
@@ -43,14 +47,19 @@ const schema = new mongoose.Schema({
       delete ret.accessToken;
       if (!doc.showWCAID) {
         delete ret.wcaId;
+        delete ret.name;
       }
+      delete ret.showWCAID,
       delete ret.__v;
     },
   },
+  toObject: {
+    getters: true,
+  }
 });
 
 schema.virtual('displayName').get(function (v) {
-  return this.preferUsername ? this.username : this.name; 
+  return this.preferUsername && this.username ? this.username : this.name; 
 });
 
 module.exports = schema;
