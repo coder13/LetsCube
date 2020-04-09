@@ -8,11 +8,6 @@ import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import Select from '@material-ui/core/Select';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogTitle from '@material-ui/core/DialogTitle';
 import {
   deleteRoom,
   requestNewScramble,
@@ -36,7 +31,6 @@ const useStyles = makeStyles(() => ({
 function AdminToolbar({ dispatch, room }) {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
-  const [changeEventOpen, setChangeEventOpen] = React.useState(false);
   const menuOpen = Boolean(anchorEl);
 
   const canGenNewScramble = () => room && room.attempts.length
@@ -107,25 +101,8 @@ function AdminToolbar({ dispatch, room }) {
         open={menuOpen}
         onClose={handleClose}
       >
-        <MenuItem onClick={() => setChangeEventOpen(true)}>Change Event</MenuItem>
         <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
       </Menu>
-
-      {/* We'll leave this dialog code in I started and implement it later. */}
-      <Dialog open={changeEventOpen} onClose={() => setChangeEventOpen(false)}>
-        <DialogTitle>Create Room</DialogTitle>
-        <DialogContent className={classes.paper}>
-          <DialogContentText>
-            Let&apos;s switch things up.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleChangeEvent} color="primary">
-            Change
-          </Button>
-          <Button onClick={handleClose} color="secondary">Cancel</Button>
-        </DialogActions>
-      </Dialog>
     </Toolbar>
   );
 }
