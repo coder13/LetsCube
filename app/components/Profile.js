@@ -12,10 +12,31 @@ import Divider from '@material-ui/core/Divider';
 import EditableTextField from './EditableTextField';
 import { updateProfile } from '../store/user/actions';
 
+const validate = (username) => {
+  if (!username) {
+    return '';
+  }
+
+  if (username.indexOf(' ') > -1) {
+    return 'Username cannot contains spaces';
+  }
+
+  if (username.length >= 16) {
+    return 'Username cannot be longer than 16 characters';
+  }
+
+  return '';
+};
+
 const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
     padding: '1em',
+  },
+  avatar: {
+    width: '10em',
+    height: '10em',
+    boxShadow: theme.shadows[1],
   },
   avatarContainer: {
     display: 'flex',
@@ -101,10 +122,10 @@ function Profile({ user, dispatch }) {
           <Grid container style={{ padding: '2em', justifyContent: 'space-between' }}>
             <Grid item xs={4}>
               <div>
-                <Typography variant="body1">
-                  Displaying as
+                <Typography component="span" variant="body1">
+                  Displaying as:
                 </Typography>
-                <Typography variant="subtitle2" className={classes.indent}>
+                <Typography component="span" variant="subtitle2" className={classes.indent}>
                   {user.displayName}
                 </Typography>
               </div>
@@ -112,34 +133,34 @@ function Profile({ user, dispatch }) {
               <Divider className={classes.separate} />
 
               <div className={classes.separate}>
-                <Typography variant="body1">
+                <Typography component="span" variant="body1">
                   Real name (
                   {user.showWCAID ? 'Visible' : 'Hidden'}
-                  )
+                  ):
                 </Typography>
-                <Typography variant="subtitle2" className={classes.indent}>
+                <Typography component="span" variant="subtitle2" className={classes.indent}>
                   {user.name}
                 </Typography>
               </div>
 
               <div className={classes.separate}>
-                <Typography variant="body1">
+                <Typography component="span" variant="body1">
                   WCA ID (
                   {user.showWCAID ? 'Visible' : 'Hidden'}
-                  )
+                  ):
                 </Typography>
-                <Typography variant="subtitle2" className={classes.indent}>
+                <Typography component="span" variant="subtitle2" className={classes.indent}>
                   {user.wcaId}
                 </Typography>
               </div>
             </Grid>
             <Grid item lg={2} className={classes.avatarContainer}>
-              <Avatar variant="square" style={{ width: '10em', height: '10em' }} src={user.avatar.url} />
+              <Avatar variant="square" className={classes.avatar} src={user.avatar.url} />
             </Grid>
           </Grid>
 
           <Grid container className={classes.preferences}>
-            <EditableTextField label="Username" value={user.username} onChange={changeUsername} />
+            <EditableTextField label="Username" value={user.username} onChange={changeUsername} validate={validate} />
             <Paper className={classes.input}>
               <FormControlLabel
                 control={(
@@ -181,16 +202,34 @@ function Profile({ user, dispatch }) {
 }
 
 Profile.propTypes = {
-  user: PropTypes.shape(),
+  user: PropTypes.shape({
+    id: PropTypes.number,
+    displayName: PropTypes.string,
+    name: PropTypes.string,
+    username: PropTypes.string,
+    preferUsername: PropTypes.bool,
+    showWCAID: PropTypes.bool,
+    wcaId: PropTypes.string,
+    useInspection: PropTypes.bool,
+    avatar: PropTypes.shape({
+      url: PropTypes.string,
+    }),
+  }),
   dispatch: PropTypes.func.isRequired,
 };
 
 Profile.defaultProps = {
   user: {
+    id: undefined,
     displayName: undefined,
-    name: 'foo bar',
+    name: '',
+    username: '',
+    preferUsername: false,
+    showWCAID: false,
+    wcaId: '',
+    useInspection: false,
     avatar: {
-      thumb_url: undefined,
+      url: undefined,
     },
   },
 };

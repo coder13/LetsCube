@@ -27,7 +27,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function EditableTextField({ label, value, onChange }) {
+function EditableTextField({
+  label, value, onChange, validate,
+}) {
   const classes = useStyles();
   const [editing, setEditing] = useState(false);
   const [_value, setValue] = useState(value);
@@ -39,9 +41,8 @@ function EditableTextField({ label, value, onChange }) {
   };
 
   const handleChange = (event) => {
-    if (event.target.value.length < 20) {
-      setValue(event.target.value);
-    }
+    setValue(event.target.value);
+    setError(validate(event.target.value));
   };
 
   const cancel = () => {
@@ -52,7 +53,7 @@ function EditableTextField({ label, value, onChange }) {
   const onSubmit = (e) => {
     e.preventDefault();
     // TODO: username validation
-    if (_value !== value) {
+    if (_value !== value && !validate(_value)) {
       onChange(_value, (err) => {
         if (err) {
           setError(err);
@@ -114,6 +115,7 @@ EditableTextField.propTypes = {
   label: PropTypes.string.isRequired,
   value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
+  validate: PropTypes.func.isRequired,
 };
 
 EditableTextField.defaultProps = {
