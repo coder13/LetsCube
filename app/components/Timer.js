@@ -202,9 +202,6 @@ class Timer extends React.Component {
     if (event.keyCode === 32) {
       event.preventDefault();
       switch (status) {
-        case STATUS.SUBMITTING_DOWN:
-          this.setStatus(STATUS.SUBMITTING);
-          break;
         case STATUS.PRIMING:
           this.setStatus(useInspection ? STATUS.INSPECTING : STATUS.TIMING);
           break;
@@ -214,6 +211,10 @@ class Timer extends React.Component {
         default:
           break;
       }
+    }
+
+    if (status === STATUS.SUBMITTING_DOWN) {
+      this.setStatus(STATUS.SUBMITTING);
     }
   }
 
