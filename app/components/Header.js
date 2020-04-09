@@ -9,62 +9,31 @@ import Typography from '@material-ui/core/Typography';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import Avatar from '@material-ui/core/Avatar';
-import Drawer from '@material-ui/core/Drawer';
-import Divider from '@material-ui/core/Divider';
-import List from '@material-ui/core/List';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
-import AppsIcon from '@material-ui/icons/Apps';
-import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/wca';
 
-const drawerWidth = 240;
-
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+  },
   title: {
     flexGrow: 1,
+    minWidth: '6em',
   },
   titleLink: {
     color: 'inherit',
     textDecoration: 'none',
   },
-  appBar: {
-    zIndex: theme.zIndex.drawer + 1,
-  },
-  appBarShift: {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: drawerWidth,
-    transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  },
-  drawer: {
-    width: drawerWidth,
-    flexShrink: 0,
-  },
-  drawerPaper: {
-    width: drawerWidth,
-  },
-  drawerHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: theme.spacing(0, 1),
-    // necessary for content to be below app bar
-    ...theme.mixins.toolbar,
-    justifyContent: 'flex-end',
-  },
   content: {
     display: 'flex',
     flexGrow: 1,
-    height: '100vh',
     flexDirection: 'column',
-  },
-  toolbarFix: {
-    minHeight: '64px',
   },
   roomTitleGrid: {
     flexGrow: 1,
@@ -75,7 +44,6 @@ function Header({ children, user, room }) {
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const open = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -96,8 +64,8 @@ function Header({ children, user, room }) {
   };
 
   return (
-    <div style={{ display: 'flex' }}>
-      <AppBar position="fixed">
+    <div className={classes.root}>
+      <AppBar position="relative">
         <Toolbar>
           <Typography variant="h6" className={classes.title}>
             <Link to="/" className={classes.titleLink}>Let&apos;s Cube</Link>
@@ -108,10 +76,10 @@ function Header({ children, user, room }) {
           <Grid className={classes.roomTitleGrid}>
             { room._id && (
               <>
-                <Typography variant="h6">
+                <Typography variant="h6" component="span">
                   <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
                 </Typography>
-                <Typography variant="caption">
+                <Typography variant="subtitle2" component="span" style={{ paddingLeft: '1em' }}>
                   {getNameFromId(room.event)}
                 </Typography>
               </>
@@ -120,7 +88,17 @@ function Header({ children, user, room }) {
 
           { loggedIn
             ? (
-              <>
+              <div style={{ display: 'flex' }}>
+                <ListItem style={{ padding: '.5em' }}>
+                  <ListItemText
+                    primary={
+                      <Typography variant="h6">{user.name}</Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption">{user.wcaId}</Typography>
+                    }
+                  />
+                </ListItem>
                 <IconButton onClick={handleMenu} color="inherit">
                   <Avatar src={user.avatar.thumb_url} />
                 </IconButton>
@@ -142,31 +120,12 @@ function Header({ children, user, room }) {
                   <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
                   <MenuItem onClick={logout}>Log out</MenuItem>
                 </Menu>
-              </>
+              </div>
             )
             : <Button color="inherit" onClick={login}>Login</Button>}
         </Toolbar>
       </AppBar>
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        className={classes.drawer}
-        classes={{
-          paper: classes.drawerPaper,
-        }}
-      >
-        <div className={classes.toolbarFix} />
-        <List>
-          <Divider />
-          <ListItemLink to="/" key="home">
-            <ListItemIcon><AppsIcon /></ListItemIcon>
-            <ListItemText>Home</ListItemText>
-          </ListItemLink>
-        </List>
-      </Drawer>
       <main className={classes.content}>
-        <div className={classes.toolbarFix} />
         {children}
       </main>
     </div>
@@ -176,6 +135,8 @@ function Header({ children, user, room }) {
 Header.propTypes = {
   user: PropTypes.shape({
     id: PropTypes.number,
+    name: PropTypes.string,
+    wcaId: PropTypes.string,
     avatar: PropTypes.shape({
       thumb_url: PropTypes.string,
     }),
@@ -191,6 +152,8 @@ Header.propTypes = {
 Header.defaultProps = {
   user: {
     id: undefined,
+    name: undefined,
+    wcaId: undefined,
     avatar: {
       thumb_url: undefined,
     },
