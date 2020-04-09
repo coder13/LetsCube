@@ -70,6 +70,8 @@ const socketMiddleware = (store) => {
             severity: 'error',
             text: error.message,
           }));
+        } else if (error.statusCode >= 400 && error.redirect) {
+          store.dispatch(push(error.redirect));
         }
       },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
@@ -146,7 +148,9 @@ const socketMiddleware = (store) => {
       socket.emit(Protocol.CREATE_ROOM, options);
     },
     [LEAVE_ROOM]: () => {
-      socket.emit(Protocol.LEAVE_ROOM);
+      if (store.getState().room.id) {
+        socket.emit(Protocol.LEAVE_ROOM);
+      }
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);

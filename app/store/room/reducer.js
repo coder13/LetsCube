@@ -1,6 +1,6 @@
 import {
   ROOM_UPDATED,
-  ROOM_FETCHING,
+  FETCH_ROOM,
   USER_JOIN,
   USER_LEFT,
   LEAVE_ROOM,
@@ -31,7 +31,10 @@ const reducers = {
     fetching: false,
     ...action.room,
   }),
-  [ROOM_FETCHING]: (state) => ({ ...state, fetching: true }),
+  [FETCH_ROOM]: (state, action) => ({
+    ...state,
+    fetching: action.fetching,
+  }),
   [USER_JOIN]: (state, action) => ({ ...state, users: state.users.concat(action.user) }),
   [USER_LEFT]: (state, action) => ({
     ...state,

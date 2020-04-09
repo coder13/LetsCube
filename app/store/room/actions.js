@@ -1,10 +1,8 @@
 export const ROOM_UPDATED = 'room/updated';
-export const ROOM_FETCHING = 'room/fetching';
 export const DELETE_ROOM = 'room/delete';
 export const FETCH_ROOM = 'room/fetch';
 export const JOIN_ROOM = 'room/join';
 export const LEAVE_ROOM = 'room/leave';
-export const UPDATE_ATTEMPTS = 'room/update_attempts';
 export const SUBMIT_RESULT = 'room/submit_result';
 export const NEW_RESULT = 'room/new_result';
 export const USER_JOIN = 'room/user_join';
@@ -20,13 +18,9 @@ export const roomUpdated = (room) => ({
   room,
 });
 
-export const fetchingRoom = () => ({
-  type: ROOM_FETCHING,
-  fetching: true,
-});
-
 export const fetchRoom = (id) => ({
   type: FETCH_ROOM,
+  fetching: true,
   id,
 });
 
@@ -39,12 +33,6 @@ export const joinRoom = (id, password) => ({
   type: JOIN_ROOM,
   id,
   password,
-});
-
-// Maybe not needed
-export const updateAttempts = (attempts) => ({
-  type: UPDATE_ATTEMPTS,
-  attempts,
 });
 
 // We're submitting a new result
