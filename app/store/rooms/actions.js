@@ -2,6 +2,7 @@ export const CREATE_ROOM = 'rooms/create';
 export const ROOMS_UPDATED = 'rooms/updated';
 export const ROOM_CREATED = 'rooms/created';
 export const ROOM_DELETED = 'rooms/deleted';
+export const ROOM_UPDATED = 'rooms/room_updated';
 
 export const roomsUpdated = (rooms) => ({
   type: ROOMS_UPDATED,
@@ -11,6 +12,11 @@ export const roomsUpdated = (rooms) => ({
 
 export const roomCreated = (room) => ({
   type: ROOM_CREATED,
+  room,
+});
+
+export const roomUpdated = (room) => ({
+  type: ROOM_UPDATED,
   room,
 });
 

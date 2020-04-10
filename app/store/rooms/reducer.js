@@ -2,6 +2,7 @@ import {
   ROOMS_UPDATED,
   ROOM_CREATED,
   ROOM_DELETED,
+  ROOM_UPDATED,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -21,6 +22,9 @@ const reducers = {
   [ROOM_DELETED]: (state, action) => ({
     ...state,
     rooms: state.rooms.filter((room) => room._id !== action.room),
+  }),
+  [ROOM_UPDATED]: (state, action) => ({
+    rooms: state.rooms.map((i) => (i._id === action.room._id ? action.room : i)),
   }),
 };
 

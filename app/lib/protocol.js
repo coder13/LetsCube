@@ -9,6 +9,7 @@ module.exports = {
   ERROR: 'errorrr',
   UPDATE_ROOMS: 'update_rooms',
   UPDATE_ROOM: 'update_room',
+  GLOBAL_ROOM_UPDATED: 'global_room_updated',
   CREATE_ROOM: 'create_room',
   DELETE_ROOM: 'delete_room',
   ROOM_CREATED: 'room_created',

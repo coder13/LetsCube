@@ -30,6 +30,7 @@ import {
 import {
   CREATE_ROOM,
   roomCreated,
+  roomUpdated as globalRoomUpdated,
   roomDeleted,
   roomsUpdated,
 } from '../rooms/actions';
@@ -80,6 +81,10 @@ const socketMiddleware = (store) => {
       [Protocol.UPDATE_ROOM]: (room) => {
         store.dispatch(roomUpdated(room));
       },
+      [Protocol.GLOBAL_ROOM_UPDATED]: (room) => {
+        console.log(85);
+        store.dispatch(globalRoomUpdated(room));
+      },
       [Protocol.ROOM_CREATED]: (room) => {
         store.dispatch(roomCreated(room));
       },
@@ -94,7 +99,7 @@ const socketMiddleware = (store) => {
         store.dispatch(updateAdmin(admin));
       },
       [Protocol.FORCE_JOIN]: (room) => {
-        store.dispatch(push(`/rooms/${room.id}`));
+        store.dispatch(push(`/rooms/${room._id}`));
       },
       [Protocol.JOIN]: (room) => {
         store.dispatch(roomJoined(room.accessCode)); // update socket store
@@ -148,7 +153,7 @@ const socketMiddleware = (store) => {
       socket.emit(Protocol.CREATE_ROOM, options);
     },
     [LEAVE_ROOM]: () => {
-      if (store.getState().room.id) {
+      if (store.getState().room._id) {
         socket.emit(Protocol.LEAVE_ROOM);
       }
     },

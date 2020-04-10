@@ -84,7 +84,6 @@ Room.methods.addUser = function(user) {
   }
 
   // If user is already in the room, return false.
-  console.log(Room_Users[this._id].map(i => i.id), user.id);
   if (Room_Users[this._id].find(i => i.id === user.id)) {
     return false;
   }
@@ -137,7 +136,6 @@ Room.methods.doneWithScramble = function () {
 }
 
 Room.methods.genAttempt = function () {
-  console.log(this.attempts.length, this.event);
   return {
     id: this.attempts.length,
     scrambles: this.scrambler.get(1).map(i => i.scramble_string),

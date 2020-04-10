@@ -54,37 +54,35 @@ module.exports = function ({app, expressSession}) {
     });
     
     function joinRoom(room) {
-      socket.join(room.accessCode, () => {
-        if (socket.user) {
-          socket.room = room;
+      socket.join(room.accessCode, async () => {
+        socket.room = room;
+        if (!socket.user) {
+          return socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
+        }
 
-          const p = room.addUser(socket.user);
-          console.log(54, !!p);
-          if (!p) {
-            socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
-            return;
-          }
+        const r = await room.addUser(socket.user);
+        if (!r) {
+          // still give them the data, even if they are already in the room
+          socket.emit(Protocol.JOIN, joinRoomMask(room));
+          return;
+        }
 
-          p.then((r) => {
-            socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
-            broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+        socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
+        broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
-            broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
-            if (r.doneWithScramble()) {
-              console.log(104, 'everyone done, sending new scramble');
-              sendNewScramble(r);
-            }
-          }).catch(console.error);
-        } else {
-          socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
+        broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
+        if (r.doneWithScramble()) {
+          console.log(104, 'everyone done, sending new scramble');
+          sendNewScramble(r);
         }
       });
     }
 
     // Socket wants to join room.
-    socket.on(Protocol.JOIN_ROOM, ({id, password}) => {
-      // get room
-      Room.findById(id).then(room => {  
+    socket.on(Protocol.JOIN_ROOM, async ({id, password}) => {
+      try {
+        const room = await Room.findById(id);
         if (!room) {
           socket.emit(Protocol.ERROR, {
             statusCode: 404,
@@ -103,7 +101,9 @@ module.exports = function ({app, expressSession}) {
         }
         
         joinRoom(room);
-      }).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
@@ -145,12 +145,12 @@ module.exports = function ({app, expressSession}) {
 
     /* Admin Actions */
     socket.on(Protocol.DELETE_ROOM, id => {
-      Room.findById(socket.room.id).then(room => {
+      Room.findById(socket.room._id).then(room => {
         socket.room = room;
 
         if (!checkAdmin()) {
           return;
-        } else if (socket.room.id !== id) {
+        } else if (socket.room._id !== id) {
           socket.emit(Protocol.ERROR, {
             statusCode: 403,
             event: Protocol.DELETE_ROOM,
@@ -175,7 +175,7 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      Room.findById(socket.room.id).then(room => {    
+      Room.findById(socket.room._id).then(room => {    
         if (!room.attempts[result.id]) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
@@ -202,7 +202,7 @@ module.exports = function ({app, expressSession}) {
     });
 
     socket.on(Protocol.REQUEST_SCRAMBLE, () => {
-      Room.findById(socket.room.id).then(room => {
+      Room.findById(socket.room._id).then(room => {
         socket.room = room;
         if (!checkAdmin()) {
           return;
@@ -213,7 +213,7 @@ module.exports = function ({app, expressSession}) {
     });
 
     socket.on(Protocol.CHANGE_EVENT, (event) => {
-      Room.findById(socket.room.id).then(room => {
+      Room.findById(socket.room._id).then(room => {
         socket.room = room;
         if (!checkAdmin()) {
           return;
@@ -280,11 +280,14 @@ module.exports = function ({app, expressSession}) {
     }
 
     function leaveRoom () {
-      if (socket.user && SocketUsers[socket.user.id].length === 1) {
-        broadcast(Protocol.USER_LEFT, socket.user.id);
+      socket.leave(socket.room.accessCode);
+      
+      // only socket on this user id
+      if (SocketUsers[socket.user.id].length === 1) {
         socket.room.dropUser(socket.user).then((room) => {
-          socket.leave(room.accessCode);
+          broadcast(Protocol.USER_LEFT, socket.user.id);
           broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
+          broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
         
           if (room.doneWithScramble()) {
             console.log(196, 'everyone done, sending new scramble');

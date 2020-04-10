@@ -9,7 +9,7 @@ import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/wca';
 
 function RoomListItem({ room }) {
-  const userText = room.usersLength === 0 ? 'nobody' : `${room.usersLength} user${room.usersLength > 1 ? 's' : ''}`;
+  const userText = room.usersLength === 0 ? ' empty' : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}`;
 
   return (
     <ListItemLink
