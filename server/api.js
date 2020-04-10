@@ -20,11 +20,20 @@ module.exports = (app) => {
     // TODO: server side validation of username
     // TODO: refactor
     const { username } = req.body;
-    if (!req.body.username) {
+    if (req.body.username === undefined) {
       return sendError(res, {
         statusCode: 400,
         message: 'Missing username from request',
       });  
+    }
+
+    if (req.body.username === '') {
+      req.user.username = req.body.username;
+      return req.user.save().then((u) => {
+        res.json({
+          username: u.username,
+        });
+      });
     }
 
     User.findOne({
