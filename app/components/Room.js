@@ -365,8 +365,8 @@ Log in
                     {[...attempts].reverse().map((attempt, index) => {
                       const results = users
                         .map((u) => (attempt.results[u.id]
-                          && (attempt.results[u.id].penaltile
-                            && !attempt.results[u.id].penaltiles.DNF)
+                          && (attempt.results[u.id].penalties
+                            && !attempt.results[u.id].penalties.DNF)
                           ? attempt.results[u.id].time : undefined))
                         .filter((r) => !!r && r > -1);
                       const best = Math.min(...results);

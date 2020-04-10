@@ -49,11 +49,6 @@ const useStyles = withStyles((theme) => ({
     flexDirection: 'column',
     padding: 'auto',
     justifyContent: 'center',
-    '-webkit-user-select': 'none',
-    '-webkit-touch-callout': 'none',
-    '-moz-user-select': 'none',
-    '-ms-user-select': 'none',
-    'user-select': 'none',
   },
   disabled: {
     color: '#7f7f7f',
