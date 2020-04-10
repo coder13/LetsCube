@@ -18,6 +18,11 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     minHeight: '100vh',
     flexDirection: 'column',
+    '-webkit-user-select': 'none',
+    '-webkit-touch-callout': 'none',
+    '-moz-user-select': 'none',
+    '-ms-user-select': 'none',
+    'user-select': 'none',
   },
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,

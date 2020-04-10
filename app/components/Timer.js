@@ -39,15 +39,21 @@ const STATUS = {
   SUBMITTING: 'SUBMITTING',
 };
 
-const useStyles = withStyles(() => ({
+const useStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
     width: '100%',
-    height: '12em',
+    height: '9em',
     flexGrow: 1,
     textAlign: 'center',
     flexDirection: 'column',
     padding: 'auto',
+    justifyContent: 'center',
+    '-webkit-user-select': 'none',
+    '-webkit-touch-callout': 'none',
+    '-moz-user-select': 'none',
+    '-ms-user-select': 'none',
+    'user-select': 'none',
   },
   disabled: {
     color: '#7f7f7f',
@@ -61,11 +67,23 @@ const useStyles = withStyles(() => ({
   INSPECTING: {
     color: 'red',
   },
+  fullscreen: {
+    position: 'fixed',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+    zIndex: theme.zIndex.tooltip + 1,
+    backgroundColor: 'white',
+    transition: `background-color .2s ${theme.transitions.easing.easeInOut}`,
+  },
 }));
 
 class Timer extends React.Component {
   constructor(props) {
     super(props);
+
+    this.rootRef = React.createRef();
 
     this.state = {
       started: undefined,
@@ -81,11 +99,18 @@ class Timer extends React.Component {
 
     this._keyDown = this.keyDown.bind(this);
     this._keyUp = this.keyUp.bind(this);
+    this._touchStart = this.touchStart.bind(this);
+    this._touchEnd = this.touchEnd.bind(this);
   }
 
   componentDidMount() {
     window.addEventListener('keydown', this._keyDown, false);
     window.addEventListener('keyup', this._keyUp, false);
+
+    if (this.rootRef.current) {
+      this.rootRef.current.addEventListener('touchstart', this._touchStart);
+      this.rootRef.current.addEventListener('touchend', this._touchEnd);
+    }
   }
 
   componentWillUnmount() {
@@ -95,6 +120,11 @@ class Timer extends React.Component {
 
     window.removeEventListener('keydown', this._keyDown, false);
     window.removeEventListener('keyup', this._keyUp, false);
+
+    if (this.rootRef.current) {
+      this.rootRef.current.removeEventListener('touchstart', this._touchStart, false);
+      this.rootRef.current.removeEventListener('touchend', this._touchEnd, false);
+    }
   }
 
   setStatus(status) {
@@ -181,7 +211,6 @@ class Timer extends React.Component {
     }
 
     this.keyIsDown = true;
-    this.forceUpdate();
   }
 
   keyUp(event) {
@@ -215,6 +244,55 @@ class Timer extends React.Component {
 
     if (status === STATUS.SUBMITTING_DOWN) {
       this.setStatus(STATUS.SUBMITTING);
+    }
+  }
+
+  touchStart() {
+    const { focused, disabled } = this.props;
+    const { status } = this.state;
+
+    if (!focused || this.keyIsDown || disabled) {
+      return;
+    }
+
+    switch (status) {
+      case STATUS.TIMING:
+        this.setStatus(STATUS.SUBMITTING_DOWN);
+        break;
+      case STATUS.RESTING:
+        this.setStatus(STATUS.PRIMING);
+        break;
+      case STATUS.INSPECTING:
+        this.setStatus(STATUS.INSPECTING_PRIMING);
+        break;
+      default:
+        break;
+    }
+
+    this.keyIsDown = true;
+  }
+
+  touchEnd(e) {
+    const { useInspection } = this.props;
+    const { status } = this.state;
+    this.keyIsDown = false;
+
+    if (status === STATUS.SUBMITTING_DOWN) {
+      e.preventDefault();
+    }
+
+    switch (status) {
+      case STATUS.SUBMITTING_DOWN:
+        this.setStatus(STATUS.SUBMITTING);
+        break;
+      case STATUS.PRIMING:
+        this.setStatus(useInspection ? STATUS.INSPECTING : STATUS.TIMING);
+        break;
+      case STATUS.INSPECTING_PRIMING:
+        this.setStatus(STATUS.TIMING);
+        break;
+      default:
+        break;
     }
   }
 
@@ -315,18 +393,20 @@ class Timer extends React.Component {
   }
 
   renderSubmitting() {
-    const { classes } = this.props;
     const { penalties } = this.state;
     const { inspection, inspectionDNF, AUF } = penalties;
     const DNF = penalties.DNF || inspectionDNF;
 
+    const penaltyHalf = `${inspection ? '2 +' : ''}${this.timerText()}${AUF ? ' + 2' : ''} = `;
+    const finalTimeHalf = formatTime(this.finalTime(), penalties);
+    const editingTime = ((AUF || inspection || DNF) ? penaltyHalf : '') + finalTimeHalf;
+
     return (
-      <div className={classes.root}>
+      <div>
         <Typography
           variant="h4"
         >
-          { inspectionDNF ? 'DNF'
-            : `${inspection ? '2 +' : ''}${this.timerText()}${AUF ? ' + 2' : ''} = ${DNF ? 'DNF ( ' : ''}${formatTime(this.finalTime())}${DNF ? ' )' : ''}`}
+          { inspectionDNF ? 'DNF' : editingTime}
         </Typography>
         <FormGroup
           row
@@ -358,16 +438,12 @@ class Timer extends React.Component {
     );
   }
 
-  render() {
-    const { classes, disabled, useInspection } = this.props;
+  renderTiming() {
+    const { classes, disabled } = this.props;
     const { status } = this.state;
 
-    if (status === STATUS.SUBMITTING) {
-      return this.renderSubmitting();
-    }
-
     return (
-      <div className={classes.root}>
+      <>
         <Typography
           variant="h1"
           className={clsx({
@@ -376,22 +452,24 @@ class Timer extends React.Component {
         >
           {this.timerText()}
         </Typography>
-        <Typography
-          variant="subtitle1"
-          className={clsx({
-            [classes.disabled]: disabled,
-          })}
-        >
-          {this.statusText()}
-        </Typography>
-        <Typography
-          variant="subtitle1"
-          className={clsx({
-            [classes.disabled]: disabled,
-          })}
-        >
-          {useInspection ? 'Enabled' : 'Disabled'}
-        </Typography>
+        {process.env.NODE_ENV === 'development' ? disabled : ''}
+        {process.env.NODE_ENV === 'development' ? status : ''}
+      </>
+    );
+  }
+
+  render() {
+    const { classes } = this.props;
+    const { status } = this.state;
+
+    return (
+      <div
+        className={clsx(classes.root, {
+          [classes.fullscreen]: status !== STATUS.RESTING,
+        })}
+        ref={this.rootRef}
+      >
+        {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
       </div>
     );
   }
