@@ -82,7 +82,6 @@ const socketMiddleware = (store) => {
         store.dispatch(roomUpdated(room));
       },
       [Protocol.GLOBAL_ROOM_UPDATED]: (room) => {
-        console.log(85);
         store.dispatch(globalRoomUpdated(room));
       },
       [Protocol.ROOM_CREATED]: (room) => {

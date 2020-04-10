@@ -5,7 +5,6 @@ import { connect } from 'react-redux';
 // import { AutoSizer, Column, Table } from 'react-virtualized';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
-import Typography from '@material-ui/core/Typography';
 import Divider from '@material-ui/core/Divider';
 import TableContainer from '@material-ui/core/TableContainer';
 import Table from '@material-ui/core/Table';
@@ -24,6 +23,7 @@ import {
 } from '../store/room/actions';
 import AdminToolbar from './AdminToolbar';
 import Timer from './Timer';
+import Scramble from './Scramble';
 import { formatTime } from '../lib/utils';
 
 /*
@@ -56,9 +56,6 @@ const useStyles = withStyles((theme) => ({
   },
   center: {
     textAlign: 'center',
-  },
-  scramble: {
-    margin: '.5em',
   },
   eventSelector: {
     marginLeft: theme.spacing(1),
@@ -264,7 +261,6 @@ Log in
 
     const { users, attempts } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-    const scrambles = latestAttempt.scrambles ? latestAttempt.scrambles.join(', ') : 'No Scrambles';
     const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id]);
 
     if (this.tableBodyRef.current) {
@@ -322,7 +318,7 @@ Log in
                   flex: 0,
                 }}
               >
-                <Typography variant="subtitle2" className={classes.scramble}>{scrambles}</Typography>
+                <Scramble event={room.event} scrambles={latestAttempt.scrambles} />
                 <Divider />
                 <Timer
                   disabled={timerDisabled}
@@ -409,6 +405,7 @@ Room.propTypes = {
     _id: PropTypes.string,
     private: PropTypes.bool,
     accessCode: PropTypes.string,
+    event: PropTypes.string,
     users: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
     })),
@@ -435,6 +432,7 @@ Room.defaultProps = {
     _id: undefined,
     private: false,
     accessCode: undefined,
+    event: '333',
     users: [],
     attempts: [],
     admin: {
