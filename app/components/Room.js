@@ -347,7 +347,7 @@ Log in
                       <TableCell align="left" className={classes.tableHeaderIndex}>#</TableCell>
                       {users.map((u) => (
                         <TableCell key={u.id} align="left" className={classes.tableHeaderTime}>
-                          <span>{u.username || u.name}</span>
+                          <span>{u.displayName}</span>
                           <br />
                         </TableCell>
                       ))}
