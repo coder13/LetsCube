@@ -19,16 +19,18 @@ const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
 export const history = createBrowserHistory();
 
-ReactGA.initialize('UA-143761187-3', {
-  debug: false,
-});
+if (process.env.NODE_ENV === 'production') {
+  ReactGA.initialize('UA-143761187-3', {
+    debug: false,
+  });
+}
 
 const trackPage = (page) => {
   ReactGA.pageview(page);
 };
 
 const gaTrackingMiddleware = () => (next) => (action) => {
-  if (action.type === '@@router/LOCATION_CHANGE' && process.env.NODE_ENV !== 'development') {
+  if (action.type === '@@router/LOCATION_CHANGE' && process.env.NODE_ENV === 'production') {
     const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
     trackPage(nextPage);
   }
