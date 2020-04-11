@@ -30,7 +30,7 @@ const trackPage = (page) => {
 };
 
 const gaTrackingMiddleware = () => (next) => (action) => {
-  if (action.type === '@@router/LOCATION_CHANGE' && process.env.NODE_ENV === 'production') {
+  if (action.type === '@@router/LOCATION_CHANGE') {
     const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
     trackPage(nextPage);
   }
@@ -47,13 +47,21 @@ const rootReducer = combineReducers({
   messages: messageReducer,
 });
 
-const middleware = applyMiddleware(
+const middlewares = [
   routerMiddleware(history),
-  gaTrackingMiddleware,
   thunkMiddleware,
   socketMiddleware,
-  createLogger(),
-);
+];
+
+if (process.env.NODE_ENV === 'development') {
+  middlewares.push(createLogger());
+}
+
+if (process.env.NODE_ENV === 'production') {
+  middlewares.push(gaTrackingMiddleware);
+}
+
+const middleware = applyMiddleware(...middlewares);
 
 // Store
 export const store = createStore(rootReducer, composeEnhancer(middleware));
