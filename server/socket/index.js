@@ -1,7 +1,8 @@
 const _ = require('lodash');
 const http = require('http');
-const Protocol = require('../../app/lib/protocol.js');
 const bcrypt = require('bcrypt');
+const uuid = require('uuid/v4');
+const Protocol = require('../../app/lib/protocol.js');
 const socketLogger = require('./logger');
 const expressSocketSession = require('express-socket.io-session');
 const { User, Room } = require('../models');
@@ -13,6 +14,15 @@ const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'at
 // Keep track of users using multiple sockets.
 // Map of user.id -> [socket.id]
 const SocketUsers = {};
+
+class ChatMessage {
+  constructor(message, userId) {
+    this.id = uuid();
+    this.timestamp = Date.now();
+    this.text = message;
+    this.userId = userId;
+  }
+}
 
 function attachUser (socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
@@ -226,12 +236,16 @@ module.exports = function ({app, expressSession}) {
     });
 
     // Simplest event here. Just echo the message to everyone else.
-    socket.on(Protocol.message, (message) => {
+    socket.on(Protocol.MESSAGE, (message) => {
       if (!isInRoom()) {
         return;
       }
 
-      socket.to(socket.room.accessCode, message);
+      if (!socket.user) {
+        return;
+      }
+
+      broadcastToAllInRoom(Protocol.MESSAGE, new ChatMessage(message.text, socket.user.id));
     });
 
     socket.on(Protocol.DISCONNECT, () => {

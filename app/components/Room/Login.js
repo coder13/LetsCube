@@ -95,6 +95,7 @@ Login.defaultProps = {
 };
 
 const mapStateToProps = (state) => ({
+  roomId: state.room._id,
   loginFailed: state.socket.loginFailed,
 });
 

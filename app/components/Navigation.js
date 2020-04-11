@@ -16,7 +16,7 @@ import { closeMessage } from '../store/messages/actions';
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
-    minHeight: '100vh',
+    height: '100vh',
     flexDirection: 'column',
     '-webkit-user-select': 'none',
     '-webkit-touch-callout': 'none',
@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function App({
-  connected, user, room, messages,
+  dispatch, connected, user, room, messages,
 }) {
   const classes = useStyles();
 
@@ -51,7 +51,7 @@ function App({
       return;
     }
 
-    closeMessage(index);
+    dispatch(closeMessage(index));
   };
 
   return (
@@ -103,6 +103,7 @@ App.propTypes = {
     severity: PropTypes.string,
     text: PropTypes.string,
   })),
+  dispatch: PropTypes.func.isRequired,
 };
 
 App.defaultProps = {
@@ -114,11 +115,7 @@ const mapStateToProps = (state) => ({
   connected: state.socket.connected,
   room: state.room,
   user: state.user,
-  messages: state.messages.messages,
+  // messages: state.messages.messages,
 });
 
-const mapDispatchToProps = (dispatch) => ({
-  closeMessage: (message) => dispatch(closeMessage(message)),
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(App);
+export default connect(mapStateToProps)(App);

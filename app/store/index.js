@@ -12,6 +12,7 @@ import roomReducer from './room/reducer';
 import socketReducer from './socket/reducer';
 import userReducer from './user/reducer';
 import messageReducer from './messages/reducers';
+import chatReducer from './chat/reducer';
 
 import socketMiddleware from './socket/middleware';
 
@@ -45,6 +46,7 @@ const rootReducer = combineReducers({
   socket: socketReducer,
   user: userReducer,
   messages: messageReducer,
+  chat: chatReducer,
 });
 
 const middlewares = [

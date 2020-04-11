@@ -44,7 +44,7 @@ const useStyles = withStyles((theme) => ({
     display: 'flex',
     width: '100%',
     height: '9em',
-    flexGrow: 1,
+    flexGrow: 0,
     textAlign: 'center',
     flexDirection: 'column',
     padding: 'auto',

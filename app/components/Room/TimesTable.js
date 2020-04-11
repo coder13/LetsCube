@@ -19,15 +19,15 @@ const useStyles = makeStyles((theme) => ({
   tableResultCell: {
     width: '1em',
   },
-  tableContainer: {
-    height: '100%',
+  root: {
+    flexGrow: 1,
+    display: 'flex',
+    overflowY: 'auto',
   },
   table: {
     padding: 'none',
     display: 'flex',
     flexFlow: 'column',
-    height: '100%',
-    width: '100%',
   },
   thead: {
     display: 'table',
@@ -36,9 +36,9 @@ const useStyles = makeStyles((theme) => ({
     boxShadow: theme.shadows[1],
   },
   tbody: {
-    flex: '1 1 auto',
-    display: 'block',
-    overflowY: 'scroll',
+    flexGrow: 1,
+    overflowY: 'auto',
+    height: '0px',
   },
   tr: {
     display: 'table',
@@ -86,14 +86,7 @@ function TimesTable({ users, attempts }) {
   };
 
   return (
-    <TableContainer
-      className={classes.tableContainer}
-      style={{
-        flexGrow: 1,
-        display: 'flex',
-        height: '100%',
-      }}
-    >
+    <TableContainer className={classes.root}>
       <Table stickyHeader className={classes.table} size="small">
         <TableHead className={classes.thead}>
           <TableRow className={classes.tr}>

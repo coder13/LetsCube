@@ -20,7 +20,7 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0),
     borderColor: theme.divider,
     borderRadius: 0,
-    flexBasis: 'auto',
+    height: '0px',
   },
 }));
 
@@ -67,22 +67,18 @@ function Main({ dispatch, room, user }) {
             <Divider />
           </div>
         ) : <br />}
-
-      <div
-        style={{
-          flex: 0,
-        }}
-      >
-        <Scramble event={room.event} scrambles={latestAttempt.scrambles} />
-        <Divider />
-        <Timer
-          disabled={timerDisabled}
-          onSubmitTime={(e) => onSubmitTime(e)}
-          useInspection={user.useInspection}
-        />
-        <Divider />
-        <TimesTable users={users} attempts={attempts} />
-      </div>
+      <Scramble
+        event={room.event}
+        scrambles={latestAttempt.scrambles}
+      />
+      <Divider />
+      <Timer
+        disabled={timerDisabled}
+        onSubmitTime={(e) => onSubmitTime(e)}
+        useInspection={user.useInspection}
+      />
+      <Divider />
+      <TimesTable users={users} attempts={attempts} />
     </Paper>
   );
 }
