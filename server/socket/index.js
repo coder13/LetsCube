@@ -225,6 +225,15 @@ module.exports = function ({app, expressSession}) {
       }).catch(console.error);
     });
 
+    // Simplest event here. Just echo the message to everyone else.
+    socket.on(Protocol.message, (message) => {
+      if (!isInRoom()) {
+        return;
+      }
+
+      socket.to(socket.room.accessCode, message);
+    });
+
     socket.on(Protocol.DISCONNECT, () => {
       if (isLoggedIn() && isInRoom()) {
         leaveRoom();

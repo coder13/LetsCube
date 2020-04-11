@@ -35,6 +35,7 @@ import {
   roomsUpdated,
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
+import { SEND_CHAT, receiveChat } from '../chat/actions';
 
 const socketMiddleware = (store) => {
   // The socket's connection state changed
@@ -121,6 +122,9 @@ const socketMiddleware = (store) => {
       [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));
       },
+      [Protocol.MESSAGE]: (message) => {
+        store.dispatch(receiveChat(message));
+      },
     },
   });
 
@@ -164,6 +168,9 @@ const socketMiddleware = (store) => {
     },
     [CHANGE_EVENT]: ({ event }) => {
       socket.emit(Protocol.CHANGE_EVENT, event);
+    },
+    [SEND_CHAT]: ({ message }) => {
+      socket.emit(Protocol.MESSAGE, message);
     },
   };
 
