@@ -12,8 +12,8 @@ import {
   deleteRoom,
   requestNewScramble,
   changeEvent,
-} from '../store/room/actions';
-import { Events } from '../lib/wca';
+} from '../../store/room/actions';
+import { Events } from '../../lib/wca';
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {

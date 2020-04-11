@@ -65,7 +65,7 @@ function Header({ children, user, room }) {
 
   return (
     <div className={classes.root}>
-      <AppBar position="relative">
+      <AppBar position="relative" elevation={1}>
         <Toolbar>
           <Typography variant="h6" className={classes.title}>
             <Link to="/" className={classes.titleLink}>Let&apos;s Cube</Link>

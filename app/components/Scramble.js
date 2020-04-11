@@ -7,6 +7,7 @@ import Typography from '@material-ui/core/Typography';
 const useStyles = makeStyles(() => ({
   root: {
     margin: '.5em',
+    textAlign: 'center',
   },
   scramble: {
     fontFamily: 'Roboto Mono, monospace',

@@ -9,7 +9,7 @@ import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
 import Header from './Header';
 import RoomList from './RoomList';
-import Room from './Room';
+import Room from './Room/index';
 import Profile from './Profile';
 import { closeMessage } from '../store/messages/actions';
 
