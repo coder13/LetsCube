@@ -28,4 +28,5 @@ module.exports = {
   REQUEST_SCRAMBLE: 'request_scramble',
   CHANGE_EVENT: 'change_event',
   UPDATE_PREFERENCES: 'update_preferences',
+  UPDATE_STATUS: 'update_status',
 };

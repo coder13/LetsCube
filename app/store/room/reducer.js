@@ -8,6 +8,7 @@ import {
   NEW_ATTEMPT,
   NEW_RESULT,
   UPDATE_ADMIN,
+  UPDATE_STATUS,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -19,6 +20,7 @@ const INITIAL_STATE = {
   private: null,
   password: null, // for reconnecting
   users: [],
+  statuses: {},
   attempts: [],
   admin: {
     id: null,
@@ -47,6 +49,7 @@ const reducers = {
     _id: undefined,
     accessCode: undefined,
     users: [],
+    statuses: {},
     attempts: [],
     admin: {
       id: null,
@@ -71,6 +74,10 @@ const reducers = {
     }),
   }),
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
+  [UPDATE_STATUS]: (state, action) => ({
+    ...state,
+    statuses: { ...state.statuses, [action.user]: action.status },
+  }),
 };
 
 // Socket reducer

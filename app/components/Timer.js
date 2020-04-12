@@ -41,6 +41,8 @@ const STATUS = {
   SUBMITTING: 'SUBMITTING',
 };
 
+const STATUSES = [STATUS.RESTING, STATUS.INSPECTING, STATUS.TIMING, STATUS.SUBMITTING];
+
 const useStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
@@ -126,6 +128,7 @@ class Timer extends React.Component {
   }
 
   setStatus(status) {
+    const { onStatusChange } = this.props;
     this.setState({ status });
 
     switch (status) {
@@ -154,6 +157,10 @@ class Timer extends React.Component {
         break;
       default:
         break;
+    }
+
+    if (STATUSES.indexOf(status) > -1) {
+      onStatusChange(status);
     }
   }
 
@@ -495,12 +502,14 @@ Timer.propTypes = {
   useInspection: PropTypes.bool.isRequired,
   hideTime: PropTypes.bool,
   classes: PropTypes.shape().isRequired,
+  onStatusChange: PropTypes.func,
 };
 
 Timer.defaultProps = {
   disabled: false,
   focused: true,
   hideTime: false,
+  onStatusChange: () => {},
 };
 
 export default useStyles(Timer);

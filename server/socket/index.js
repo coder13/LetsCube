@@ -276,6 +276,19 @@ module.exports = function ({app, expressSession}) {
       broadcastToAllInRoom(socket.room.accessCode, Protocol.MESSAGE, new ChatMessage(message.text, socket.user.id));
     });
 
+    // Simplest event here. Just echo the message to everyone else.
+    socket.on(Protocol.UPDATE_STATUS, (status) => {
+      if (!isInRoom()) {
+        return;
+      }
+
+      if (!socket.user) {
+        return;
+      }
+
+      broadcast(Protocol.UPDATE_STATUS, status);
+    });
+
     socket.on(Protocol.DISCONNECT, () => {
       console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 

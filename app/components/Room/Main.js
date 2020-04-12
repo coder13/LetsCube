@@ -6,6 +6,7 @@ import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import {
   submitResult,
+  updateStatus,
 } from '../../store/room/actions';
 import TimesTable from './TimesTable';
 import Timer from '../Timer';
@@ -46,8 +47,11 @@ function Main({ dispatch, room, user }) {
     }));
   };
 
+  const handleStatusChange = (status) => {
+    dispatch(updateStatus(user.id, status));
+  };
 
-  const { users, attempts } = room;
+  const { users, statuses, attempts } = room;
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
   const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id]);
 
@@ -62,10 +66,11 @@ function Main({ dispatch, room, user }) {
       <Timer
         disabled={timerDisabled}
         onSubmitTime={(e) => onSubmitTime(e)}
+        onStatusChange={handleStatusChange}
         useInspection={user.useInspection}
       />
       <Divider />
-      <TimesTable users={users} attempts={attempts} />
+      <TimesTable users={users} statuses={statuses} attempts={attempts} />
     </Paper>
   );
 }
@@ -79,6 +84,7 @@ Main.propTypes = {
     users: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
     })),
+    statuses: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
     })),
@@ -100,6 +106,7 @@ Main.defaultProps = {
     accessCode: undefined,
     event: '333',
     users: [],
+    statues: {},
     attempts: [],
     admin: {
       id: undefined,

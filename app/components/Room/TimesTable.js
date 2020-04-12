@@ -47,7 +47,56 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function TimesTable({ users, attempts }) {
+
+function TableStatusCell({ status }) {
+  const classes = useStyles();
+
+  return (
+    <TableCell className={classes.tableResultCell} align="left">
+      <span>{status === 'RESTING' ? '' : status}</span>
+    </TableCell>
+  );
+}
+
+TableStatusCell.propTypes = {
+  status: PropTypes.string.isRequired,
+};
+
+function TableTimeCell({ attempt: { time, penalties }, highlight }) {
+  const classes = useStyles();
+
+  const displayTime = formatTime(time, penalties);
+
+  return (
+    <TableCell className={classes.tableResultCell} align="left">
+      <span
+        style={{
+          color: highlight ? 'red' : 'black',
+        }}
+      >
+        {displayTime}
+      </span>
+    </TableCell>
+  );
+}
+
+TableTimeCell.propTypes = {
+  attempt: PropTypes.shape({
+    time: PropTypes.number,
+    penalties: PropTypes.shape(),
+  }),
+  highlight: PropTypes.bool,
+};
+
+TableTimeCell.defaultProps = {
+  attempt: {
+    time: 0,
+    penalties: {},
+  },
+  highlight: false,
+};
+
+function TimesTable({ users, statuses, attempts }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
 
@@ -120,35 +169,29 @@ function TimesTable({ users, attempts }) {
             return (
               <TableRow className={classes.tr} key={attempt.id}>
                 <TableCell className={classes.tableResultCell} align="left">{attempts.length - index}</TableCell>
-                {users.map((u) => (
-                  <TableCell key={u.id} className={classes.tableResultCell} align="left">
-                    {attempt.results[u.id]
-                      ? (
-                        <span style={{
-                          color: attempt.results[u.id].time === best ? 'red' : 'black',
-                        }}
-                        >
-                          {formatTime(
-                            attempt.results[u.id].time,
-                            attempt.results[u.id].penalties,
-                          )}
-                        </span>
-                      ) : ''}
-                  </TableCell>
-                ))}
+                {users.map((u) => (index === 0 && !attempt.results[u.id] ? (
+                  <TableStatusCell status={statuses[u.id]} />
+                ) : (
+                  <TableTimeCell
+                    key={u.id}
+                    attempt={attempt.results[u.id]}
+                    highlight={attempt.results[u.id] && attempt.results[u.id].time === best}
+                  />
+                )))}
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
     </TableContainer>
-  )
+  );
 }
 
 TimesTable.propTypes = {
   users: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
   })),
+  statuses: PropTypes.shape(),
   attempts: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
   })),
@@ -156,6 +199,7 @@ TimesTable.propTypes = {
 
 TimesTable.defaultProps = {
   users: [],
+  statuses: {},
   attempts: [],
 };
 
