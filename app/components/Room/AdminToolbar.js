@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
+import { connect } from 'react-redux';
 import Toolbar from '@material-ui/core/Toolbar';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -122,4 +123,8 @@ AdminToolbar.defaultProps = {
   },
 };
 
-export default AdminToolbar;
+const mapStateToProps = (state) => ({
+  room: state.room,
+});
+
+export default connect(mapStateToProps)(AdminToolbar);

@@ -7,7 +7,6 @@ import Divider from '@material-ui/core/Divider';
 import {
   submitResult,
 } from '../../store/room/actions';
-import AdminToolbar from './AdminToolbar';
 import TimesTable from './TimesTable';
 import Timer from '../Timer';
 import Scramble from '../Scramble';
@@ -18,9 +17,8 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     flexDirection: 'column',
     padding: theme.spacing(0),
-    borderColor: theme.divider,
     borderRadius: 0,
-    height: '0px',
+    height: '100%',
   },
 }));
 
@@ -48,25 +46,13 @@ function Main({ dispatch, room, user }) {
     }));
   };
 
-  const isAdmin = () => room.admin && room.admin.id === user.id;
 
   const { users, attempts } = room;
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
   const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id]);
 
   return (
-    <Paper className={classes.root} elevation={1}>
-      { isAdmin()
-        ? (
-          <div style={{
-            flex: 0,
-            connected: false,
-          }}
-          >
-            <AdminToolbar dispatch={dispatch} room={room} />
-            <Divider />
-          </div>
-        ) : <br />}
+    <Paper className={classes.root} variant="outlined" square>
       <Scramble
         event={room.event}
         disabled={timerDisabled}

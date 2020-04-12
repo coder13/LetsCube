@@ -2,11 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 import { withStyles } from '@material-ui/core/styles';
+import Box from '@material-ui/core/Box';
 import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
+import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import {
   formatTime, setInterval, clearInterval, now,
 } from '../lib/utils';
@@ -81,6 +83,7 @@ class Timer extends React.Component {
     this.rootRef = React.createRef();
 
     this.state = {
+      focused: true,
       started: undefined,
       status: STATUS.RESTING,
       time: 0,
@@ -180,8 +183,8 @@ class Timer extends React.Component {
   }
 
   keyDown(event) {
-    const { focused, disabled } = this.props;
-    const { status } = this.state;
+    const { disabled } = this.props;
+    const { focused, status } = this.state;
 
     if (!focused || this.keyIsDown || disabled) {
       return;
@@ -209,8 +212,8 @@ class Timer extends React.Component {
   }
 
   keyUp(event) {
-    const { focused, useInspection } = this.props;
-    const { status } = this.state;
+    const { useInspection } = this.props;
+    const { focused, status } = this.state;
 
     this.keyIsDown = false;
     if (!focused) {
@@ -387,6 +390,18 @@ class Timer extends React.Component {
     return adjustedTime;
   }
 
+  handleClickAway() {
+    this.setState({
+      focused: false,
+    });
+  }
+
+  handleClick() {
+    this.setState({
+      focused: true,
+    });
+  }
+
   renderSubmitting() {
     const { penalties } = this.state;
     const { inspection, inspectionDNF, AUF } = penalties;
@@ -435,14 +450,14 @@ class Timer extends React.Component {
 
   renderTiming() {
     const { classes, disabled } = this.props;
-    const { status } = this.state;
+    const { focused, status } = this.state;
 
     return (
       <>
         <Typography
           variant="h1"
           className={clsx({
-            [classes.disabled]: disabled,
+            [classes.disabled]: disabled || !focused,
           }, classes[status])}
         >
           {this.timerText()}
@@ -458,14 +473,17 @@ class Timer extends React.Component {
     const { status } = this.state;
 
     return (
-      <div
-        className={clsx(classes.root, {
-          [classes.fullscreen]: status !== STATUS.RESTING,
-        })}
-        ref={this.rootRef}
-      >
-        {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
-      </div>
+      <ClickAwayListener onClickAway={() => this.handleClickAway()}>
+        <Box
+          className={clsx(classes.root, {
+            [classes.fullscreen]: status !== STATUS.RESTING,
+          })}
+          onClick={() => this.handleClick()}
+          ref={this.rootRef}
+        >
+          {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
+        </Box>
+      </ClickAwayListener>
     );
   }
 }

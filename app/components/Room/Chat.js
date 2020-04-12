@@ -22,11 +22,12 @@ const Icons = {
   SCRAMBLE: (event) => <Icon className={`cubing-icon event-${event}`} />,
 };
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     display: 'flex',
     flexGrow: 1,
     flexDirection: 'column',
+    height: '100%',
   },
   messages: {
     display: 'flex',
@@ -43,7 +44,6 @@ const useStyles = makeStyles((theme) => ({
     padding: '1em',
     backgroundColor: '#fefefe',
     borderRadius: 0,
-    border: `1px solid ${theme.palette.divider}`,
   },
   message: {
     paddingTop: 0,
@@ -91,7 +91,7 @@ function Chat({ dispatch, messages, users }) {
   }, [messages]);
 
   return (
-    <Paper className={classes.root} elevation={1}>
+    <Paper className={classes.root} variant="outlined" square>
       <List className={classes.messages} ref={listRef}>
         {messages.map(({
           id, userId, text, secondary, icon, event,
@@ -158,6 +158,7 @@ function Chat({ dispatch, messages, users }) {
         component="form"
         onSubmit={handleSubmit}
         className={classes.paper}
+        elevation={8}
       >
         <FormControl fullWidth>
           <Input

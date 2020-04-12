@@ -15,7 +15,7 @@ const reducers = {
     ...state,
     messages: state.messages.concat([action.message]),
   }),
-  [ROOM_UPDATED]: (state, { room: { users } }) => ({
+  [ROOM_UPDATED]: (state, { room: { users = [] } }) => ({
     ...state,
     // update the list of users but don't add duplicates
     users: users.concat(state.users

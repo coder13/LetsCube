@@ -1,16 +1,21 @@
 import React from 'react';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
+import Grid from '@material-ui/core/Grid';
+import Paper from '@material-ui/core/Paper';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import BottomNavigation from '@material-ui/core/BottomNavigation';
 import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
+import Divider from '@material-ui/core/Divider';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
 import Login from './Login';
 import Main from './Main';
 import Chat from './Chat';
+import AdminToolbar from './AdminToolbar';
 import {
   fetchRoom,
   joinRoom,
@@ -39,6 +44,7 @@ const panels = [{
   component: <Chat />,
   icon: <ChatIcon />,
 }];
+
 const useStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
@@ -55,14 +61,31 @@ const useStyles = withStyles((theme) => ({
     height: '4em',
     flexGrow: 0,
     backgroundColor: '#e6e6e6',
+    [theme.breakpoints.up('md')]: {
+      display: 'none',
+    },
   },
   bottomNavItem: {
     display: 'flex',
     flexGrow: 1,
     maxWidth: '100%',
   },
+  hiddenOnMobile: {
+    [theme.breakpoints.down('sm')]: {
+      display: 'none',
+    },
+  },
+  container: {
+    flexGrow: 1,
+  },
+  panel: {
+    flexGrow: 1,
+    transition: `display 5s ${theme.transitions.easing.easeInOut}`,
+  },
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,
+  },
+  adminToolBarContainer: {
   },
 }));
 
@@ -103,6 +126,11 @@ class RoomNav extends React.Component {
     });
   }
 
+  isAdmin() {
+    const { room, user } = this.props;
+    return room.admin && room.admin.id === user.id;
+  }
+
   render() {
     const {
       classes, fetching, inRoom, room,
@@ -121,8 +149,38 @@ class RoomNav extends React.Component {
     }
 
     return (
-      <div className={classes.root}>
-        { !loggedIn ? <Login /> : panels[currentPanel].component }
+      <Paper className={classes.root}>
+        { this.isAdmin()
+          ? (
+            <>
+              <Paper
+                className={classes.adminToolBarContainer}
+                square
+                varian="outlined"
+              >
+                <AdminToolbar room={room} />
+              </Paper>
+              <Divider />
+            </>
+          ) : ''}
+        <Grid container direction="row" className={classes.container}>
+          { !loggedIn ? <Login />
+            : panels.map((panel, index) => (
+              <Grid
+                item
+                key={panel.name}
+                className={clsx(classes.panel, {
+                  [classes.hiddenOnMobile]: currentPanel !== index,
+                })}
+                direction="column"
+                md={6}
+              >
+                {panel.component}
+              </Grid>
+            ))}
+
+        </Grid>
+
         <BottomNavigation
           value={currentPanel}
           showLabels
@@ -139,7 +197,7 @@ class RoomNav extends React.Component {
             />
           ))}
         </BottomNavigation>
-      </div>
+      </Paper>
     );
   }
 }
@@ -150,6 +208,10 @@ RoomNav.propTypes = {
     _id: PropTypes.string,
     private: PropTypes.bool,
     accessCode: PropTypes.string,
+    admin: PropTypes.shape(),
+  }),
+  user: PropTypes.shape({
+    id: PropTypes.number,
   }),
   inRoom: PropTypes.bool,
   dispatch: PropTypes.func.isRequired,
@@ -163,6 +225,9 @@ RoomNav.defaultProps = {
     _id: undefined,
     private: false,
     accessCode: undefined,
+  },
+  user: {
+    id: undefined,
   },
   inRoom: false,
 };
