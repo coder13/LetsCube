@@ -13,11 +13,13 @@ import ListItemAvatar from '@material-ui/core/ListItemAvatar';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
+import Icon from '@material-ui/core/Icon';
 import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
 import { sendChat } from '../../store/chat/actions';
 
 const Icons = {
   ADMIN: <NotificationImportantIcon />,
+  SCRAMBLE: (event) => <Icon className={`cubing-icon event-${event}`} />,
 };
 
 const useStyles = makeStyles((theme) => ({
@@ -55,6 +57,13 @@ const useStyles = makeStyles((theme) => ({
   lastMessageForUser: {
     marginBottom: '.5em',
   },
+  selectable: {
+    '-webkit-user-select': 'text',
+    '-webkit-touch-callout': 'text',
+    '-moz-user-select': 'text',
+    '-ms-user-select': 'text',
+    'user-select': 'text',
+  },
 }));
 
 function Chat({ dispatch, messages, users }) {
@@ -85,17 +94,27 @@ function Chat({ dispatch, messages, users }) {
     <Paper className={classes.root} elevation={1}>
       <List className={classes.messages} ref={listRef}>
         {messages.map(({
-          id, userId, text, icon,
+          id, userId, text, secondary, icon, event,
         }, index) => {
           if (userId === -1) {
             return (
               <ListItem dense key={id} className={classes.systemMessage}>
-                <ListItemIcon>{Icons[icon]}</ListItemIcon>
+                <ListItemIcon
+                  style={{ display: 'block' }}
+                >
+                  {icon === 'SCRAMBLE' ? Icons[icon](event) : Icons[icon]}
+                </ListItemIcon>
 
                 <ListItemText
+                  className={classes.selectable}
                   primary={(
                     <Typography variant="body1">
                       {text}
+                    </Typography>
+                  )}
+                  secondary={(
+                    <Typography variant="body2">
+                      {secondary}
                     </Typography>
                   )}
                 />
@@ -123,6 +142,7 @@ function Chat({ dispatch, messages, users }) {
               </ListItemAvatar>
 
               <ListItemText
+                className={classes.selectable}
                 primary={displayAvatar ? user.displayName : ''}
                 secondary={(
                   <Typography variant="body2">

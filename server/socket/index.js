@@ -200,7 +200,7 @@ module.exports = function ({app, expressSession}) {
 
         room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
         room.save().then((r) => {
-          broadcastToAllInRoom(Protocol.NEW_RESULT, {
+          broadcastToAllInRoom(r.accessCode, Protocol.NEW_RESULT, {
             id: result.id,
             userId: socket.user.id,
             result: result.result,
@@ -233,7 +233,7 @@ module.exports = function ({app, expressSession}) {
         }
 
         room.changeEvent(event).then((r) => {
-          broadcastToAllInRoom(Protocol.UPDATE_ROOM, joinRoomMask(room));
+          broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
         });
       }).catch(console.error);
     });
@@ -248,7 +248,7 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      broadcastToAllInRoom(Protocol.MESSAGE, new ChatMessage(message.text, socket.user.id));
+      broadcastToAllInRoom(socket.room.accessCode, Protocol.MESSAGE, new ChatMessage(message.text, socket.user.id));
     });
 
     socket.on(Protocol.DISCONNECT, () => {
@@ -332,7 +332,7 @@ module.exports = function ({app, expressSession}) {
 
     function sendNewScramble (room) {
       room.newAttempt(attempt => {
-        broadcastToAllInRoom(Protocol.NEW_ATTEMPT, attempt);
+        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, attempt);
       });
     }
 
@@ -341,7 +341,7 @@ module.exports = function ({app, expressSession}) {
     }
 
     function broadcastToAllInRoom (accessCode, event, data) {
-      io.in(accessCode || socket.room.accessCode).emit(...(data ? [event, data] : [accessCode, event]));
+      io.in(accessCode).emit(event, data);
     }
 
     function broadcastToEveryone () {

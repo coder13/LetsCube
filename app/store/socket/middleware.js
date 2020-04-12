@@ -127,6 +127,15 @@ const socketMiddleware = (store) => {
       },
       [Protocol.NEW_ATTEMPT]: (attempt) => {
         store.dispatch(newAttempt(attempt));
+
+        store.dispatch(receiveChat({
+          id: uuid(),
+          userId: -1,
+          text: 'A new scramble is here',
+          secondary: attempt.scrambles.join(', '),
+          icon: 'SCRAMBLE',
+          event: store.getState().room.event,
+        }));
       },
       [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));
