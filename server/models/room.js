@@ -53,6 +53,7 @@ const Room = new mongoose.Schema({
     type: [Attempt],
     default: [],
   },
+  users: [User],
   admin: User,
 });
 
@@ -60,18 +61,8 @@ Room.virtual('scrambler').get(function () {
   return new Scrambow().setType(this.event);
 });
 
-let Room_Users  = {};
-
-Room.virtual('users').get(function () {
-  if (!Room_Users[this._id]) {
-    Room_Users[this._id] = [];
-  }
-  
-  return Room_Users[this._id];
-});
-
 Room.virtual('usersLength').get(function () {
-  return Room_Users[this._id] ? Room_Users[this._id].length : 0;
+  return this.users.length;
 })
 
 Room.virtual('private').get(function () {
@@ -79,25 +70,16 @@ Room.virtual('private').get(function () {
 });
 
 Room.methods.addUser = function(user) {
-  if (!Room_Users[this._id]) {
-    Room_Users[this._id] = [];
-  }
-
-  // If user is already in the room, return false.
-  if (Room_Users[this._id].find(i => i.id === user.id)) {
+  if (this.users.find(i => i.id === user.id)) {
     return false;
   }
 
-  Room_Users[this._id].push(user);
+  this.users.push(user);
   return this.save();
 }
 
 Room.methods.dropUser = function(user) {
-  if (!Room_Users[this._id]) {
-    Room_Users[this._id] = [];
-  }
-
-  Room_Users[this._id] = Room_Users[this._id].filter(i => i.id !== user.id);
+  this.users = this.users.filter(i => i.id !== user.id);
 
   return this.save();
 }

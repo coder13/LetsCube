@@ -26,14 +26,14 @@ const init = async () => {
   }));
   app.use(bodyParser.json());
 
-  console.log('Attempting to connect to mongodb at:', config.mongodb);
+  console.log('[MONGODB] Attempting to connect to database at:', config.mongodb);
   await mongoose.connect(config.mongodb, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   }).then(() => {
-    console.log(`Connected to mongo database at ${config.mongodb}`);
+    console.log(`[MONGODB] Connected to database at ${config.mongodb}`);
   }).catch(err => {
-    console.error('Error when connecting to database', err);
+    console.error('[MONGODB] Error when connecting to database', err);
     process.exit();
   });
 
@@ -101,10 +101,14 @@ const init = async () => {
       console.log(err);
     }
 
-    console.log(`Listening on port ${config.server.port}. Access at: http://localhost:${config.server.port}/`);
-  });  
+    console.log(`[EXPRESS] Listening on port ${config.server.port}. Access at: http://localhost:${config.server.port}/`);
+  });
+
+  return app;
 };
 
-init().catch(err => {
-  console.error(err);
-});
+try {
+  const app = module.exports = init();
+} catch (e) {
+  console.error(e);
+}

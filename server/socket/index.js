@@ -24,24 +24,29 @@ class ChatMessage {
   }
 }
 
-function attachUser (socket, next) {
+async function attachUser (socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
 
   if (!userId) {
     return next();
   }
 
-  User.findOne({id: userId}).then(user => {
-    socket.user = user;
-    if (socket.user && !SocketUsers[socket.user.id]) {
-      SocketUsers[socket.user.id] = [];
+  try {
+    const user = await User.findOne({id: userId})
+    if (user) {
+      socket.user = user;
+
+      if (!SocketUsers[socket.user.id]) {
+        SocketUsers[socket.user.id] = [];
+      }
+
+      SocketUsers[socket.user.id].push(socket.id);
     }
-    SocketUsers[socket.user.id].push(socket.id);
 
     next();
-  }).catch(err => {
-    console.error(err);
-  });
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 module.exports = function ({app, expressSession}) {
@@ -81,7 +86,7 @@ module.exports = function ({app, expressSession}) {
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
-        r.updateAdminIfNeeded(({ admin }) => {
+        await r.updateAdminIfNeeded(({ admin }) => {
           broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, admin);
         });
 
@@ -112,7 +117,7 @@ module.exports = function ({app, expressSession}) {
           });
           return;
         }
-        
+
         joinRoom(room);
       } catch (e) {
         console.error(e);
@@ -120,8 +125,10 @@ module.exports = function ({app, expressSession}) {
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, (id) => {
-      Room.findById(id).then(room => {
+    socket.on(Protocol.FETCH_ROOM, async (id) => {
+      try {
+        const room = await Room.findById(id);
+
         if (!room) {
           socket.emit(Protocol.ERROR, {
             statusCode: 404,
@@ -133,62 +140,64 @@ module.exports = function ({app, expressSession}) {
         } else {
           joinRoom(room);
         }
-      }).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
-    socket.on(Protocol.CREATE_ROOM, (options) => {
+    socket.on(Protocol.CREATE_ROOM, async (options) => {
       if (!isLoggedIn()) {
         return;
       }
 
-      const room = new Room({
+      const newRoom = new Room({
         name: options.name
       });
 
       if (options.password) {
-        room.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+        newRoom.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
       }
 
-      room.save().then(room => {
-        io.emit(Protocol.ROOM_CREATED, room);
-        joinRoom(room);
-        socket.emit(Protocol.FORCE_JOIN, room);
-      }).catch(console.error);
+      const room = await newRoom.save();
+      io.emit(Protocol.ROOM_CREATED, room);
+      joinRoom(room);
+      socket.emit(Protocol.FORCE_JOIN, room);
     });
 
     /* Admin Actions */
-    socket.on(Protocol.DELETE_ROOM, id => {
-      Room.findById(socket.room._id).then(room => {
-        socket.room = room;
+    socket.on(Protocol.DELETE_ROOM, async (id) => {
+      const room = await Room.findById(socket.room._id);
+      if (!room) {
+        return;
+      }
 
-        if (!checkAdmin()) {
-          return;
-        } else if (socket.room._id !== id) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 403,
-            event: Protocol.DELETE_ROOM,
-            message: 'Must be admin of your own room',
-          });
-          return;
+      socket.room = room;
+
+      if (!checkAdmin()) {
+        return;
+      }
+
+      Room.deleteOne({_id: id}).then((res) => {
+        if (res.deletedCount > 0) {
+          socket.room = undefined;
+          broadcastToEveryone(Protocol.ROOM_DELETED, id);
+        } else if (res.deletedCount > 1) {
+          console.error(168, 'big problemo');
         }
-
-        Room.deleteOne({_id: id}).then((foo) => {
-          if (foo.deletedCount > 0) {
-            socket.room = undefined;
-            broadcastToEveryone(Protocol.ROOM_DELETED, id);
-          } else if (foo.deletedCount > 1) {
-            console.error(168, 'big problemo');
-          }
-        }).catch(console.error);
-      }).catch(console.error);
+      });
     });
 
-    socket.on(Protocol.SUBMIT_RESULT, (result) => {
+    socket.on(Protocol.SUBMIT_RESULT, async (result) => {
       if (!isLoggedIn() || !isInRoom()) {
         return;
       }
 
-      Room.findById(socket.room._id).then(room => {    
+      try {
+        const room = await Room.findById(socket.room._id);    
+        if (!room) {
+          return;
+        }
+
         if (!room.attempts[result.id]) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
@@ -199,34 +208,48 @@ module.exports = function ({app, expressSession}) {
         }
 
         room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
-        room.save().then((r) => {
-          broadcastToAllInRoom(r.accessCode, Protocol.NEW_RESULT, {
-            id: result.id,
-            userId: socket.user.id,
-            result: result.result,
-          });
+        const r = await room.save();
 
-          if (r.doneWithScramble()) {
-            console.log(123, 'everyone done, sending new scramble');
-            sendNewScramble(r);
-          }
+        broadcastToAllInRoom(r.accessCode, Protocol.NEW_RESULT, {
+          id: result.id,
+          userId: socket.user.id,
+          result: result.result,
         });
-      }).catch(console.error);
+
+        if (r.doneWithScramble()) {
+          console.log(123, 'everyone done, sending new scramble');
+          sendNewScramble(r);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     });
 
-    socket.on(Protocol.REQUEST_SCRAMBLE, () => {
-      Room.findById(socket.room._id).then(room => {
+    socket.on(Protocol.REQUEST_SCRAMBLE, async () => {
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
+        }
+
         socket.room = room;
         if (!checkAdmin()) {
           return;
         }
 
         sendNewScramble(room);
-      }).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
-    socket.on(Protocol.CHANGE_EVENT, (event) => {
-      Room.findById(socket.room._id).then(room => {
+    socket.on(Protocol.CHANGE_EVENT, async (event) => {
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
+        }
+
         socket.room = room;
         if (!checkAdmin()) {
           return;
@@ -235,7 +258,9 @@ module.exports = function ({app, expressSession}) {
         room.changeEvent(event).then((r) => {
           broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
         });
-      }).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
     // Simplest event here. Just echo the message to everyone else.
@@ -252,6 +277,8 @@ module.exports = function ({app, expressSession}) {
     });
 
     socket.on(Protocol.DISCONNECT, () => {
+      console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
+
       if (isLoggedIn() && isInRoom()) {
         leaveRoom();
       }
@@ -262,8 +289,6 @@ module.exports = function ({app, expressSession}) {
           delete SocketUsers[socket.user.id]; // Garbage collection
         }
       }
-
-      console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`)
     });
 
     socket.on(Protocol.LEAVE_ROOM, () => {
@@ -305,14 +330,17 @@ module.exports = function ({app, expressSession}) {
       return !!socket.room;
     }
 
-    function leaveRoom () {
+    async function leaveRoom () {
       socket.leave(socket.room.accessCode);
       
       // only socket on this user id
       if (!SocketUsers[socket.user.id]) {
-        console.error('Reference to users\' socket look is undefined for some reason');
+        console.log(317, socket.user.id, Object.keys(SocketUsers));
+        console.error('Reference to users\' socket lookup is undefined for some reason');
       } else if (SocketUsers[socket.user.id].length === 1) {
-        socket.room.dropUser(socket.user).then(async (room) => {
+        try {
+          const room = await socket.room.dropUser(socket.user);
+
           broadcast(Protocol.USER_LEFT, socket.user.id);
           broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
 
@@ -326,7 +354,9 @@ module.exports = function ({app, expressSession}) {
           }
 
           socket.room = undefined;
-        }).catch(console.error);
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
 
