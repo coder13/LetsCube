@@ -11,7 +11,8 @@ export const NEW_ATTEMPT = 'room/new_attempt';
 export const UPDATE_ADMIN = 'room/update_admin';
 export const REQUEST_SCRAMBLE = 'room/request_scramble';
 export const CHANGE_EVENT = 'room/change_event';
-export const UPDATE_STATUS = 'room/update_status';
+export const SEND_STATUS = 'room/send_status';
+export const RECEIVE_STATUS = 'room/receive_status';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -54,8 +55,13 @@ export const newAttempt = (attempt) => ({
   attempt,
 });
 
-export const updateStatus = (user, status) => ({
-  type: UPDATE_STATUS,
+export const sendStatus = (status) => ({
+  type: SEND_STATUS,
+  status,
+});
+
+export const receiveStatus = (user, status) => ({
+  type: RECEIVE_STATUS,
   user,
   status,
 });

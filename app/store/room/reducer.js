@@ -8,7 +8,7 @@ import {
   NEW_ATTEMPT,
   NEW_RESULT,
   UPDATE_ADMIN,
-  UPDATE_STATUS,
+  RECEIVE_STATUS,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -74,7 +74,7 @@ const reducers = {
     }),
   }),
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
-  [UPDATE_STATUS]: (state, action) => ({
+  [RECEIVE_STATUS]: (state, action) => ({
     ...state,
     statuses: { ...state.statuses, [action.user]: action.status },
   }),

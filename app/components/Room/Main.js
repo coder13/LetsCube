@@ -6,7 +6,7 @@ import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import {
   submitResult,
-  updateStatus,
+  sendStatus,
 } from '../../store/room/actions';
 import TimesTable from './TimesTable';
 import Timer from '../Timer';
@@ -48,7 +48,7 @@ function Main({ dispatch, room, user }) {
   };
 
   const handleStatusChange = (status) => {
-    dispatch(updateStatus(user.id, status));
+    dispatch(sendStatus(status));
   };
 
   const { users, statuses, attempts } = room;

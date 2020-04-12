@@ -19,7 +19,7 @@ import {
   SUBMIT_RESULT,
   REQUEST_SCRAMBLE,
   CHANGE_EVENT,
-  UPDATE_STATUS,
+  SEND_STATUS,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -27,7 +27,7 @@ import {
   userLeft,
   newAttempt,
   newResult,
-  updateStatus,
+  receiveStatus,
   updateAdmin,
 } from '../room/actions';
 import {
@@ -146,7 +146,7 @@ const socketMiddleware = (store) => {
         store.dispatch(receiveChat(message));
       },
       [Protocol.UPDATE_STATUS]: ({ user, status }) => {
-        store.dispatch(updateStatus(user, status));
+        store.dispatch(receiveStatus(user, status));
       },
     },
   });
@@ -195,10 +195,11 @@ const socketMiddleware = (store) => {
     [SEND_CHAT]: ({ message }) => {
       socket.emit(Protocol.MESSAGE, message);
     },
-    [UPDATE_STATUS]: (action) => {
-      if (action.user === store.getState().user.id) {
-        socket.emit(Protocol.UPDATE_STATUS, action);
-      }
+    [SEND_STATUS]: ({ status }) => {
+      socket.emit(Protocol.UPDATE_STATUS, {
+        user: store.getState().user.id,
+        status,
+      });
     },
   };
 
