@@ -8,6 +8,11 @@ const useStyles = makeStyles(() => ({
   root: {
     margin: '.5em',
     textAlign: 'center',
+    '-webkit-user-select': 'text',
+    '-webkit-touch-callout': 'text',
+    '-moz-user-select': 'text',
+    '-ms-user-select': 'text',
+    'user-select': 'text',
   },
   scramble: {
     fontFamily: 'Roboto Mono, monospace',
