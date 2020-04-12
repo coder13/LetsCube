@@ -1,8 +1,8 @@
 import io from 'socket.io-client';
 import * as Protocol from '../../lib/protocol';
 
-const dev = document.location.hostname !== 'letscube.calebhoover.com';
-const makeURI = () => `${dev ? `http://${document.location.hostname}:9000` : 'https://letscube.calebhoover.com'}/`;
+const dev = process.env.NODE_ENV === 'development';
+const makeURI = () => (dev ? `http://${document.location.hostname}:9000/` : '/');
 
 Error.stackTraceLimit = Infinity;
 
