@@ -10,9 +10,15 @@ import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListItemAvatar from '@material-ui/core/ListItemAvatar';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
+import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
 import { sendChat } from '../../store/chat/actions';
+
+const Icons = {
+  ADMIN: <NotificationImportantIcon />,
+};
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -42,8 +48,12 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: 0,
     margin: 0,
   },
+  systemMessage: {
+    marginTop: '.5em',
+    marginBottom: '.5em',
+  },
   lastMessageForUser: {
-    marginBottom: '1em',
+    marginBottom: '.5em',
   },
 }));
 
@@ -74,36 +84,53 @@ function Chat({ dispatch, messages, users }) {
   return (
     <Paper className={classes.root} elevation={1}>
       <List className={classes.messages} ref={listRef}>
-        {messages.map(({ userId, text }, index) => {
-          const user = findUser(userId);
-          const avatar = user.avatar.url;
-          const displayAvatar = !avatar || index === 0 || messages[index - 1].userId !== user.id;
-          const isNextMessageTheSameUser = messages[index + 1]
-            && messages[index + 1].userId === user.id;
-
-          return (
-            <>
-              <ListItem
-                alignItems="flex-start"
-                className={clsx(classes.message, {
-                  [classes.lastMessageForUser]: !isNextMessageTheSameUser,
-                })}
-              >
-                <ListItemAvatar>
-                  {displayAvatar
-                    && <Avatar src={user.avatar.url} />}
-                </ListItemAvatar>
+        {messages.map(({
+          id, userId, text, icon,
+        }, index) => {
+          if (userId === -1) {
+            return (
+              <ListItem dense key={id} className={classes.systemMessage}>
+                <ListItemIcon>{Icons[icon]}</ListItemIcon>
 
                 <ListItemText
-                  primary={displayAvatar ? user.displayName : ''}
-                  secondary={(
-                    <Typography variant="body2">
+                  primary={(
+                    <Typography variant="body1">
                       {text}
                     </Typography>
                   )}
                 />
               </ListItem>
-            </>
+            );
+          }
+
+          const user = findUser(userId);
+          const avatar = user && user.avatar.url;
+          const displayAvatar = !avatar || index === 0 || messages[index - 1].userId !== user.id;
+          const isNextMessageTheSameUser = messages[index + 1]
+            && messages[index + 1].userId === user.id;
+
+          return (
+            <ListItem
+              key={id}
+              alignItems="flex-start"
+              className={clsx(classes.message, {
+                [classes.lastMessageForUser]: !isNextMessageTheSameUser,
+              })}
+            >
+              <ListItemAvatar>
+                {displayAvatar
+                  && <Avatar src={user.avatar.url} />}
+              </ListItemAvatar>
+
+              <ListItemText
+                primary={displayAvatar ? user.displayName : ''}
+                secondary={(
+                  <Typography variant="body2">
+                    {text}
+                  </Typography>
+                )}
+              />
+            </ListItem>
           );
         })}
       </List>

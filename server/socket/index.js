@@ -46,7 +46,7 @@ function attachUser (socket, next) {
 
 module.exports = function ({app, expressSession}) {
   const server = http.Server(app);
-  const io = require('socket.io')(server);
+  const io = app.io = require('socket.io')(server);
 
   io.use(expressSocketSession(expressSession, {
     autoSave: true
@@ -81,7 +81,10 @@ module.exports = function ({app, expressSession}) {
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
-        broadcastToAllInRoom(Protocol.UPDATE_ADMIN, socket.room.admin);
+        r.updateAdminIfNeeded(({ admin }) => {
+          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, admin);
+        });
+
         if (r.doneWithScramble()) {
           console.log(104, 'everyone done, sending new scramble');
           sendNewScramble(r);
@@ -306,12 +309,17 @@ module.exports = function ({app, expressSession}) {
       socket.leave(socket.room.accessCode);
       
       // only socket on this user id
-      if (SocketUsers[socket.user.id].length === 1) {
-        socket.room.dropUser(socket.user).then((room) => {
+      if (!SocketUsers[socket.user.id]) {
+        console.error('Reference to users\' socket look is undefined for some reason');
+      } else if (SocketUsers[socket.user.id].length === 1) {
+        socket.room.dropUser(socket.user).then(async (room) => {
           broadcast(Protocol.USER_LEFT, socket.user.id);
-          broadcastToAllInRoom(Protocol.UPDATE_ADMIN, room.admin);
           broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-        
+
+          room.updateAdminIfNeeded(({ admin, accessCode }) => {
+            broadcastToAllInRoom(accessCode, Protocol.UPDATE_ADMIN, admin);
+          });
+
           if (room.doneWithScramble()) {
             console.log(196, 'everyone done, sending new scramble');
             sendNewScramble(room);
@@ -332,8 +340,8 @@ module.exports = function ({app, expressSession}) {
       socket.broadcast.to(socket.room.accessCode).emit(...arguments);
     }
 
-    function broadcastToAllInRoom () {
-      io.in(socket.room.accessCode).emit(...arguments);
+    function broadcastToAllInRoom (accessCode, event, data) {
+      io.in(accessCode || socket.room.accessCode).emit(...(data ? [event, data] : [accessCode, event]));
     }
 
     function broadcastToEveryone () {

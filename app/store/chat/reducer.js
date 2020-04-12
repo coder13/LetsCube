@@ -1,11 +1,14 @@
 import { RECEIVE_CHAT } from './actions';
-import { USER_JOIN, ROOM_UPDATED, LEAVE_ROOM } from '../room/actions';
+import {
+  USER_JOIN,
+  ROOM_UPDATED,
+  LEAVE_ROOM,
+} from '../room/actions';
 
 const INITIAL_STATE = {
   messages: [],
   users: [],
 };
-
 
 const reducers = {
   [RECEIVE_CHAT]: (state, action) => ({

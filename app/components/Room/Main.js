@@ -48,7 +48,7 @@ function Main({ dispatch, room, user }) {
     }));
   };
 
-  const isAdmin = () => room.admin.id === user.id;
+  const isAdmin = () => room.admin && room.admin.id === user.id;
 
   const { users, attempts } = room;
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};

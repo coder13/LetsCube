@@ -1,4 +1,5 @@
 import { push } from 'connected-react-router';
+import uuid from 'uuid/v4';
 import * as Protocol from '../../lib/protocol';
 import Socket from './Socket';
 import {
@@ -97,6 +98,14 @@ const socketMiddleware = (store) => {
       },
       [Protocol.UPDATE_ADMIN]: (admin) => {
         store.dispatch(updateAdmin(admin));
+
+        const adminName = admin.id === store.getState().user.id ? 'You are' : `${admin.displayName} is`;
+        store.dispatch(receiveChat({
+          id: uuid(),
+          userId: -1,
+          text: `${adminName} in control now.`,
+          icon: 'ADMIN',
+        }));
       },
       [Protocol.FORCE_JOIN]: (room) => {
         store.dispatch(push(`/rooms/${room._id}`));

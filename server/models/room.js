@@ -89,9 +89,6 @@ Room.methods.addUser = function(user) {
   }
 
   Room_Users[this._id].push(user);
-  if (this.users.length === 1) {
-    this.admin = this.users[0];
-  }
   return this.save();
 }
 
@@ -102,9 +99,6 @@ Room.methods.dropUser = function(user) {
 
   Room_Users[this._id] = Room_Users[this._id].filter(i => i.id !== user.id);
 
-  if (this.users.length > 0) {
-    this.admin = this.users[0];
-  }
   return this.save();
 }
 
@@ -157,6 +151,18 @@ Room.methods.changeEvent = function (event) {
   this.attempts = [];
   this.attempts.push(this.genAttempt());
   return this.save();
+}
+
+Room.methods.updateAdminIfNeeded = function (cb) {
+  if (this.users.length === 0) {
+    this.admin = null;
+    return this.save();
+  }
+  
+  if (!this.admin || this.admin.id !== this.users[0].id) {
+    this.admin = this.users[0];
+    this.save().then(cb).catch(console.error);
+  }
 }
 
 module.exports.Attempt = Attempt;

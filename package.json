@@ -190,7 +190,8 @@
     "eslint-plugin-prettier": "3.1.2",
     "husky": "4.2.5",
     "kill-port": "1.6.0",
-    "nodemon": "^2.0.2"
+    "nodemon": "2.0.3",
+    "update": "0.7.4"
   },
   "husky": {
     "hooks": {
