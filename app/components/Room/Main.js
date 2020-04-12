@@ -69,6 +69,7 @@ function Main({ dispatch, room, user }) {
         ) : <br />}
       <Scramble
         event={room.event}
+        disabled={timerDisabled}
         scrambles={latestAttempt.scrambles}
       />
       <Divider />

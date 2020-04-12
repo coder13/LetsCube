@@ -18,6 +18,9 @@ const useStyles = makeStyles(() => ({
     fontFamily: 'Roboto Mono, monospace',
     fontSize: '1.25em',
   },
+  disabled: {
+    color: '#7f7f7f',
+  },
   // eslint-disable-next-line quote-props
   minx: {
     lineHeight: '1.25em',
@@ -39,16 +42,19 @@ function Megaminx({ scramble }) {
   ));
 }
 
-function Scramble({ event, scrambles }) {
+function Scramble({ event, scrambles, disabled }) {
   const classes = useStyles();
 
   return (
-    <div className={classes.root}>
+    <div className={clsx(classes.root, {
+      [classes.disabled]: disabled,
+    })}
+    >
       <Typography
         variant="subtitle2"
-        className={clsx(classes.scramble, {
+        className={clsx({
           [classes[event]]: true,
-        })}
+        }, classes.scramble)}
       >
         {scrambles.length ? scrambles.map((scramble) => (event === 'minx' ? <Megaminx scramble={scramble} /> : scramble)) : 'No Scrambles'}
       </Typography>
@@ -59,11 +65,13 @@ function Scramble({ event, scrambles }) {
 Scramble.propTypes = {
   event: PropTypes.string,
   scrambles: PropTypes.arrayOf(PropTypes.string),
+  disabled: PropTypes.bool,
 };
 
 Scramble.defaultProps = {
   event: '333',
   scrambles: [],
+  disabled: false,
 };
 
 export default Scramble;
