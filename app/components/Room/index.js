@@ -148,6 +148,8 @@ class RoomNav extends React.Component {
       );
     }
 
+    const widths = [8, 4];
+
     return (
       <Paper className={classes.root}>
         { this.isAdmin()
@@ -173,7 +175,7 @@ class RoomNav extends React.Component {
                   [classes.hiddenOnMobile]: currentPanel !== index,
                 })}
                 direction="column"
-                md={6}
+                md={widths[index]}
               >
                 {panel.component}
               </Grid>
