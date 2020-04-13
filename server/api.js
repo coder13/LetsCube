@@ -30,9 +30,7 @@ module.exports = (app) => {
     if (req.body.username === '') {
       req.user.username = req.body.username;
       return req.user.save().then((u) => {
-        res.json({
-          username: u.username,
-        });
+        res.json(u.toObject());
       });
     }
 
@@ -49,9 +47,7 @@ module.exports = (app) => {
 
       req.user.username = req.body.username.trim();
       return req.user.save().then((u) => {
-        res.json({
-          username: u.username,
-        });
+        res.json(u.toObject());
       });
     }).catch((err) => {
       sendError(res, {
@@ -61,7 +57,7 @@ module.exports = (app) => {
     });
   });
 
-  router.put('/updatePrivacy', auth, async (req, res) => {
+  router.put('/updatePreference', auth, async (req, res) => {
     Object.keys(req.body).forEach((key) => {
       req.user[key] = req.body[key];
     });

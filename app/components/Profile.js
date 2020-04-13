@@ -9,6 +9,7 @@ import Typography from '@material-ui/core/Typography';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Divider from '@material-ui/core/Divider';
+import Alert from '@material-ui/lab/Alert';
 import EditableTextField from './EditableTextField';
 import { updateProfile } from '../store/user/actions';
 
@@ -86,6 +87,8 @@ function Profile({ user, dispatch }) {
     }).then((res) => {
       dispatch(updateProfile({
         username: res.username,
+        displayName: res.displayName,
+        canJoinRoom: res.canJoinRoom,
       }));
       cb();
     }).catch((err) => {
@@ -97,7 +100,7 @@ function Profile({ user, dispatch }) {
 
   const handleToggle = (event) => {
     const { name, checked } = event.target;
-    fetch('/api/updatePrivacy', {
+    fetch('/api/updatePreference', {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -109,6 +112,7 @@ function Profile({ user, dispatch }) {
       dispatch(updateProfile({
         [name]: res[name],
         displayName: res.displayName,
+        canJoinRoom: res.canJoinRoom,
       }));
     });
   };
@@ -118,6 +122,14 @@ function Profile({ user, dispatch }) {
   ) : (
     <Grid container justify="center" className={classes.root}>
       <Grid item xs={12} md={8}>
+        {!user.canJoinRoom && (
+          <Alert
+            severity="error"
+            style={{ fontSize: '1.25em' }}
+          >
+            Must set a username or check `Prefer Real Name` before joining a room.
+          </Alert>
+        )}
         <Paper>
           <Grid container style={{ padding: '2em', justifyContent: 'space-between' }}>
             <Grid item xs={4}>
@@ -125,9 +137,16 @@ function Profile({ user, dispatch }) {
                 <Typography component="span" variant="body1">
                   Displaying as:
                 </Typography>
-                <Typography component="span" variant="subtitle2" className={classes.indent}>
-                  {user.displayName}
-                </Typography>
+                {user.displayName ? (
+                  <Typography component="span" variant="subtitle2" className={classes.indent}>
+                    {user.displayName}
+                  </Typography>
+                ) : (
+                  <Typography component="span" variant="subtitle2" className={classes.indent}>
+                    NO NAME SET
+                  </Typography>
+
+                )}
               </div>
 
               <Divider className={classes.separate} />
@@ -160,17 +179,22 @@ function Profile({ user, dispatch }) {
           </Grid>
 
           <Grid container className={classes.preferences}>
-            <EditableTextField label="Username" value={user.username} onChange={changeUsername} validate={validate} />
+            <EditableTextField
+              label="Username"
+              value={user.username}
+              onChange={changeUsername}
+              validate={validate}
+            />
             <Paper className={classes.input}>
               <FormControlLabel
                 control={(
                   <Checkbox
-                    checked={user.preferUsername}
+                    checked={user.preferRealName}
                     onChange={handleToggle}
-                    name="preferUsername"
+                    name="preferRealName"
                   />
                 )}
-                label="Prefer Username"
+                label="Prefer Real Name"
               />
               <FormControlLabel
                 control={(
@@ -207,8 +231,9 @@ Profile.propTypes = {
     displayName: PropTypes.string,
     name: PropTypes.string,
     username: PropTypes.string,
-    preferUsername: PropTypes.bool,
+    preferRealName: PropTypes.bool,
     showWCAID: PropTypes.bool,
+    canJoinRoom: PropTypes.bool,
     wcaId: PropTypes.string,
     useInspection: PropTypes.bool,
     avatar: PropTypes.shape({
@@ -224,8 +249,9 @@ Profile.defaultProps = {
     displayName: undefined,
     name: '',
     username: '',
-    preferUsername: false,
+    preferRealName: false,
     showWCAID: false,
+    canJoinRoom: false,
     wcaId: '',
     useInspection: false,
     avatar: {

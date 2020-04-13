@@ -37,6 +37,7 @@ function EditableTextField({
 
   const startEditing = () => {
     setEditing(true);
+    setValue(value);
     setError(false);
   };
 

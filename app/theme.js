@@ -10,14 +10,11 @@ export default createMuiTheme({
     secondary: {
       main: red.A400,
     },
-    error: {
-      main: red.A400,
-    },
     background: {
       default: '#fff',
     },
   },
   typography: {
-    fontSize: 11,
+    fontSize: 12,
   },
 });

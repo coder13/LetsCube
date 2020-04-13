@@ -22,7 +22,7 @@ const schema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  preferUsername: {
+  preferRealName: {
     type: Boolean,
     default: false,
   },
@@ -58,8 +58,15 @@ const schema = new mongoose.Schema({
   }
 });
 
-schema.virtual('displayName').get(function (v) {
-  return this.preferUsername && this.username ? this.username : this.name; 
+schema.virtual('displayName').get(function () {
+  return !this.preferRealName ? this.username : this.name; 
+});
+
+// A user can only join a room if they have checked the new
+// `Prefer real name to username` which is inverse of preferUsername
+// If they haven't preferred real name to username, their username has to be set
+schema.virtual('canJoinRoom').get(function () {
+  return this.preferRealName || !!this.username;
 });
 
 module.exports = schema;

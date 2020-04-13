@@ -8,12 +8,13 @@ import PrivateIcon from '@material-ui/icons/Lock';
 import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/wca';
 
-function RoomListItem({ room }) {
+function RoomListItem({ room, disabled }) {
   const userText = room.usersLength === 0 ? ' empty' : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}`;
 
   return (
     <ListItemLink
       to={`/rooms/${room._id}`}
+      disabled={disabled}
     >
       <ListItemIcon>
         { room.private
@@ -47,6 +48,7 @@ RoomListItem.propTypes = {
     private: PropTypes.bool,
     usersLength: PropTypes.number,
   }),
+  disabled: PropTypes.bool,
 };
 
 RoomListItem.defaultProps = {
@@ -57,6 +59,7 @@ RoomListItem.defaultProps = {
     private: false,
     usersLength: 0,
   },
+  disabled: true,
 };
 
 export default RoomListItem;

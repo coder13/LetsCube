@@ -68,7 +68,7 @@ function App({
       <Header user={user} room={room}>
         <Switch>
           <Route exact path="/" component={RoomList} />
-          <Route path="/rooms/:roomId" component={Room} />
+          { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
           { (user.id || user.fetching)
             && (<Route exact path="/profile" component={Profile} user={user} />)}
           <Redirect to="/" />

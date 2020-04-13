@@ -10,6 +10,7 @@ const INITIAL_STATE = {
   name: undefined,
   wcaId: undefined,
   showWCAID: undefined,
+  canJoinRoom: undefined,
   preferUsername: undefined,
   displayName: undefined,
   avatar: {
