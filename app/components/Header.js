@@ -14,6 +14,7 @@ import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
+import Footer from './Footer';
 import { getNameFromId } from '../lib/wca';
 
 const useStyles = makeStyles(() => ({
@@ -128,6 +129,7 @@ function Header({ children, user, room }) {
       <main className={classes.content}>
         {children}
       </main>
+      <Footer />
     </div>
   );
 }
