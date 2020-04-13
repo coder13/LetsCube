@@ -174,7 +174,6 @@ class RoomNav extends React.Component {
                 className={clsx(classes.panel, {
                   [classes.hiddenOnMobile]: currentPanel !== index,
                 })}
-                direction="column"
                 md={widths[index]}
               >
                 {panel.component}

@@ -13,6 +13,7 @@ const INITIAL_STATE = {
   canJoinRoom: undefined,
   preferUsername: undefined,
   displayName: undefined,
+  useInspection: false,
   avatar: {
     thumb_url: undefined,
   },

@@ -54,6 +54,7 @@ function Footer() {
         <Grid item>
           {Links.map((link) => (
             <Link
+              key={link.text}
               className={classes.link}
               variant="body2"
               href={link.url}

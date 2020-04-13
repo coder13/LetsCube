@@ -59,7 +59,11 @@ function TableStatusCell({ status }) {
 }
 
 TableStatusCell.propTypes = {
-  status: PropTypes.string.isRequired,
+  status: PropTypes.string,
+};
+
+TableStatusCell.defaultProps = {
+  status: '',
 };
 
 function TableTimeCell({ attempt: { time, penalties }, highlight }) {
@@ -170,7 +174,7 @@ function TimesTable({ users, statuses, attempts }) {
               <TableRow className={classes.tr} key={attempt.id}>
                 <TableCell className={classes.tableResultCell} align="left">{attempts.length - index}</TableCell>
                 {users.map((u) => (index === 0 && !attempt.results[u.id] ? (
-                  <TableStatusCell status={statuses[u.id]} />
+                  <TableStatusCell key={u.id} status={statuses[u.id]} />
                 ) : (
                   <TableTimeCell
                     key={u.id}
