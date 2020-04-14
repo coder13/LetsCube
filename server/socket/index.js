@@ -12,7 +12,7 @@ const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', '
 const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
 // Keep track of users using multiple sockets.
-// Map of user.id -> [socket.id]
+// Map of user.id -> {room.id: [socket.id]}
 const SocketUsers = {};
 
 class ChatMessage {
@@ -37,16 +37,13 @@ async function attachUser (socket, next) {
       socket.user = user;
 
       if (!SocketUsers[socket.user.id]) {
-        SocketUsers[socket.user.id] = [];
+        SocketUsers[socket.user.id] = {};
       }
-
-      SocketUsers[socket.user.id].push(socket.id);
     }
-
-    next();
   } catch (e) {
     console.error(e);
   }
+  next();
 }
 
 module.exports = function ({app, expressSession}) {
@@ -69,20 +66,35 @@ module.exports = function ({app, expressSession}) {
     });
     
     function joinRoom(room) {
+      if (socket.room) {
+        return;
+      }
+
       socket.join(room.accessCode, async () => {
         socket.room = room;
-        if (!socket.user) {
-          return socket.emit(Protocol.JOIN, joinRoomMask(room)); // still give them the data
-        }
 
-        const r = await room.addUser(socket.user);
-        if (!r) {
-          // still give them the data, even if they are already in the room
+        if (!socket.user) {
           socket.emit(Protocol.JOIN, joinRoomMask(room));
           return;
         }
 
-        socket.emit(Protocol.JOIN, joinRoomMask(r)); // tell the user they're cool and give them the info
+        if (!SocketUsers[socket.user.id][room._id]) {
+          SocketUsers[socket.user.id][room._id] = [];
+        }
+
+        SocketUsers[socket.user.id][room._id].push(socket.id);
+
+        const r = await room.addUser(socket.user);
+
+        if (!r) {
+          // Join the socket to the room anyways but don't add them
+          socket.emit(Protocol.JOIN, joinRoomMask(room));
+          return;
+        }
+
+        socket.room = r;
+        socket.emit(Protocol.JOIN, joinRoomMask(r));
+
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
@@ -290,24 +302,21 @@ module.exports = function ({app, expressSession}) {
       broadcast(Protocol.UPDATE_STATUS, status);
     });
 
-    socket.on(Protocol.DISCONNECT, () => {
+    socket.on(Protocol.DISCONNECT, async () => {
       console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 
-      if (isLoggedIn() && isInRoom()) {
-        leaveRoom();
+      if (!socket.user) {
+        return;
       }
 
-      if (socket.user && SocketUsers[socket.user.id]) {
-        SocketUsers[socket.user.id].splice(SocketUsers[socket.user.id].indexOf(socket.id));
-        if (!SocketUsers[socket.user.id].length) {
-          delete SocketUsers[socket.user.id]; // Garbage collection
-        }
+      if (isInRoom()) {
+        await leaveRoom();
       }
     });
 
     socket.on(Protocol.LEAVE_ROOM, () => {
       if (isLoggedIn() && isInRoom()) {
-        leaveRoom.call(this);
+        leaveRoom();
       }
     });
 
@@ -349,9 +358,20 @@ module.exports = function ({app, expressSession}) {
       
       // only socket on this user id
       if (!SocketUsers[socket.user.id]) {
-        console.log(317, socket.user.id, Object.keys(SocketUsers));
         console.error('Reference to users\' socket lookup is undefined for some reason');
-      } else if (SocketUsers[socket.user.id].length === 1) {
+        return;
+      }
+
+      if (!SocketUsers[socket.user.id][socket.room._id]
+        || SocketUsers[socket.user.id][socket.room._id].length === 0) {
+        return;
+      }
+
+      SocketUsers[socket.user.id][socket.room._id].splice(
+        SocketUsers[socket.user.id][socket.room._id].indexOf(socket.id), 1
+      );
+
+      if (SocketUsers[socket.user.id][socket.room._id].length === 0) {
         try {
           const room = await socket.room.dropUser(socket.user);
 
@@ -367,11 +387,13 @@ module.exports = function ({app, expressSession}) {
             sendNewScramble(room);
           }
 
-          socket.room = undefined;
+          delete SocketUsers[socket.user.id][room._id];
         } catch (e) {
           console.error(e);
         }
       }
+
+      delete socket.room;
     }
 
     function sendNewScramble (room) {
