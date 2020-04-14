@@ -100,7 +100,6 @@ module.exports = function ({app, expressSession}) {
     // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, async ({id, password}) => {
       try {
-        socket.user = await User.findById(socket.user._id);
         const room = await Room.findById(id);
         if (!room) {
           socket.emit(Protocol.ERROR, {
@@ -128,7 +127,7 @@ module.exports = function ({app, expressSession}) {
     // Given ID, fetches room, authenticates, and returns room data.
     socket.on(Protocol.FETCH_ROOM, async (id) => {
       try {
-        socket.user = await User.findById(socket.user._id);
+        socket.user = socket.user ? await User.findById(socket.user._id) : undefined;
         const room = await Room.findById(id);
 
         if (!room) {
@@ -152,7 +151,6 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      socket.user = await User.findById(socket.user._id);
       const newRoom = new Room({
         name: options.name
       });
