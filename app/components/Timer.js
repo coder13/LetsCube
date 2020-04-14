@@ -197,7 +197,12 @@ class Timer extends React.Component {
       return;
     }
 
-    if (event.keyCode === 32) {
+    if (event.keyCode === 192 && status === STATUS.INSPECTING) { // escape
+      clearInterval(this.timerObj);
+      this.reset();
+    }
+
+    if (event.keyCode === 32) { // space
       event.preventDefault();
       switch (status) {
         case STATUS.RESTING:
