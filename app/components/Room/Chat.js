@@ -13,6 +13,7 @@ import ListItemAvatar from '@material-ui/core/ListItemAvatar';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
+import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Icon from '@material-ui/core/Icon';
 import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
 import { sendChat } from '../../store/chat/actions';
@@ -66,7 +67,9 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function Chat({ dispatch, messages, users }) {
+function Chat({
+  dispatch, messages, users, onFocus, onDefocus,
+}) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
   const listRef = useRef();
@@ -91,86 +94,88 @@ function Chat({ dispatch, messages, users }) {
   }, [messages]);
 
   return (
-    <Paper className={classes.root} variant="outlined" square>
-      <List className={classes.messages} ref={listRef}>
-        {messages.map(({
-          id, userId, text, secondary, icon, event,
-        }, index) => {
-          if (userId === -1) {
+    <ClickAwayListener onClickAway={onDefocus}>
+      <Paper className={classes.root} variant="outlined" square onClick={onFocus}>
+        <List className={classes.messages} ref={listRef}>
+          {messages.map(({
+            id, userId, text, secondary, icon, event,
+          }, index) => {
+            if (userId === -1) {
+              return (
+                <ListItem dense key={id} className={classes.systemMessage}>
+                  <ListItemIcon
+                    style={{ display: 'block' }}
+                  >
+                    {icon === 'SCRAMBLE' ? Icons[icon](event) : Icons[icon]}
+                  </ListItemIcon>
+
+                  <ListItemText
+                    className={classes.selectable}
+                    primary={(
+                      <Typography variant="body1">
+                        {text}
+                      </Typography>
+                    )}
+                    secondary={(
+                      <Typography variant="body2">
+                        {secondary}
+                      </Typography>
+                    )}
+                  />
+                </ListItem>
+              );
+            }
+
+            const user = findUser(userId);
+            const avatar = user && user.avatar.url;
+            const displayAvatar = !avatar || index === 0 || messages[index - 1].userId !== user.id;
+            const isNextMessageTheSameUser = messages[index + 1]
+              && messages[index + 1].userId === user.id;
+
             return (
-              <ListItem dense key={id} className={classes.systemMessage}>
-                <ListItemIcon
-                  style={{ display: 'block' }}
-                >
-                  {icon === 'SCRAMBLE' ? Icons[icon](event) : Icons[icon]}
-                </ListItemIcon>
+              <ListItem
+                key={id}
+                alignItems="flex-start"
+                className={clsx(classes.message, {
+                  [classes.lastMessageForUser]: !isNextMessageTheSameUser,
+                })}
+              >
+                <ListItemAvatar>
+                  {displayAvatar
+                    && <Avatar src={user.avatar.url} />}
+                </ListItemAvatar>
 
                 <ListItemText
                   className={classes.selectable}
-                  primary={(
-                    <Typography variant="body1">
-                      {text}
-                    </Typography>
-                  )}
+                  primary={displayAvatar ? user.displayName : ''}
                   secondary={(
                     <Typography variant="body2">
-                      {secondary}
+                      {text}
                     </Typography>
                   )}
                 />
               </ListItem>
             );
-          }
-
-          const user = findUser(userId);
-          const avatar = user && user.avatar.url;
-          const displayAvatar = !avatar || index === 0 || messages[index - 1].userId !== user.id;
-          const isNextMessageTheSameUser = messages[index + 1]
-            && messages[index + 1].userId === user.id;
-
-          return (
-            <ListItem
-              key={id}
-              alignItems="flex-start"
-              className={clsx(classes.message, {
-                [classes.lastMessageForUser]: !isNextMessageTheSameUser,
-              })}
-            >
-              <ListItemAvatar>
-                {displayAvatar
-                  && <Avatar src={user.avatar.url} />}
-              </ListItemAvatar>
-
-              <ListItemText
-                className={classes.selectable}
-                primary={displayAvatar ? user.displayName : ''}
-                secondary={(
-                  <Typography variant="body2">
-                    {text}
-                  </Typography>
-                )}
-              />
-            </ListItem>
-          );
-        })}
-      </List>
-      <Paper
-        component="form"
-        onSubmit={handleSubmit}
-        className={classes.paper}
-        elevation={8}
-      >
-        <FormControl fullWidth>
-          <Input
-            className={classes.input}
-            fullWidth
-            placeholder="Send message"
-            value={message}
-            onChange={handleChange}
-          />
-        </FormControl>
+          })}
+        </List>
+        <Paper
+          component="form"
+          onSubmit={handleSubmit}
+          className={classes.paper}
+          elevation={8}
+        >
+          <FormControl fullWidth>
+            <Input
+              className={classes.input}
+              fullWidth
+              placeholder="Send message"
+              value={message}
+              onChange={handleChange}
+            />
+          </FormControl>
+        </Paper>
       </Paper>
-    </Paper>
+    </ClickAwayListener>
   );
 }
 
@@ -183,11 +188,15 @@ Chat.propTypes = {
     }),
   })),
   dispatch: PropTypes.func.isRequired,
+  onFocus: PropTypes.func,
+  onDefocus: PropTypes.func,
 };
 
 Chat.defaultProps = {
   messages: [],
   users: [],
+  onFocus: () => {},
+  onDefocus: () => {},
 };
 
 const mapStateToProps = (state) => ({

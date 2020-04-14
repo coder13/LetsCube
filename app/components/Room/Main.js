@@ -23,7 +23,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Main({ dispatch, room, user }) {
+function Main({
+  dispatch, room, user, timerFocused,
+}) {
   const classes = useStyles();
 
   const onSubmitTime = (event) => {
@@ -53,7 +55,8 @@ function Main({ dispatch, room, user }) {
 
   const { users, statuses, attempts } = room;
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-  const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id]);
+  const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id])
+    || !timerFocused;
 
   return (
     <Paper className={classes.root} variant="outlined" square>
@@ -96,6 +99,7 @@ Main.propTypes = {
     id: PropTypes.number,
     useInspection: PropTypes.bool,
   }),
+  timerFocused: PropTypes.bool,
   dispatch: PropTypes.func.isRequired,
 };
 
@@ -116,6 +120,7 @@ Main.defaultProps = {
     id: undefined,
     useInspection: false,
   },
+  timerFocused: true,
 };
 
 const mapStateToProps = (state) => ({

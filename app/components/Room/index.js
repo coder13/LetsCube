@@ -30,18 +30,11 @@ import {
     If no error, start listening with socketio
 */
 
-const foos = [];
-for (let i = 0; i < 100; i += 1) {
-  foos.push('foo');
-}
-
 const panels = [{
   name: 'Timer',
-  component: <Main />,
   icon: <TimerIcon />,
 }, {
   name: 'Chat',
-  component: <Chat />,
   icon: <ChatIcon />,
 }];
 
@@ -97,6 +90,7 @@ class RoomNav extends React.Component {
     } = this.props;
 
     this.state = {
+      timerFocused: true,
       currentPanel: 0,
     };
 
@@ -120,9 +114,15 @@ class RoomNav extends React.Component {
     }
   }
 
-  handleChangePanel(e, value) {
+  onFocus() {
     this.setState({
-      currentPanel: value,
+      timerFocused: false,
+    });
+  }
+
+  onDefocus() {
+    this.setState({
+      timerFocused: true,
     });
   }
 
@@ -131,12 +131,18 @@ class RoomNav extends React.Component {
     return room.admin && room.admin.id === user.id;
   }
 
+  handleChangePanel(e, value) {
+    this.setState({
+      currentPanel: value,
+    });
+  }
+
   render() {
     const {
       classes, fetching, inRoom, room,
     } = this.props;
 
-    const { currentPanel } = this.state;
+    const { currentPanel, timerFocused } = this.state;
 
     const loggedIn = !room.private || inRoom;
 
@@ -147,8 +153,6 @@ class RoomNav extends React.Component {
         </Backdrop>
       );
     }
-
-    const widths = [8, 4];
 
     return (
       <Paper className={classes.root}>
@@ -167,18 +171,31 @@ class RoomNav extends React.Component {
           ) : ''}
         <Grid container direction="row" className={classes.container}>
           { !loggedIn ? <Login />
-            : panels.map((panel, index) => (
-              <Grid
-                item
-                key={panel.name}
-                className={clsx(classes.panel, {
-                  [classes.hiddenOnMobile]: currentPanel !== index,
-                })}
-                md={widths[index]}
-              >
-                {panel.component}
-              </Grid>
-            ))}
+            : (
+              <>
+                <Grid
+                  item
+                  className={clsx(classes.panel, {
+                    [classes.hiddenOnMobile]: currentPanel !== 0,
+                  })}
+                  md={8}
+                >
+                  <Main timerFocused={timerFocused} />
+                </Grid>
+                <Grid
+                  item
+                  className={clsx(classes.panel, {
+                    [classes.hiddenOnMobile]: currentPanel !== 1,
+                  })}
+                  md={4}
+                >
+                  <Chat
+                    onFocus={() => this.onFocus()}
+                    onDefocus={() => this.onDefocus()}
+                  />
+                </Grid>
+              </>
+            )}
 
         </Grid>
 

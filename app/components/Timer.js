@@ -8,7 +8,6 @@ import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import {
   formatTime, setInterval, clearInterval, now,
 } from '../lib/utils';
@@ -402,18 +401,6 @@ class Timer extends React.Component {
     return adjustedTime;
   }
 
-  handleClickAway() {
-    this.setState({
-      focused: false,
-    });
-  }
-
-  handleClick() {
-    this.setState({
-      focused: true,
-    });
-  }
-
   renderSubmitting() {
     const { penalties } = this.state;
     const { inspection, inspectionDNF, AUF } = penalties;
@@ -485,17 +472,14 @@ class Timer extends React.Component {
     const { status } = this.state;
 
     return (
-      <ClickAwayListener onClickAway={() => this.handleClickAway()}>
-        <Box
-          className={clsx(classes.root, {
-            [classes.fullscreen]: status !== STATUS.RESTING,
-          })}
-          onClick={() => this.handleClick()}
-          ref={this.rootRef}
-        >
-          {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
-        </Box>
-      </ClickAwayListener>
+      <Box
+        className={clsx(classes.root, {
+          [classes.fullscreen]: status !== STATUS.RESTING,
+        })}
+        ref={this.rootRef}
+      >
+        {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
+      </Box>
     );
   }
 }
