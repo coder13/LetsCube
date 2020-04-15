@@ -6,6 +6,7 @@ const Protocol = require('../../app/lib/protocol.js');
 const socketLogger = require('./logger');
 const expressSocketSession = require('express-socket.io-session');
 const { User, Room } = require('../models');
+const ChatMessage = require('./ChatMessage');
 
 const roomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', 'private']);
 const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'accessCode', 'usersLength', 'private']);
@@ -14,15 +15,6 @@ const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'at
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
 const SocketUsers = {};
-
-class ChatMessage {
-  constructor(message, userId) {
-    this.id = uuid();
-    this.timestamp = Date.now();
-    this.text = message;
-    this.userId = userId;
-  }
-}
 
 async function attachUser (socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
