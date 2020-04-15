@@ -9,7 +9,8 @@ import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/wca';
 
 function RoomListItem({ room, disabled }) {
-  const userText = room.usersLength === 0 ? ' empty' : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}`;
+  const userText = room.usersLength === 0 ? ' empty'
+    : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
 
   return (
     <ListItemLink
@@ -24,14 +25,11 @@ function RoomListItem({ room, disabled }) {
       <ListItemText
         primary={(
           <Typography variant="h6">
-            {room.name}
+            {`${room.name} (${getNameFromId(room.event)})`}
           </Typography>
       )}
         secondary={(
           <Typography>
-            {getNameFromId(room.event)}
-            {' '}
-|
             {userText}
           </Typography>
       )}
@@ -47,6 +45,7 @@ RoomListItem.propTypes = {
     event: PropTypes.string,
     private: PropTypes.bool,
     usersLength: PropTypes.number,
+    users: PropTypes.array,
   }),
   disabled: PropTypes.bool,
 };
@@ -58,6 +57,7 @@ RoomListItem.defaultProps = {
     event: undefined,
     private: false,
     usersLength: 0,
+    users: undefined,
   },
   disabled: true,
 };

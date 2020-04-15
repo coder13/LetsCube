@@ -1,14 +1,17 @@
 const _ = require('lodash');
 const http = require('http');
 const bcrypt = require('bcrypt');
-const uuid = require('uuid/v4');
 const Protocol = require('../../app/lib/protocol.js');
 const socketLogger = require('./logger');
 const expressSocketSession = require('express-socket.io-session');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
-const roomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', 'private']);
+const roomMask = (room) => ({
+  ..._.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', 'private'])(room),
+  users: room.private ? undefined : room.users.map((user) => user.displayName),
+});
+
 const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'accessCode', 'usersLength', 'private']);
 const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
