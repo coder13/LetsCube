@@ -78,7 +78,7 @@ function TableTimeCell({ attempt: { time, penalties }, highlight }) {
           color: highlight ? 'red' : 'black',
         }}
       >
-        {displayTime}
+        {time === null ? '' : displayTime}
       </span>
     </TableCell>
   );
@@ -94,7 +94,7 @@ TableTimeCell.propTypes = {
 
 TableTimeCell.defaultProps = {
   attempt: {
-    time: 0,
+    time: null,
     penalties: {},
   },
   highlight: false,
