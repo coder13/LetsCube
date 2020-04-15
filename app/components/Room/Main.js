@@ -30,7 +30,6 @@ function Main({
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
-      console.error('No attempt with which to submit time!');
       return;
     }
 

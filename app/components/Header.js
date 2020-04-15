@@ -60,7 +60,6 @@ function Header({ children, user, room }) {
   };
 
   const logout = () => {
-    console.log(document.location.origin);
     window.location = `/auth/logout?redirect=${document.location.origin}/`;
   };
 

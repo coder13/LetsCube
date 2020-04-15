@@ -19,14 +19,18 @@ export const updateProfile = (profile) => ({
   profile,
 });
 
-const url = () => (document.location.hostname === 'localhost' ? '/api/me' : '/api/me');
-
 export const fetchUser = () => (dispatch) => {
   dispatch(fetchingUser());
-  return fetch(url())
-    .then((res) => res.json())
+  return fetch('/api/me')
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error(res.statusCode);
+      }
+
+      return res.json();
+    })
     .then((data) => dispatch(userChanged(data)))
     .catch(() => {
-      console.error('Could not Fetch User');
+      dispatch(userChanged());
     });
 };

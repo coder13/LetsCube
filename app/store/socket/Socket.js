@@ -21,7 +21,6 @@ export default class Socket {
 
   // attempt to connect to server
   connect = () => {
-    console.log(19, 'connecting...', makeURI());
     // Connect
     this.socket = io(makeURI(), {
       reconnection: true,
@@ -49,6 +48,7 @@ export default class Socket {
 
   // Received connect event from socket
   _onConnected = () => {
+    // eslint-disable-next-line no-console
     console.log('[SOCKET.IO]', Protocol.CONNECT);
     if (this.onConnected) {
       this.onConnected();
@@ -57,6 +57,7 @@ export default class Socket {
 
   // Received disconnect event from socket
   onDisconnected = () => {
+    // eslint-disable-next-line no-console
     console.log('[SOCKET.IO]', Protocol.DISCONNECT);
     if (this.onDisconnected) {
       this.onDisconnected();
@@ -68,6 +69,7 @@ export default class Socket {
 
   // Received error from socket
   onError = (message) => {
+    // eslint-disable-next-line no-console
     console.log('[SOCKET.IO]', 'error', message);
   };
 

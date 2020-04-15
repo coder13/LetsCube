@@ -338,8 +338,6 @@ class Timer extends React.Component {
       this.setState({
         time: now() - started,
       });
-    } else {
-      console.log(216);
     }
   }
 

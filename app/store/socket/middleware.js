@@ -56,12 +56,14 @@ const socketMiddleware = (store) => {
     },
     events: {
       [Protocol.RECONNECT]: () => {
+        // eslint-disable-next-line no-console
         console.log('[SOCKET.IO] reconnected!');
         if (store.getState().room.accessCode) {
           store.dispatch(joinRoom(store.getState().room._id, store.getState().room.password));
         }
       },
       [Protocol.ERROR]: (error) => {
+        // eslint-disable-next-line no-console
         console.log('[SOCKET.IO]', error);
         if (error.statusCode === 404) {
           store.dispatch(push('/'));
