@@ -7,10 +7,13 @@ import Paper from '@material-ui/core/Paper';
 import Container from '@material-ui/core/Container';
 import Divider from '@material-ui/core/Divider';
 import List from '@material-ui/core/List';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Button from '@material-ui/core/Button';
 import Alert from '@material-ui/lab/Alert';
 import ListSubheader from '@material-ui/core/ListSubheader';
-import AddRoomFab from './AddRoomFab';
+import AddIcon from '@material-ui/icons/Add';
+import AddRoomDialog from './AddRoomDialog';
 import RoomListItem from './RoomListItem';
 import { createRoom } from '../store/rooms/actions';
 
@@ -22,10 +25,14 @@ const useStyles = makeStyles((theme) => ({
       textDecoration: 'none',
     },
   },
+  createRoom: {
+    padding: '1em',
+  },
 }));
 
 function RoomList({ dispatch, rooms, user }) {
   const classes = useStyles();
+  const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
   const publicRooms = rooms.filter((room) => !room.private);
   const privateRooms = rooms.filter((room) => !!room.private);
   const showAlert = !!user.id && !user.canJoinRoom;
@@ -53,6 +60,24 @@ function RoomList({ dispatch, rooms, user }) {
       )}
 
       <br />
+      {user.id && (
+        <>
+          <ListItem
+            button
+            className={classes.createRoom}
+            variant="contained"
+            color="primary"
+            component={Button}
+            onClick={() => setCreateRoomDialogOpen(true)}
+          >
+            <ListItemIcon>
+              <AddIcon />
+            </ListItemIcon>
+            Create Room
+          </ListItem>
+          <br />
+        </>
+      )}
       <Paper>
         <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
           {publicRooms.map((room) => (
@@ -66,7 +91,11 @@ function RoomList({ dispatch, rooms, user }) {
           ))}
         </List>
       </Paper>
-      {user.id && <AddRoomFab onCreateRoom={onCreateRoom} />}
+      <AddRoomDialog
+        open={createRoomDialogOpen}
+        onCreateRoom={onCreateRoom}
+        onClose={() => setCreateRoomDialogOpen(false)}
+      />
     </Container>
   );
 }
