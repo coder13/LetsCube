@@ -8,6 +8,7 @@ import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import { formatTime } from '../../lib/utils';
+import calcStats from '../../lib/stats';
 
 const useStyles = makeStyles((theme) => ({
   tableHeaderIndex: {
@@ -109,34 +110,7 @@ function TimesTable({ users, statuses, attempts }) {
     tableBodyRef.current.scrollTop = 0;
   }
 
-  const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-
-  const sum = (a, b) => a + b;
-  const mapToTime = (userId) => (i) => (i.results[userId]
-    && !(i.results[userId].penalties && i.results[userId].penalties.DNF)
-    ? i.results[userId].time : -1);
-
-  const ao5 = (userId) => {
-    if (!attempts || !attempts.length) {
-      return undefined;
-    }
-
-    const last5 = (latestAttempt.results[userId]
-      ? attempts.slice(-5) : attempts.slice(-6, -1)).map(mapToTime(userId));
-
-    if (last5.length < 5) {
-      return 0;
-    } if (last5.indexOf(-1) > -1) {
-      last5.splice(last5.indexOf(-1), 1);
-      if (last5.indexOf(-1) > -1) {
-        return -1; // DNF avg
-      }
-
-      return (last5.reduce(sum) - Math.min(...last5)) / 3;
-    }
-
-    return (last5.reduce(sum) - Math.min(...last5) - Math.max(...last5)) / 3;
-  };
+  const stats = calcStats(attempts, users);
 
   return (
     <TableContainer className={classes.root}>
@@ -152,10 +126,10 @@ function TimesTable({ users, statuses, attempts }) {
             ))}
           </TableRow>
           <TableRow className={classes.tr} key={-1}>
-            <TableCell className={classes.tableResultCell} align="left">ao5</TableCell>
+            <TableCell className={classes.tableResultCell} align="left">mean</TableCell>
             {users.map((u) => (
               <TableCell key={u.id} className={classes.tableResultCell} align="left">
-                <span>{formatTime(ao5(u.id)).toString()}</span>
+                <span>{formatTime(stats[u.id].mean).toString()}</span>
               </TableCell>
             ))}
           </TableRow>

@@ -55,7 +55,7 @@ const middlewares = [
   socketMiddleware,
 ];
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && false) {
   middlewares.push(createLogger());
 }
 
