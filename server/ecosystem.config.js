@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name: 'letscube-api',
-    script: 'NODE_ENV=prod server/index.js',
+    script: 'NODE_ENV=prod index.js',
 
     // Options reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
     args: '',
@@ -21,7 +21,7 @@ module.exports = {
       ref  : 'origin/master',
       repo : 'git@github.com:coder13/letscube',
       path : '/var/www/production',
-      'post-deploy' : 'npm install && pm2 reload ecosystem.config.js --env prod'
+      'post-deploy' : 'cd server && npm install && pm2 reload ecosystem.config.js --env prod'
     }
   }
 };

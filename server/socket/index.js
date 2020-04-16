@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const http = require('http');
 const bcrypt = require('bcrypt');
-const Protocol = require('../../app/lib/protocol.js');
+const Protocol = require('../../client/src/lib/protocol.js');
 const socketLogger = require('./logger');
 const expressSocketSession = require('express-socket.io-session');
 const { User, Room } = require('../models');
