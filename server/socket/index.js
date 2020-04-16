@@ -62,7 +62,7 @@ module.exports = ({ app, expressSession }) => {
     });
 
     function broadcast(...args) {
-      socket.broadcast.to(socket.room.accessCode).emit(args);
+      socket.broadcast.to(socket.room.accessCode).emit(...args);
     }
 
     function broadcastToAllInRoom(accessCode, event, data) {
@@ -70,7 +70,7 @@ module.exports = ({ app, expressSession }) => {
     }
 
     function broadcastToEveryone(...args) {
-      io.emit(args);
+      io.emit(...args);
     }
 
     function isLoggedIn() {
@@ -264,6 +264,10 @@ module.exports = ({ app, expressSession }) => {
 
     /* Admin Actions */
     socket.on(Protocol.DELETE_ROOM, async (id) => {
+      if (!isInRoom()) {
+        return;
+      }
+
       const room = await Room.findById(socket.room._id);
       if (!room) {
         return;
@@ -274,6 +278,7 @@ module.exports = ({ app, expressSession }) => {
       if (!checkAdmin()) {
         return;
       }
+
 
       Room.deleteOne({ _id: id }).then((res) => {
         if (res.deletedCount > 0) {
@@ -401,9 +406,7 @@ module.exports = ({ app, expressSession }) => {
           return;
         }
 
-        if (isInRoom()) {
-          await leaveRoom();
-        }
+        await leaveRoom();
       } catch (e) {
         console.error(e);
       }
@@ -411,13 +414,13 @@ module.exports = ({ app, expressSession }) => {
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
       try {
-        const room = await Room.findById(socket.room._id);
-        if (!room) {
-          return;
-        }
-
-        socket.room = room;
         if (isLoggedIn() && isInRoom()) {
+          const room = await Room.findById(socket.room._id);
+          if (!room) {
+            return;
+          }
+
+          socket.room = room;
           leaveRoom();
         }
       } catch (e) {
