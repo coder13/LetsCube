@@ -1,5 +1,5 @@
 module.exports = {
-  apps : [{
+  apps: [{
     name: 'letscube-api',
     script: 'NODE_ENV=prod index.js',
 
@@ -10,18 +10,18 @@ module.exports = {
     watch: false,
     max_memory_restart: '1G',
     env_production: {
-      NODE_ENV: 'prod'
-    }
+      NODE_ENV: 'prod',
+    },
   }],
 
-  deploy : {
-    production : {
-      user : 'www',
-      host : '127.0.0.1',
-      ref  : 'origin/master',
-      repo : 'git@github.com:coder13/letscube',
-      path : '/var/www/production',
-      'post-deploy' : 'cd server && npm install && pm2 reload ecosystem.config.js --env prod'
-    }
-  }
+  deploy: {
+    production: {
+      user: 'www',
+      host: '127.0.0.1',
+      ref: 'origin/master',
+      repo: 'git@github.com:coder13/letscube',
+      path: '/var/www/production',
+      'post-deploy': 'cd server && npm install && pm2 reload ecosystem.config.js --env prod',
+    },
+  },
 };

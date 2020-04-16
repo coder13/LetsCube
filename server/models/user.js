@@ -3,20 +3,20 @@ const mongoose = require('mongoose');
 const schema = new mongoose.Schema({
   id: {
     type: Number,
-    required: true
+    required: true,
   },
   email: {
-    type: String
+    type: String,
   },
   name: {
     type: String,
-    required: true
+    required: true,
   },
   username: {
     type: String,
   },
   wcaId: {
-    type: String
+    type: String,
   },
   showWCAID: {
     type: Boolean,
@@ -32,11 +32,11 @@ const schema = new mongoose.Schema({
   },
   accessToken: {
     type: String,
-    required: true
+    required: true,
   },
   avatar: {
-    type: Object
-  }
+    type: Object,
+  },
 }, {
   _id: true,
   versionKey: false,
@@ -49,17 +49,18 @@ const schema = new mongoose.Schema({
         delete ret.wcaId;
         delete ret.name;
       }
-      delete ret.showWCAID,
+
+      delete ret.showWCAID;
       delete ret.__v;
     },
   },
   toObject: {
     getters: true,
-  }
+  },
 });
 
 schema.virtual('displayName').get(function () {
-  return !this.preferRealName ? this.username : this.name; 
+  return !this.preferRealName ? this.username : this.name;
 });
 
 // A user can only join a room if they have checked the new

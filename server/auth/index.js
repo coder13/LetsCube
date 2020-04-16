@@ -1,7 +1,6 @@
 const express = require('express');
 const WCAStrategy = require('passport-wca').Strategy;
 const { User } = require('../models');
-const auth = require('../middlewares/auth');
 
 module.exports = (app, passport) => {
   const router = express.Router();
@@ -22,8 +21,8 @@ module.exports = (app, passport) => {
         name: profile.displayName,
         email: profile.emails[0].value,
         wcaId: profile.wca.id,
-        accessToken: accessToken,
-        avatar: profile._json.me.avatar
+        accessToken,
+        avatar: profile._json.me.avatar,
       }, {
         upsert: true,
         useFindAndModify: false,
@@ -31,14 +30,14 @@ module.exports = (app, passport) => {
       }, (err, user) => {
         done(err, user);
       });
-  }));
+    }));
 
   passport.serializeUser((user, done) => {
     done(null, user.id);
   });
 
   passport.deserializeUser((id, done) => {
-    User.findOne({id}, (err, user) => {
+    User.findOne({ id }, (err, user) => {
       done(err, user);
     });
   });
