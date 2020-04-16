@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const User = require('./user');
@@ -14,6 +15,8 @@ const Result = new mongoose.Schema({
    required: true,
  },
  penalties: Object,
+}, {
+ timestamps: true,
 });
 
 const Attempt = new mongoose.Schema({
@@ -32,6 +35,7 @@ const Attempt = new mongoose.Schema({
   }
 }, {
   minimize: false,
+  timestamps: true,
 });
 
 const Room = new mongoose.Schema({
@@ -55,6 +59,18 @@ const Room = new mongoose.Schema({
   },
   users: [User],
   admin: User,
+  expireAt: {
+    type: Date,
+    default: undefined,
+  }
+}, {
+  timestamps: true,
+});
+
+Room.index({
+  "expireAt": 1,
+}, {
+  expireAfterSeconds: 0,
 });
 
 Room.virtual('scrambler').get(function () {
@@ -69,17 +85,41 @@ Room.virtual('private').get(function () {
   return !!this.password;
 });
 
-Room.methods.addUser = function(user) {
+Room.methods.updateStale = function(stale) {
+  if (stale) {
+    this.expireAt = moment().add(10, 'minutes')
+  } else {
+    this.expireAt = null;
+  }
+
+  return this.save();
+}
+
+Room.methods.addUser = async function(user, updateAdmin) {
   if (this.users.find(i => i.id === user.id)) {
     return false;
   }
 
   this.users.push(user);
+  await this.updateStale(false);
+  if (updateAdmin) {
+    await this.updateAdminIfNeeded(updateAdmin);
+  }
+
   return this.save();
 }
 
-Room.methods.dropUser = function(user) {
+Room.methods.dropUser = async function(user, updateAdmin) {
   this.users = this.users.filter(i => i.id !== user.id);
+  await this.save();
+
+  if (updateAdmin) {
+    await this.updateAdminIfNeeded(updateAdmin);
+  }
+
+  if (this.users.length === 0) {
+    await this.updateStale(true);
+  }
 
   return this.save();
 }
@@ -122,7 +162,7 @@ Room.methods.genAttempt = function () {
 Room.methods.newAttempt = function (cb) {
   const attempt = this.genAttempt();
 
-  this.attempts.push(attempt);
+  this.attempts = this.attempts.concat([attempt]);
   this.save().then(() => {
     cb(attempt);
   }).catch(console.error);
@@ -143,7 +183,7 @@ Room.methods.updateAdminIfNeeded = function (cb) {
   
   if (!this.admin || this.admin.id !== this.users[0].id) {
     this.admin = this.users[0];
-    this.save().then(cb).catch(console.error);
+    return this.save().then(cb);
   }
 }
 

@@ -60,7 +60,7 @@ module.exports = function ({app, expressSession}) {
       socket.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
     });
     
-    function joinRoom(room) {
+    function joinRoom(room, cb) {
       if (socket.room) {
         return;
       }
@@ -79,7 +79,9 @@ module.exports = function ({app, expressSession}) {
 
         SocketUsers[socket.user.id][room._id].push(socket.id);
 
-        const r = await room.addUser(socket.user);
+        const r = await room.addUser(socket.user, (_room) => {
+          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+        });
 
         if (!r) {
           // Join the socket to the room anyways but don't add them
@@ -90,17 +92,10 @@ module.exports = function ({app, expressSession}) {
         socket.room = r;
         socket.emit(Protocol.JOIN, joinRoomMask(r));
 
+        if (cb) cb(r);
+
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
-
-        await r.updateAdminIfNeeded(({ admin }) => {
-          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, admin);
-        });
-
-        if (r.doneWithScramble()) {
-          console.log(104, 'everyone done, sending new scramble');
-          sendNewScramble(r);
-        }
       });
     }
 
@@ -168,7 +163,9 @@ module.exports = function ({app, expressSession}) {
 
       const room = await newRoom.save();
       io.emit(Protocol.ROOM_CREATED, room);
-      joinRoom(room);
+      await joinRoom(room, (r) => {
+        sendNewScramble(r);
+      });
       socket.emit(Protocol.FORCE_JOIN, room);
     });
 
@@ -300,18 +297,37 @@ module.exports = function ({app, expressSession}) {
     socket.on(Protocol.DISCONNECT, async () => {
       console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 
-      if (!socket.user) {
+      if (!socket.user || !socket.room) {
         return;
       }
 
-      if (isInRoom()) {
-        await leaveRoom();
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
+        }
+
+        if (isInRoom()) {
+          await leaveRoom();
+        }
+      } catch (e) {
+        console.error(e);
       }
     });
 
-    socket.on(Protocol.LEAVE_ROOM, () => {
-      if (isLoggedIn() && isInRoom()) {
-        leaveRoom();
+    socket.on(Protocol.LEAVE_ROOM, async () => {
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
+        }
+
+        socket.room = room;
+        if (isLoggedIn() && isInRoom()) {
+          leaveRoom();
+        }
+      } catch (e) {
+        console.error(e);
       }
     });
 
@@ -368,14 +384,12 @@ module.exports = function ({app, expressSession}) {
 
       if (SocketUsers[socket.user.id][socket.room._id].length === 0) {
         try {
-          const room = await socket.room.dropUser(socket.user);
+          const room = await socket.room.dropUser(socket.user, (_room) => {
+            broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+          });
 
           broadcast(Protocol.USER_LEFT, socket.user.id);
           broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-          room.updateAdminIfNeeded(({ admin, accessCode }) => {
-            broadcastToAllInRoom(accessCode, Protocol.UPDATE_ADMIN, admin);
-          });
 
           if (room.doneWithScramble()) {
             console.log(196, 'everyone done, sending new scramble');
