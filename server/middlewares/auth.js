@@ -3,7 +3,7 @@ module.exports = (req, res, next) => {
     res.status(403);
     res.send(JSON.stringify({
       code: 403,
-      message: 'Unauthorized'
+      message: 'Unauthorized',
     }));
     res.end();
   } else {

@@ -8,7 +8,9 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
-const initSocket = require('./socket'); 
+const initSocket = require('./socket');
+const auth = require('./auth');
+const api = require('./api');
 
 Error.stackTraceLimit = 100;
 
@@ -17,12 +19,12 @@ const init = async () => {
 
   app.set('config', config);
   app.set('prod', process.env.NODE_ENV === 'prod');
-  
+
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
   app.use(bodyParser.urlencoded({
-    extended: true
+    extended: true,
   }));
   app.use(bodyParser.json());
 
@@ -32,7 +34,7 @@ const init = async () => {
     useUnifiedTopology: true,
   }).then(() => {
     console.log(`[MONGODB] Connected to database at ${config.mongodb}`);
-  }).catch(err => {
+  }).catch((err) => {
     console.error('[MONGODB] Error when connecting to database', err);
     process.exit();
   });
@@ -41,12 +43,12 @@ const init = async () => {
 
   app.use(morgan('dev', {
     skip: (req, res) => res.statusCode < 400,
-    stream: process.stdout
+    stream: process.stdout,
   }));
 
   app.use(morgan('dev', {
     skip: (req, res) => res.statusCode >= 400,
-    stream: process.stderr
+    stream: process.stderr,
   }));
 
   /* Auth */
@@ -63,34 +65,34 @@ const init = async () => {
       sameSite: 'strict',
     },
     store: new MongoStore({
-      mongooseConnection:  mongoose.connection,
+      mongooseConnection: mongoose.connection,
     }),
   };
 
-  const expressSession = session(sessionOptions)
-  
+  const expressSession = session(sessionOptions);
+
   app.use(expressSession);
-  
+
   app.use(passport.initialize());
   app.use(passport.session());
 
-  initSocket({app, expressSession}).listen(9000);
+  initSocket({ app, expressSession }).listen(9000);
 
   /* Cors */
 
   app.use(cors({
     origin: '*',
-    credentials: true
-  }))
+    credentials: true,
+  }));
 
-  app.use(express.static(path.join(__dirname, '../build')))
+  app.use(express.static(path.join(__dirname, '../build')));
 
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../build/index.html'));
   });
 
-  app.use('/auth', require('./auth')(app, passport));
-  app.use('/api', require('./api')(app));
+  app.use('/auth', auth(app, passport));
+  app.use('/api', api(app));
 
   app.use('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../build/index.html'));
@@ -108,7 +110,8 @@ const init = async () => {
 };
 
 try {
-  const app = module.exports = init();
+  const app = init();
+  module.exports = app;
 } catch (e) {
   console.error(e);
 }

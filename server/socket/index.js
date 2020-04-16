@@ -1,25 +1,25 @@
 const _ = require('lodash');
 const http = require('http');
 const bcrypt = require('bcrypt');
-const Protocol = require('../../app/lib/protocol.js');
-const socketLogger = require('./logger');
+const socketIO = require('socket.io');
 const expressSocketSession = require('express-socket.io-session');
+const socketLogger = require('./logger');
+const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
 const roomMask = (room) => ({
-  ..._.partial(_.pick,  _, ['_id', 'name', 'event', 'usersLength', 'private'])(room),
+  ..._.partial(_.pick, _, ['_id', 'name', 'event', 'usersLength', 'private'])(room),
   users: room.private ? undefined : room.users.map((user) => user.displayName),
 });
 
-const publicRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'accessCode', 'usersLength', 'private']);
-const joinRoomMask = _.partial(_.pick,  _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
+const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
 const SocketUsers = {};
 
-async function attachUser (socket, next) {
+async function attachUser(socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
 
   if (!userId) {
@@ -27,7 +27,7 @@ async function attachUser (socket, next) {
   }
 
   try {
-    const user = await User.findOne({id: userId})
+    const user = await User.findOne({ id: userId });
     if (user) {
       socket.user = user;
 
@@ -41,26 +41,119 @@ async function attachUser (socket, next) {
   next();
 }
 
-module.exports = function ({app, expressSession}) {
+module.exports = ({ app, expressSession }) => {
   const server = http.Server(app);
-  const io = app.io = require('socket.io')(server);
+  const io = socketIO(server);
+  app.io = io;
 
   io.use(expressSocketSession(expressSession, {
-    autoSave: true
+    autoSave: true,
   }));
-  
+
   io.use(attachUser);
   io.use(socketLogger);
 
-  io.sockets.on('connection', function (socket) {
+  io.sockets.on('connection', (socket) => {
     console.log(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
-    
+
     // give them the list of rooms
-    Room.find().then(rooms => {
+    Room.find().then((rooms) => {
       socket.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
     });
-    
-    function joinRoom(room) {
+
+    function broadcast(...args) {
+      socket.broadcast.to(socket.room.accessCode).emit(args);
+    }
+
+    function broadcastToAllInRoom(accessCode, event, data) {
+      io.in(accessCode).emit(event, data);
+    }
+
+    function broadcastToEveryone(...args) {
+      io.emit(args);
+    }
+
+    function isLoggedIn() {
+      if (!socket.user) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          message: 'Must be logged in',
+        });
+      }
+      return !!socket.user;
+    }
+
+    function isInRoom() {
+      if (!socket.room) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          message: 'Must be in a room',
+        });
+      }
+      return !!socket.room;
+    }
+
+    function checkAdmin() {
+      if (!isLoggedIn() || !isInRoom()) {
+        return false;
+      } if (socket.room.admin.id !== socket.user.id) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          message: 'Must be admin of room',
+        });
+        return false;
+      }
+      return true;
+    }
+
+    function sendNewScramble(room) {
+      room.newAttempt((attempt) => {
+        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, attempt);
+      });
+    }
+
+    async function leaveRoom() {
+      socket.leave(socket.room.accessCode);
+
+      // only socket on this user id
+      if (!SocketUsers[socket.user.id]) {
+        console.error('Reference to users\' socket lookup is undefined for some reason');
+        return;
+      }
+
+      if (!SocketUsers[socket.user.id][socket.room._id]
+        || SocketUsers[socket.user.id][socket.room._id].length === 0) {
+        return;
+      }
+
+      SocketUsers[socket.user.id][socket.room._id].splice(
+        SocketUsers[socket.user.id][socket.room._id].indexOf(socket.id), 1,
+      );
+
+      if (SocketUsers[socket.user.id][socket.room._id].length === 0) {
+        try {
+          const room = await socket.room.dropUser(socket.user, (_room) => {
+            broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+          });
+
+          broadcast(Protocol.USER_LEFT, socket.user.id);
+          broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+          if (room.doneWithScramble()) {
+            console.log(196, 'everyone done, sending new scramble');
+            sendNewScramble(room);
+          }
+
+          delete SocketUsers[socket.user.id][room._id];
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      delete socket.room;
+    }
+
+    function joinRoom(room, cb) {
       if (socket.room) {
         return;
       }
@@ -79,7 +172,9 @@ module.exports = function ({app, expressSession}) {
 
         SocketUsers[socket.user.id][room._id].push(socket.id);
 
-        const r = await room.addUser(socket.user);
+        const r = await room.addUser(socket.user, (_room) => {
+          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+        });
 
         if (!r) {
           // Join the socket to the room anyways but don't add them
@@ -90,28 +185,21 @@ module.exports = function ({app, expressSession}) {
         socket.room = r;
         socket.emit(Protocol.JOIN, joinRoomMask(r));
 
+        if (cb) cb(r);
+
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
-
-        await r.updateAdminIfNeeded(({ admin }) => {
-          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, admin);
-        });
-
-        if (r.doneWithScramble()) {
-          console.log(104, 'everyone done, sending new scramble');
-          sendNewScramble(r);
-        }
       });
     }
 
     // Socket wants to join room.
-    socket.on(Protocol.JOIN_ROOM, async ({id, password}) => {
+    socket.on(Protocol.JOIN_ROOM, async ({ id, password }) => {
       try {
         const room = await Room.findById(id);
         if (!room) {
           socket.emit(Protocol.ERROR, {
             statusCode: 404,
-            message: `Could not find room with id ${id}`
+            message: `Could not find room with id ${id}`,
           });
           return;
         }
@@ -120,7 +208,7 @@ module.exports = function ({app, expressSession}) {
           socket.emit(Protocol.ERROR, {
             statusCode: 403,
             event: Protocol.JOIN_ROOM,
-            message: `Invalid password`
+            message: 'Invalid password',
           });
           return;
         }
@@ -141,7 +229,7 @@ module.exports = function ({app, expressSession}) {
           socket.emit(Protocol.ERROR, {
             statusCode: 404,
             event: Protocol.FETCH_ROOM,
-            message: `Could not find room with id ${id}`
+            message: `Could not find room with id ${id}`,
           });
         } else if (room.private) {
           socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
@@ -159,7 +247,7 @@ module.exports = function ({app, expressSession}) {
       }
 
       const newRoom = new Room({
-        name: options.name
+        name: options.name,
       });
 
       if (options.password) {
@@ -168,7 +256,9 @@ module.exports = function ({app, expressSession}) {
 
       const room = await newRoom.save();
       io.emit(Protocol.ROOM_CREATED, room);
-      joinRoom(room);
+      await joinRoom(room, (r) => {
+        sendNewScramble(r);
+      });
       socket.emit(Protocol.FORCE_JOIN, room);
     });
 
@@ -185,7 +275,7 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      Room.deleteOne({_id: id}).then((res) => {
+      Room.deleteOne({ _id: id }).then((res) => {
         if (res.deletedCount > 0) {
           socket.room = undefined;
           broadcastToEveryone(Protocol.ROOM_DELETED, id);
@@ -201,7 +291,7 @@ module.exports = function ({app, expressSession}) {
       }
 
       try {
-        const room = await Room.findById(socket.room._id);    
+        const room = await Room.findById(socket.room._id);
         if (!room) {
           return;
         }
@@ -281,7 +371,8 @@ module.exports = function ({app, expressSession}) {
         return;
       }
 
-      broadcastToAllInRoom(socket.room.accessCode, Protocol.MESSAGE, new ChatMessage(message.text, socket.user.id));
+      broadcastToAllInRoom(socket.room.accessCode, Protocol.MESSAGE,
+        new ChatMessage(message.text, socket.user.id));
     });
 
     // Simplest event here. Just echo the message to everyone else.
@@ -300,115 +391,40 @@ module.exports = function ({app, expressSession}) {
     socket.on(Protocol.DISCONNECT, async () => {
       console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 
-      if (!socket.user) {
+      if (!socket.user || !socket.room) {
         return;
       }
 
-      if (isInRoom()) {
-        await leaveRoom();
-      }
-    });
-
-    socket.on(Protocol.LEAVE_ROOM, () => {
-      if (isLoggedIn() && isInRoom()) {
-        leaveRoom();
-      }
-    });
-
-    function checkAdmin() {
-      if (!isLoggedIn() || !isInRoom()) {
-        return false;        
-      } else if (socket.room.admin.id !== socket.user.id) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          message: 'Must be admin of room',
-        });
-        return false;
-      }
-      return true;
-    }
-
-    function isLoggedIn() {
-      if (!socket.user) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 403,
-          message: `Must be logged in`,
-        });
-      }
-      return !!socket.user;
-    }
-
-    function isInRoom() {
-      if (!socket.room) {
-        socket.emit(Protocol.ERROR, {
-          statusCode: 400,
-          message: `Must be in a room`,
-        });
-      }
-      return !!socket.room;
-    }
-
-    async function leaveRoom () {
-      socket.leave(socket.room.accessCode);
-      
-      // only socket on this user id
-      if (!SocketUsers[socket.user.id]) {
-        console.error('Reference to users\' socket lookup is undefined for some reason');
-        return;
-      }
-
-      if (!SocketUsers[socket.user.id][socket.room._id]
-        || SocketUsers[socket.user.id][socket.room._id].length === 0) {
-        return;
-      }
-
-      SocketUsers[socket.user.id][socket.room._id].splice(
-        SocketUsers[socket.user.id][socket.room._id].indexOf(socket.id), 1
-      );
-
-      if (SocketUsers[socket.user.id][socket.room._id].length === 0) {
-        try {
-          const room = await socket.room.dropUser(socket.user);
-
-          broadcast(Protocol.USER_LEFT, socket.user.id);
-          broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-          room.updateAdminIfNeeded(({ admin, accessCode }) => {
-            broadcastToAllInRoom(accessCode, Protocol.UPDATE_ADMIN, admin);
-          });
-
-          if (room.doneWithScramble()) {
-            console.log(196, 'everyone done, sending new scramble');
-            sendNewScramble(room);
-          }
-
-          delete SocketUsers[socket.user.id][room._id];
-        } catch (e) {
-          console.error(e);
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
         }
+
+        if (isInRoom()) {
+          await leaveRoom();
+        }
+      } catch (e) {
+        console.error(e);
       }
+    });
 
-      delete socket.room;
-    }
+    socket.on(Protocol.LEAVE_ROOM, async () => {
+      try {
+        const room = await Room.findById(socket.room._id);
+        if (!room) {
+          return;
+        }
 
-    function sendNewScramble (room) {
-      room.newAttempt(attempt => {
-        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, attempt);
-      });
-    }
-
-    function broadcast () {
-      socket.broadcast.to(socket.room.accessCode).emit(...arguments);
-    }
-
-    function broadcastToAllInRoom (accessCode, event, data) {
-      io.in(accessCode).emit(event, data);
-    }
-
-    function broadcastToEveryone () {
-      io.emit(...arguments);
-    }
+        socket.room = room;
+        if (isLoggedIn() && isInRoom()) {
+          leaveRoom();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
   });
 
   return server;
-}
+};

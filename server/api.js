@@ -1,14 +1,14 @@
-const _ = require('lodash');
 const express = require('express');
+
 const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 
-module.exports = (app) => {
+module.exports = () => {
   const sendError = (res, err) => {
     res.status(err.statusCode || 500).send({
       status: err.statusCode,
-      message: err.message || 'Error occured while retrieving data; contact Kleb'
+      message: err.message || 'Error occured while retrieving data; contact Kleb',
     });
   };
 
@@ -20,22 +20,22 @@ module.exports = (app) => {
     // TODO: server side validation of username
     // TODO: refactor
     const { username } = req.body;
-    if (req.body.username === undefined) {
+    if (username === undefined) {
       return sendError(res, {
         statusCode: 400,
         message: 'Missing username from request',
-      });  
+      });
     }
 
-    if (req.body.username === '') {
-      req.user.username = req.body.username;
+    if (username === '') {
+      req.user.username = username;
       return req.user.save().then((u) => {
         res.json(u.toObject());
       });
     }
 
     User.findOne({
-      username: req.body.username
+      username,
     }).then((user) => {
       if (user) {
         sendError(res, {
@@ -45,14 +45,14 @@ module.exports = (app) => {
         return null;
       }
 
-      req.user.username = req.body.username.trim();
+      req.user.username = username.trim();
       return req.user.save().then((u) => {
         res.json(u.toObject());
       });
     }).catch((err) => {
       sendError(res, {
         statusCode: 500,
-        message: err
+        message: err,
       });
     });
   });
@@ -63,9 +63,9 @@ module.exports = (app) => {
     });
 
     const user = await req.user.save();
-    
-    res.json(req.user.toObject());
+
+    res.json(user.toObject());
   });
 
   return router;
-}
+};
