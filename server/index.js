@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
+const logger = require('./logger');
 const initSocket = require('./socket');
 const auth = require('./auth');
 const api = require('./api');
@@ -28,27 +29,27 @@ const init = async () => {
   }));
   app.use(bodyParser.json());
 
-  console.log('[MONGODB] Attempting to connect to database at:', config.mongodb);
+  logger.debug('[MONGODB] Attempting to connect to database.', { url: config.mongodb });
   await mongoose.connect(config.mongodb, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   }).then(() => {
-    console.log(`[MONGODB] Connected to database at ${config.mongodb}`);
+    logger.debug('[MONGODB] Connected to database.', { url: config.mongodb });
   }).catch((err) => {
-    console.error('[MONGODB] Error when connecting to database', err);
+    logger.error('[MONGODB] Error when connecting to database', err);
     process.exit();
   });
 
   /* Logging */
 
-  app.use(morgan('dev', {
-    skip: (req, res) => res.statusCode < 400,
-    stream: process.stdout,
+  app.use(morgan('combined', {
+    skip: (req, res) => res.statusCode >= 400,
+    stream: { write: (message) => logger.info(message) },
   }));
 
-  app.use(morgan('dev', {
-    skip: (req, res) => res.statusCode >= 400,
-    stream: process.stderr,
+  app.use(morgan('combined', {
+    skip: (req, res) => res.statusCode < 400,
+    stream: { write: (message) => logger.error(message) },
   }));
 
   /* Auth */
@@ -100,10 +101,12 @@ const init = async () => {
 
   app.listen(config.server.port, '0.0.0.0', (err) => {
     if (err) {
-      console.log(err);
+      logger.error(err);
     }
 
-    console.log(`[EXPRESS] Listening on port ${config.server.port}. Access at: http://localhost:${config.server.port}/`);
+    logger.info('[EXPRESS] Listening...', {
+      port: config.server.port,
+    });
   });
 
   return app;
@@ -113,5 +116,5 @@ try {
   const app = init();
   module.exports = app;
 } catch (e) {
-  console.error(e);
+  logger.error(e);
 }

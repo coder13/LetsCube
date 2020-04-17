@@ -3,7 +3,7 @@ const http = require('http');
 const bcrypt = require('bcrypt');
 const socketIO = require('socket.io');
 const expressSocketSession = require('express-socket.io-session');
-const socketLogger = require('./logger');
+const logger = require('../logger');
 const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
@@ -36,7 +36,7 @@ async function attachUser(socket, next) {
       }
     }
   } catch (e) {
-    console.error(e);
+    logger.error(e);
   }
   next();
 }
@@ -51,10 +51,25 @@ module.exports = ({ app, expressSession }) => {
   }));
 
   io.use(attachUser);
-  io.use(socketLogger);
+
+  io.use((socket, next) => {
+    socket.use(([event, data], n) => {
+      logger.info(event, {
+        id: socket.id,
+        user: socket.user ? {
+          id: socket.user.id,
+        } : undefined,
+        data,
+      });
+
+      n();
+    });
+
+    next();
+  });
 
   io.sockets.on('connection', (socket) => {
-    console.log(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+    logger.debug(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     // give them the list of rooms
     Room.find().then((rooms) => {
@@ -117,7 +132,7 @@ module.exports = ({ app, expressSession }) => {
 
       // only socket on this user id
       if (!SocketUsers[socket.user.id]) {
-        console.error('Reference to users\' socket lookup is undefined for some reason');
+        logger.error('Reference to users\' socket lookup is undefined for some reason');
         return;
       }
 
@@ -140,13 +155,13 @@ module.exports = ({ app, expressSession }) => {
           broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
 
           if (room.doneWithScramble()) {
-            console.log(196, 'everyone done, sending new scramble');
+            logger.debug('everyone done, sending new scramble');
             sendNewScramble(room);
           }
 
           delete SocketUsers[socket.user.id][room._id];
         } catch (e) {
-          console.error(e);
+          logger.error(e);
         }
       }
 
@@ -215,7 +230,7 @@ module.exports = ({ app, expressSession }) => {
 
         joinRoom(room);
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -237,7 +252,7 @@ module.exports = ({ app, expressSession }) => {
           joinRoom(room);
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -285,7 +300,7 @@ module.exports = ({ app, expressSession }) => {
           socket.room = undefined;
           broadcastToEveryone(Protocol.ROOM_DELETED, id);
         } else if (res.deletedCount > 1) {
-          console.error(168, 'big problemo');
+          logger.error(168, 'big problemo');
         }
       });
     });
@@ -320,11 +335,11 @@ module.exports = ({ app, expressSession }) => {
         });
 
         if (r.doneWithScramble()) {
-          console.log(123, 'everyone done, sending new scramble');
+          logger.debug('everyone done, sending new scramble');
           sendNewScramble(r);
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -342,7 +357,7 @@ module.exports = ({ app, expressSession }) => {
 
         sendNewScramble(room);
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -362,7 +377,7 @@ module.exports = ({ app, expressSession }) => {
           broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
         });
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -394,7 +409,7 @@ module.exports = ({ app, expressSession }) => {
     });
 
     socket.on(Protocol.DISCONNECT, async () => {
-      console.log(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
+      logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 
       if (!socket.user || !socket.room) {
         return;
@@ -408,7 +423,7 @@ module.exports = ({ app, expressSession }) => {
 
         await leaveRoom();
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
 
@@ -424,7 +439,7 @@ module.exports = ({ app, expressSession }) => {
           leaveRoom();
         }
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
     });
   });

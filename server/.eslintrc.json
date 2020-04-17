@@ -21,8 +21,8 @@
                 "props": false
             }
         ],
+        "no-console": 2,
         "no-underscore-dangle": 0,
-        "no-console": 1,
         "func-names": 0,
         "consistent-return": 0
     }

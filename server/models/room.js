@@ -130,7 +130,6 @@ Room.set('toJSON', {
 
 Room.methods.authenticate = function (password) {
   if (!this.password) {
-    console.error('No password given');
     return false;
   }
 
@@ -164,7 +163,7 @@ Room.methods.newAttempt = function (cb) {
   this.attempts = this.attempts.concat([attempt]);
   this.save().then(() => {
     cb(attempt);
-  }).catch(console.error);
+  });
 };
 
 Room.methods.changeEvent = function (event) {
