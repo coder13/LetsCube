@@ -4,6 +4,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
+import calcStats from '../../lib/stats';
 import {
   submitResult,
   sendStatus,
@@ -11,6 +12,7 @@ import {
 import TimesTable from './TimesTable';
 import Timer from '../Timer';
 import Scramble from '../Scramble';
+import UserStats from './UserStats';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -57,6 +59,8 @@ function Main({
   const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id])
     || !timerFocused;
 
+  const stats = calcStats(attempts, users);
+
   return (
     <Paper className={classes.root} variant="outlined" square>
       <Scramble
@@ -72,7 +76,8 @@ function Main({
         useInspection={user.useInspection}
       />
       <Divider />
-      <TimesTable users={users} statuses={statuses} attempts={attempts} />
+      <TimesTable users={users} statuses={statuses} attempts={attempts} stats={stats} />
+      <UserStats stats={stats[user.id]} />
     </Paper>
   );
 }

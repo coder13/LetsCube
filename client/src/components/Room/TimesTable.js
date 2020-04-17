@@ -8,7 +8,6 @@ import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import { formatTime } from '../../lib/utils';
-import calcStats from '../../lib/stats';
 
 const useStyles = makeStyles((theme) => ({
   tableHeaderIndex: {
@@ -101,7 +100,9 @@ TableTimeCell.defaultProps = {
   highlight: false,
 };
 
-function TimesTable({ users, statuses, attempts }) {
+function TimesTable({
+  users, statuses, attempts, stats,
+}) {
   const classes = useStyles();
   const tableBodyRef = createRef();
 
@@ -109,8 +110,6 @@ function TimesTable({ users, statuses, attempts }) {
     // scrolls the times.
     tableBodyRef.current.scrollTop = 0;
   }
-
-  const stats = calcStats(attempts, users);
 
   return (
     <TableContainer className={classes.root}>
@@ -125,11 +124,13 @@ function TimesTable({ users, statuses, attempts }) {
               </TableCell>
             ))}
           </TableRow>
-          <TableRow className={classes.tr} key={-1}>
+          <TableRow className={classes.tr}>
             <TableCell className={classes.tableResultCell} align="left">mean</TableCell>
             {users.map((u) => (
               <TableCell key={u.id} className={classes.tableResultCell} align="left">
-                <span>{formatTime(stats[u.id].mean).toString()}</span>
+                <span>
+                  {stats[u.id] ? formatTime(stats[u.id].mean).toString() : ''}
+                </span>
               </TableCell>
             ))}
           </TableRow>
@@ -173,13 +174,14 @@ TimesTable.propTypes = {
   attempts: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
   })),
+  stats: PropTypes.shape(),
 };
 
 TimesTable.defaultProps = {
   users: [],
   statuses: {},
   attempts: [],
+  stats: {},
 };
-
 
 export default TimesTable;
