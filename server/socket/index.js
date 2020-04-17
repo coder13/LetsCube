@@ -181,6 +181,7 @@ module.exports = ({ app, expressSession }) => {
       }
 
       delete socket.room;
+      delete socket.roomId;
     }
 
     function joinRoom(room, cb) {
