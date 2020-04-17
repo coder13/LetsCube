@@ -11,15 +11,15 @@ Make sure Node.JS and MongoDB are installed.
 ```
 git clone https://github.com/coder13/letscube.git
 cd letscube
-npm install
+npm install # installs pre-commit hook
 ```
 
 **Server**
 
-```npm run start-server```
+```cd server && npm install && npm run start```
 
 **Server**
 
-```npm run start-client```
+```cd client && npm install && npm run start```
 
 For more on the internals, check the [wiki](https://github.com/coder13/LetsCube/wiki)
