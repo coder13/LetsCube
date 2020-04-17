@@ -2,7 +2,6 @@ import {
   createStore, compose, combineReducers, applyMiddleware,
 } from 'redux';
 import thunkMiddleware from 'redux-thunk';
-import { createLogger } from 'redux-logger';
 import ReactGA from 'react-ga';
 import { connectRouter, routerMiddleware } from 'connected-react-router';
 import { createBrowserHistory } from 'history';
@@ -54,10 +53,6 @@ const middlewares = [
   thunkMiddleware,
   socketMiddleware,
 ];
-
-if (process.env.NODE_ENV === 'development' && false) {
-  middlewares.push(createLogger());
-}
 
 if (process.env.NODE_ENV === 'production') {
   middlewares.push(gaTrackingMiddleware);

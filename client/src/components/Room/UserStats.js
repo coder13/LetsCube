@@ -11,6 +11,8 @@ import { formatTime } from '../../lib/utils';
 
 const useStyles = makeStyles(() => ({
   root: {
+    padding: 0,
+    marging: 0,
   },
 }));
 
@@ -23,28 +25,30 @@ function UserStats({ stats }) {
   }
 
   return (
-    <Table
+    <Paper
       className={classes.root}
-      size="small"
-      component={Paper}
-      elevation={4}
       square
+      elevation={4}
     >
-      <TableHead>
-        <TableRow>
-          {keys.map((key) => (
-            <TableCell key={key}>{key}</TableCell>
-          ))}
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        <TableRow>
-          {keys.map((key) => (
-            <TableCell key={key}>{formatTime(stats[key])}</TableCell>
-          ))}
-        </TableRow>
-      </TableBody>
-    </Table>
+      <Table
+        size="small"
+      >
+        <TableHead>
+          <TableRow>
+            {keys.map((key) => (
+              <TableCell key={key}>{key}</TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          <TableRow>
+            {keys.map((key) => (
+              <TableCell key={key}>{formatTime(stats[key])}</TableCell>
+            ))}
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Paper>
   );
 }
 

@@ -1,5 +1,5 @@
 import { push } from 'connected-react-router';
-import uuid from 'uuid/v4';
+import { v4 as uuid } from 'uuid';
 import * as Protocol from '../../lib/protocol';
 import Socket from './Socket';
 import {
