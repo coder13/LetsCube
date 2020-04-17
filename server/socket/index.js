@@ -26,17 +26,10 @@ async function attachUser(socket, next) {
     return next();
   }
 
-  try {
-    const user = await User.findOne({ id: userId });
-    if (user) {
-      socket.user = user;
+  socket.userId = userId;
 
-      if (!SocketUsers[socket.user.id]) {
-        SocketUsers[socket.user.id] = {};
-      }
-    }
-  } catch (e) {
-    logger.error(e);
+  if (!SocketUsers[socket.userId]) {
+    SocketUsers[socket.userId] = {};
   }
   next();
 }
@@ -56,15 +49,37 @@ module.exports = ({ app, expressSession }) => {
     socket.use(([event, data], n) => {
       logger.info(event, {
         id: socket.id,
-        user: socket.user ? {
-          id: socket.user.id,
-        } : undefined,
+        userId: socket.userId,
+        roomId: socket.roomId,
         data,
       });
 
       n();
     });
 
+    next();
+  });
+
+  io.use((socket, next) => {
+    socket.use(async (packet, n) => {
+      if (socket.userId) {
+        try {
+          socket.user = await User.findOne({ id: socket.userId });
+        } catch (e) {
+          logger.error(e, { userId: socket.userId });
+        }
+      }
+
+      if (socket.roomId) {
+        try {
+          socket.room = await Room.findById({ _id: socket.roomId });
+        } catch (e) {
+          logger.error(e, { userId: socket.userId });
+        }
+      }
+
+      n();
+    });
     next();
   });
 
@@ -170,13 +185,15 @@ module.exports = ({ app, expressSession }) => {
 
     function joinRoom(room, cb) {
       if (socket.room) {
+        logger.debug('Socket is already in room', { roomId: socket.room._id });
         return;
       }
 
       socket.join(room.accessCode, async () => {
-        socket.room = room;
+        socket.roomId = room._id;
 
         if (!socket.user) {
+          logger.debug('Socket is not authenticated but joining anyways', { roomId: room._id, userId: socket.userId });
           socket.emit(Protocol.JOIN, joinRoomMask(room));
           return;
         }
@@ -188,7 +205,7 @@ module.exports = ({ app, expressSession }) => {
         SocketUsers[socket.user.id][room._id].push(socket.id);
 
         const r = await room.addUser(socket.user, (_room) => {
-          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+          broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
         });
 
         if (!r) {
@@ -236,23 +253,18 @@ module.exports = ({ app, expressSession }) => {
 
     // Given ID, fetches room, authenticates, and returns room data.
     socket.on(Protocol.FETCH_ROOM, async (id) => {
-      try {
-        socket.user = socket.user ? await User.findById(socket.user._id) : undefined;
-        const room = await Room.findById(id);
+      const room = await Room.findById(id);
 
-        if (!room) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 404,
-            event: Protocol.FETCH_ROOM,
-            message: `Could not find room with id ${id}`,
-          });
-        } else if (room.private) {
-          socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
-        } else {
-          joinRoom(room);
-        }
-      } catch (e) {
-        logger.error(e);
+      if (!room) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 404,
+          event: Protocol.FETCH_ROOM,
+          message: `Could not find room with id ${id}`,
+        });
+      } else if (room.private) {
+        socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
+      } else {
+        joinRoom(room);
       }
     });
 
@@ -279,21 +291,9 @@ module.exports = ({ app, expressSession }) => {
 
     /* Admin Actions */
     socket.on(Protocol.DELETE_ROOM, async (id) => {
-      if (!isInRoom()) {
-        return;
-      }
-
-      const room = await Room.findById(socket.room._id);
-      if (!room) {
-        return;
-      }
-
-      socket.room = room;
-
       if (!checkAdmin()) {
         return;
       }
-
 
       Room.deleteOne({ _id: id }).then((res) => {
         if (res.deletedCount > 0) {
@@ -306,17 +306,12 @@ module.exports = ({ app, expressSession }) => {
     });
 
     socket.on(Protocol.SUBMIT_RESULT, async (result) => {
-      if (!isLoggedIn() || !isInRoom()) {
+      if (!socket.user || !socket.roomId) {
         return;
       }
 
       try {
-        const room = await Room.findById(socket.room._id);
-        if (!room) {
-          return;
-        }
-
-        if (!room.attempts[result.id]) {
+        if (!socket.room.attempts[result.id]) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
             event: Protocol.SUBMIT_RESULT,
@@ -325,13 +320,14 @@ module.exports = ({ app, expressSession }) => {
           return;
         }
 
-        room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
-        const r = await room.save();
+        // NOTE: when setting a map in mongoose that the keys are strings
+        socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+
+        const r = await socket.room.save();
 
         broadcastToAllInRoom(r.accessCode, Protocol.NEW_RESULT, {
-          id: result.id,
+          ...result,
           userId: socket.user.id,
-          result: result.result,
         });
 
         if (r.doneWithScramble()) {
@@ -344,50 +340,26 @@ module.exports = ({ app, expressSession }) => {
     });
 
     socket.on(Protocol.REQUEST_SCRAMBLE, async () => {
-      try {
-        const room = await Room.findById(socket.room._id);
-        if (!room) {
-          return;
-        }
-
-        socket.room = room;
-        if (!checkAdmin()) {
-          return;
-        }
-
-        sendNewScramble(room);
-      } catch (e) {
-        logger.error(e);
+      if (!checkAdmin()) {
+        return;
       }
+
+      sendNewScramble(socket.room);
     });
 
     socket.on(Protocol.CHANGE_EVENT, async (event) => {
-      try {
-        const room = await Room.findById(socket.room._id);
-        if (!room) {
-          return;
-        }
-
-        socket.room = room;
-        if (!checkAdmin()) {
-          return;
-        }
-
-        room.changeEvent(event).then((r) => {
-          broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
-        });
-      } catch (e) {
-        logger.error(e);
+      if (!checkAdmin()) {
+        return;
       }
+
+      socket.room.changeEvent(event).then((r) => {
+        broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+      }).catch(logger.error);
     });
 
     // Simplest event here. Just echo the message to everyone else.
     socket.on(Protocol.MESSAGE, (message) => {
-      if (!isInRoom()) {
-        return;
-      }
-
-      if (!socket.user) {
+      if (!isLoggedIn() || !isInRoom()) {
         return;
       }
 
@@ -397,50 +369,29 @@ module.exports = ({ app, expressSession }) => {
 
     // Simplest event here. Just echo the message to everyone else.
     socket.on(Protocol.UPDATE_STATUS, (status) => {
-      if (!isInRoom()) {
-        return;
-      }
-
-      if (!socket.user) {
+      if (!isLoggedIn() || !isInRoom()) {
         return;
       }
 
       broadcast(Protocol.UPDATE_STATUS, status);
     });
 
-    socket.on(Protocol.DISCONNECT, async () => {
+    socket.on(Protocol.DISCONNECT, () => {
       logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
 
       if (!socket.user || !socket.room) {
         return;
       }
 
-      try {
-        const room = await Room.findById(socket.room._id);
-        if (!room) {
-          return;
-        }
-
-        await leaveRoom();
-      } catch (e) {
-        logger.error(e);
-      }
+      leaveRoom();
     });
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
-      try {
-        if (isLoggedIn() && isInRoom()) {
-          const room = await Room.findById(socket.room._id);
-          if (!room) {
-            return;
-          }
-
-          socket.room = room;
-          leaveRoom();
-        }
-      } catch (e) {
-        logger.error(e);
+      if (!isLoggedIn() && !isInRoom()) {
+        return;
       }
+
+      leaveRoom();
     });
   });
 
