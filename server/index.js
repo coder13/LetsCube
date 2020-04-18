@@ -86,17 +86,17 @@ const init = async () => {
     credentials: true,
   }));
 
-  app.use(express.static(path.join(__dirname, '../build')));
+  app.use(express.static(path.join(__dirname, '../client/build')));
 
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build/index.html'));
+    res.sendFile(path.join(__dirname, '../client/build/index.html'));
   });
 
   app.use('/auth', auth(app, passport));
   app.use('/api', api(app));
 
   app.use('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build/index.html'));
+    res.sendFile(path.join(__dirname, '../client/build/index.html'));
   });
 
   app.listen(config.server.port, '0.0.0.0', (err) => {
