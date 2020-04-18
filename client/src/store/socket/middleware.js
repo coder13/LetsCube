@@ -127,7 +127,6 @@ const socketMiddleware = (store) => {
       },
       [Protocol.USER_JOIN]: (user) => {
         store.dispatch(userJoined(user));
-        console.log(128, user);
 
         store.dispatch(receiveChat({
           id: uuid(),
@@ -137,7 +136,6 @@ const socketMiddleware = (store) => {
         }));
       },
       [Protocol.USER_LEFT]: (user) => {
-        console.log(137, user);
         store.dispatch(receiveChat({
           id: uuid(),
           userId: -1,
@@ -169,7 +167,6 @@ const socketMiddleware = (store) => {
         store.dispatch(receiveStatus(user, status));
       },
       [Protocol.UPDATE_COMPETING]: ({ userId, competing }) => {
-        console.log(172, userId, competing);
         store.dispatch(updateCompetingForUser(userId, competing));
 
         const displayName = userId === store.getState().user.id ? 'You are' : `${store.getState().room.users.find((user) => user.id === userId).displayName} is`;

@@ -119,7 +119,6 @@ function TimesTable({
 
   // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
   const sortedUsers = users.sort((userA, userB) => +competing[userB.id] - +competing[userA.id]);
-  console.log(users, sortedUsers);
 
   return (
     <TableContainer className={classes.root}>
