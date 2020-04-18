@@ -432,7 +432,24 @@ module.exports = ({ app, expressSession }) => {
       socket.room.competing.set(socket.userId.toString(), competing);
 
       if (competing) {
-        socket.room.save();
+        await socket.room.save();
+
+        const { users } = socket.room;
+
+        // We went from no one competing to 1 person competing, give them a scramble.
+        if (users.filter((user) => socket.room.competing.get(user.id.toString())).length === 1) {
+          // if the lone user that is now competing hasn't done the attempt, let them doing it.
+          // Else, gen a new scramble.
+          const latest = socket.room.attempts[socket.room.attempts.length - 1];
+          if (!latest.results.get(socket.userId.toString())) {
+            socket.room.waitingFor.push(socket.userId);
+            broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ROOM,
+              joinRoomMask(socket.room));
+          } else if (socket.room.doneWithScramble()) {
+            logger.debug('everyone done because user kibitzed, sending new scramble');
+            sendNewScramble(socket.room);
+          }
+        }
       } else {
         socket.room.waitingFor.splice(socket.room.waitingFor.indexOf(socket.userId), 1);
 
