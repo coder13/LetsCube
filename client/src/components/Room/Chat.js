@@ -16,9 +16,11 @@ import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Icon from '@material-ui/core/Icon';
 import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
+import PersonIcon from '@material-ui/icons/Person';
 import { sendChat } from '../../store/chat/actions';
 
 const Icons = {
+  USER: <PersonIcon />,
   ADMIN: <NotificationImportantIcon />,
   SCRAMBLE: (event) => <Icon className={`cubing-icon event-${event}`} />,
 };
@@ -52,8 +54,8 @@ const useStyles = makeStyles(() => ({
     margin: 0,
   },
   systemMessage: {
-    marginTop: '.5em',
-    marginBottom: '.5em',
+    marginTop: 0,
+    marginBottom: 0,
   },
   lastMessageForUser: {
     marginBottom: '.5em',

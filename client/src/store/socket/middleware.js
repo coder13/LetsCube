@@ -125,8 +125,24 @@ const socketMiddleware = (store) => {
       },
       [Protocol.USER_JOIN]: (user) => {
         store.dispatch(userJoined(user));
+        console.log(128, user);
+
+        store.dispatch(receiveChat({
+          id: uuid(),
+          userId: -1,
+          text: `${user.displayName} Joined`,
+          icon: 'USER',
+        }));
       },
       [Protocol.USER_LEFT]: (user) => {
+        console.log(137, user);
+        store.dispatch(receiveChat({
+          id: uuid(),
+          userId: -1,
+          text: `${store.getState().room.users.find((u) => u.id === user).displayName} Left`,
+          icon: 'USER',
+        }));
+
         store.dispatch(userLeft(user));
       },
       [Protocol.NEW_ATTEMPT]: (attempt) => {

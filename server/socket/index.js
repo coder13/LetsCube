@@ -19,6 +19,16 @@ const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'att
 // Map of user.id -> {room.id: [socket.id]}
 const SocketUsers = {};
 
+const fetchRoom = async (id) => {
+  if (id) {
+    try {
+      return await Room.findById({ _id: id });
+    } catch (e) {
+      logger.error(e, { roomId: id });
+    }
+  }
+};
+
 async function attachUser(socket, next) {
   const userId = socket.handshake.session.passport ? socket.handshake.session.passport.user : null;
 
@@ -71,11 +81,7 @@ module.exports = ({ app, expressSession }) => {
       }
 
       if (socket.roomId) {
-        try {
-          socket.room = await Room.findById({ _id: socket.roomId });
-        } catch (e) {
-          logger.error(e, { userId: socket.userId });
-        }
+        socket.room = await fetchRoom(socket.roomId);
       }
 
       n();
@@ -142,46 +148,45 @@ module.exports = ({ app, expressSession }) => {
       });
     }
 
+    // Only deals with removing authenticated users from a room
     async function leaveRoom() {
-      socket.leave(socket.room.accessCode);
-
       // only socket on this user id
-      if (!SocketUsers[socket.user.id]) {
+      if (!SocketUsers[socket.userId]) {
         logger.error('Reference to users\' socket lookup is undefined for some reason');
         return;
       }
 
-      if (!SocketUsers[socket.user.id][socket.room._id]
-        || SocketUsers[socket.user.id][socket.room._id].length === 0) {
+      if (!SocketUsers[socket.userId][socket.roomId]
+        || SocketUsers[socket.userId][socket.roomId].length === 0) {
+        logger.warning(`SocketUsers[${socket.userId}][${socket.roomId}] has length 0 for some reason`, SocketUsers[socket.userId]);
         return;
       }
 
-      SocketUsers[socket.user.id][socket.room._id].splice(
-        SocketUsers[socket.user.id][socket.room._id].indexOf(socket.id), 1,
+      SocketUsers[socket.userId][socket.roomId].splice(
+        SocketUsers[socket.userId][socket.roomId].indexOf(socket.id), 1,
       );
 
-      if (SocketUsers[socket.user.id][socket.room._id].length === 0) {
-        try {
-          const room = await socket.room.dropUser(socket.user, (_room) => {
-            broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
-          });
-
-          broadcast(Protocol.USER_LEFT, socket.user.id);
-          broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-          if (room.doneWithScramble()) {
-            logger.debug('everyone done, sending new scramble');
-            sendNewScramble(room);
-          }
-
-          delete SocketUsers[socket.user.id][room._id];
-        } catch (e) {
-          logger.error(e);
-        }
+      if (SocketUsers[socket.userId][socket.roomId].length > 0) {
+        return;
       }
 
-      delete socket.room;
-      delete socket.roomId;
+      try {
+        const room = await socket.room.dropUser(socket.user, (_room) => {
+          broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
+        });
+
+        broadcast(Protocol.USER_LEFT, socket.user.id);
+        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
+
+        delete SocketUsers[socket.user.id][room._id];
+      } catch (e) {
+        logger.error(e);
+      }
     }
 
     function joinRoom(room, cb) {
@@ -377,8 +382,12 @@ module.exports = ({ app, expressSession }) => {
       broadcast(Protocol.UPDATE_STATUS, status);
     });
 
-    socket.on(Protocol.DISCONNECT, () => {
+    socket.on(Protocol.DISCONNECT, async () => {
       logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
+
+      if (socket.roomId) {
+        socket.room = await fetchRoom(socket.roomId);
+      }
 
       if (!socket.user || !socket.room) {
         return;
@@ -388,11 +397,16 @@ module.exports = ({ app, expressSession }) => {
     });
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
-      if (!isLoggedIn() && !isInRoom()) {
-        return;
+      if (socket.room) {
+        socket.leave(socket.room.accessCode);
       }
 
-      leaveRoom();
+      if (isLoggedIn() && isInRoom()) {
+        await leaveRoom();
+      }
+
+      delete socket.room;
+      delete socket.roomId;
     });
   });
 
