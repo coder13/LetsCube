@@ -22,6 +22,7 @@ const useStyles = makeStyles(() => ({
     alignItems: 'stretch',
     minHeight: '5em',
     padding: 0,
+    flexGrow: 1,
   },
   changeEventSelect: {
     paddingLeft: '.5em',

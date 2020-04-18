@@ -9,6 +9,7 @@ import {
   NEW_RESULT,
   UPDATE_ADMIN,
   RECEIVE_STATUS,
+  UPDATE_COMPETING_FOR_USER,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -22,6 +23,8 @@ const INITIAL_STATE = {
   users: [],
   statuses: {},
   attempts: [],
+  competing: {},
+  waitingFor: [],
   admin: {
     id: null,
   },
@@ -37,7 +40,14 @@ const reducers = {
     ...state,
     fetching: action.fetching,
   }),
-  [USER_JOIN]: (state, action) => ({ ...state, users: state.users.concat(action.user) }),
+  [USER_JOIN]: (state, action) => ({
+    ...state,
+    users: state.users.concat(action.user),
+    competing: {
+      ...state.competing,
+      [action.user.id]: true,
+    },
+  }),
   [USER_LEFT]: (state, action) => ({
     ...state,
     users: state.users.filter((user) => user.id !== action.user),
@@ -51,6 +61,8 @@ const reducers = {
     users: [],
     statuses: {},
     attempts: [],
+    competing: {},
+    waitingFor: [],
     admin: {
       id: null,
     },
@@ -58,6 +70,7 @@ const reducers = {
   [NEW_ATTEMPT]: (state, action) => ({
     ...state,
     attempts: state.attempts.concat(action.attempt),
+    waitingFor: action.waitingFor,
     new_scramble: true,
   }),
   [NEW_RESULT]: (state, action) => ({
@@ -72,11 +85,24 @@ const reducers = {
 
       return attempt;
     }),
+    // remove user from waiting for for current attempt
+    waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
   }),
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
   [RECEIVE_STATUS]: (state, action) => ({
     ...state,
     statuses: { ...state.statuses, [action.user]: action.status },
+  }),
+  [UPDATE_COMPETING_FOR_USER]: (state, action) => ({
+    ...state,
+    competing: {
+      ...state.competing,
+      [action.userId]: action.competing,
+    },
+    // remove user from waiting for for current attempt
+    waitingFor: action.competing
+      ? state.waitingFor
+      : state.waitingFor.filter((user) => user !== action.userId),
   }),
 };
 

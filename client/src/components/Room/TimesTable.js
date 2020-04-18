@@ -1,4 +1,5 @@
 import React, { createRef } from 'react';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import TableContainer from '@material-ui/core/TableContainer';
@@ -44,6 +45,9 @@ const useStyles = makeStyles((theme) => ({
     display: 'table',
     tableLayout: 'fixed',
     width: '100%',
+  },
+  disabled: {
+    color: '#7f7f7f',
   },
 }));
 
@@ -101,7 +105,9 @@ TableTimeCell.defaultProps = {
 };
 
 function TimesTable({
-  users, statuses, attempts, stats,
+  room: {
+    users, statuses, attempts, competing,
+  }, stats,
 }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
@@ -111,23 +117,41 @@ function TimesTable({
     tableBodyRef.current.scrollTop = 0;
   }
 
+  // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
+  const sortedUsers = users.sort((userA, userB) => +competing[userB.id] - +competing[userA.id]);
+  console.log(users, sortedUsers);
+
   return (
     <TableContainer className={classes.root}>
       <Table stickyHeader className={classes.table} size="small">
         <TableHead className={classes.thead}>
           <TableRow className={classes.tr}>
             <TableCell align="left" className={classes.tableHeaderIndex}>#</TableCell>
-            {users.map((u) => (
-              <TableCell key={u.id} align="left" className={classes.tableHeaderTime}>
-                <span>{u.displayName}</span>
+            {sortedUsers.map((u) => (
+              <TableCell
+                key={u.id}
+                align="left"
+                className={clsx(classes.tableHeaderTime, {
+                  [classes.disabled]: !competing[u.id],
+                })}
+              >
+                <span>
+                  {u.displayName}
+                </span>
                 <br />
               </TableCell>
             ))}
           </TableRow>
           <TableRow className={classes.tr}>
             <TableCell className={classes.tableResultCell} align="left">mean</TableCell>
-            {users.map((u) => (
-              <TableCell key={u.id} className={classes.tableResultCell} align="left">
+            {sortedUsers.map((u) => (
+              <TableCell
+                key={u.id}
+                align="left"
+                className={clsx(classes.tableResultCell, {
+                  [classes.disabled]: !competing[u.id],
+                })}
+              >
                 <span>
                   {stats[u.id] ? formatTime(stats[u.id].mean).toString() : ''}
                 </span>
@@ -135,6 +159,7 @@ function TimesTable({
             ))}
           </TableRow>
         </TableHead>
+
         <TableBody className={classes.tbody} ref={tableBodyRef}>
           {[...attempts].reverse().map((attempt, index) => {
             const results = users
@@ -148,7 +173,7 @@ function TimesTable({
             return (
               <TableRow className={classes.tr} key={attempt.id}>
                 <TableCell className={classes.tableResultCell} align="left">{attempts.length - index}</TableCell>
-                {users.map((u) => (index === 0 && !attempt.results[u.id] ? (
+                {sortedUsers.map((u) => (index === 0 && !attempt.results[u.id] ? (
                   <TableStatusCell key={u.id} status={statuses[u.id]} />
                 ) : (
                   <TableTimeCell
@@ -167,20 +192,26 @@ function TimesTable({
 }
 
 TimesTable.propTypes = {
-  users: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number,
-  })),
-  statuses: PropTypes.shape(),
-  attempts: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number,
-  })),
+  room: PropTypes.shape({
+    users: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.number,
+    })),
+    statuses: PropTypes.shape(),
+    attempts: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.number,
+    })),
+    competing: PropTypes.shape(),
+  }),
   stats: PropTypes.shape(),
 };
 
 TimesTable.defaultProps = {
-  users: [],
-  statuses: {},
-  attempts: [],
+  room: {
+    users: [],
+    statuses: {},
+    attempts: [],
+    competing: {},
+  },
   stats: {},
 };
 

@@ -4,6 +4,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
+import Typography from '@material-ui/core/Typography';
 import calcStats from '../../lib/stats';
 import {
   submitResult,
@@ -22,6 +23,9 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0),
     borderRadius: 0,
     height: '100%',
+  },
+  waitingForBox: {
+    padding: '.5em',
   },
 }));
 
@@ -54,10 +58,12 @@ function Main({
     dispatch(sendStatus(status));
   };
 
-  const { users, statuses, attempts } = room;
+  const {
+    users, attempts, waitingFor,
+  } = room;
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-  const timerDisabled = !!(latestAttempt.results && latestAttempt.results[user.id])
-    || !timerFocused;
+  const timerDisabled = !timerFocused || !room.competing[user.id]
+    || room.waitingFor.indexOf(user.id) === -1;
 
   const stats = calcStats(attempts, users);
 
@@ -76,8 +82,18 @@ function Main({
         useInspection={user.useInspection}
       />
       <Divider />
-      <TimesTable users={users} statuses={statuses} attempts={attempts} stats={stats} />
+      <TimesTable room={room} stats={stats} />
       <UserStats stats={stats[user.id]} />
+      <Paper
+        className={classes.waitingForBox}
+        Square
+      >
+        <Typography variant="body2">
+          Waiting For:
+          {' '}
+          {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+        </Typography>
+      </Paper>
     </Paper>
   );
 }
@@ -91,6 +107,8 @@ Main.propTypes = {
     users: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
     })),
+    competing: PropTypes.shape(),
+    waitingFor: PropTypes.array,
     statuses: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
@@ -114,6 +132,8 @@ Main.defaultProps = {
     accessCode: undefined,
     event: '333',
     users: [],
+    competing: {},
+    waitingFor: [],
     statues: {},
     attempts: [],
     admin: {

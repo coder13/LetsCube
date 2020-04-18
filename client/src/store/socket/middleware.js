@@ -20,6 +20,7 @@ import {
   REQUEST_SCRAMBLE,
   CHANGE_EVENT,
   SEND_STATUS,
+  UPDATE_COMPETING,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -29,6 +30,7 @@ import {
   newResult,
   receiveStatus,
   updateAdmin,
+  updateCompetingForUser,
 } from '../room/actions';
 import {
   CREATE_ROOM,
@@ -145,8 +147,8 @@ const socketMiddleware = (store) => {
 
         store.dispatch(userLeft(user));
       },
-      [Protocol.NEW_ATTEMPT]: (attempt) => {
-        store.dispatch(newAttempt(attempt));
+      [Protocol.NEW_ATTEMPT]: ({ attempt, waitingFor }) => {
+        store.dispatch(newAttempt(attempt, waitingFor));
 
         store.dispatch(receiveChat({
           id: uuid(),
@@ -165,6 +167,18 @@ const socketMiddleware = (store) => {
       },
       [Protocol.UPDATE_STATUS]: ({ user, status }) => {
         store.dispatch(receiveStatus(user, status));
+      },
+      [Protocol.UPDATE_COMPETING]: ({ userId, competing }) => {
+        console.log(172, userId, competing);
+        store.dispatch(updateCompetingForUser(userId, competing));
+
+        const displayName = userId === store.getState().user.id ? 'You are' : `${store.getState().room.users.find((user) => user.id === userId).displayName} is`;
+        store.dispatch(receiveChat({
+          id: uuid(),
+          userId: -1,
+          text: `${displayName} ${competing ? 'competing' : 'skipping'}`,
+          icon: 'USER',
+        }));
       },
     },
   });
@@ -218,6 +232,9 @@ const socketMiddleware = (store) => {
         user: store.getState().user.id,
         status,
       });
+    },
+    [UPDATE_COMPETING]: ({ competing }) => {
+      socket.emit(Protocol.UPDATE_COMPETING, competing);
     },
   };
 

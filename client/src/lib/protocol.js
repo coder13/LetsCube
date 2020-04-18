@@ -29,4 +29,5 @@ module.exports = {
   CHANGE_EVENT: 'change_event',
   UPDATE_PREFERENCES: 'update_preferences',
   UPDATE_STATUS: 'update_status',
+  UPDATE_COMPETING: 'update_competing',
 };

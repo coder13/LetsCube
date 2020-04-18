@@ -13,6 +13,8 @@ export const REQUEST_SCRAMBLE = 'room/request_scramble';
 export const CHANGE_EVENT = 'room/change_event';
 export const SEND_STATUS = 'room/send_status';
 export const RECEIVE_STATUS = 'room/receive_status';
+export const UPDATE_COMPETING = 'room/update_competing';
+export const UPDATE_COMPETING_FOR_USER = 'room/update_competing_for_user';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -50,9 +52,10 @@ export const newResult = (result) => ({
 });
 
 // We got a new attempt (scramble)
-export const newAttempt = (attempt) => ({
+export const newAttempt = (attempt, waitingFor) => ({
   type: NEW_ATTEMPT,
   attempt,
+  waitingFor,
 });
 
 export const sendStatus = (status) => ({
@@ -93,4 +96,15 @@ export const requestNewScramble = (admin) => ({
 export const changeEvent = (event) => ({
   type: CHANGE_EVENT,
   event,
+});
+
+export const updateCompeting = (competing) => ({
+  type: UPDATE_COMPETING,
+  competing,
+});
+
+export const updateCompetingForUser = (userId, competing) => ({
+  type: UPDATE_COMPETING_FOR_USER,
+  userId,
+  competing,
 });

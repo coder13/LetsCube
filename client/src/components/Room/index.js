@@ -16,6 +16,7 @@ import Login from './Login';
 import Main from './Main';
 import Chat from './Chat';
 import AdminToolbar from './AdminToolbar';
+import UserToolbar from './UserToolbar';
 import {
   fetchRoom,
   joinRoom,
@@ -78,7 +79,9 @@ const useStyles = withStyles((theme) => ({
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,
   },
-  adminToolBarContainer: {
+  toolbarContainer: {
+    display: 'flex',
+    flexDirection: 'row',
   },
 }));
 
@@ -156,19 +159,14 @@ class RoomNav extends React.Component {
 
     return (
       <Paper className={classes.root}>
-        { this.isAdmin()
-          ? (
-            <>
-              <Paper
-                className={classes.adminToolBarContainer}
-                square
-                varian="outlined"
-              >
-                <AdminToolbar room={room} />
-              </Paper>
-              <Divider />
-            </>
-          ) : ''}
+        <Paper
+          className={classes.toolbarContainer}
+          square
+        >
+          <UserToolbar />
+          { this.isAdmin() && <AdminToolbar /> }
+        </Paper>
+        <Divider />
         <Grid container direction="row" className={classes.container}>
           { !loggedIn ? <Login />
             : (
