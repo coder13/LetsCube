@@ -11,7 +11,7 @@ import {
   sendStatus,
 } from '../../store/room/actions';
 import TimesTable from './TimesTable';
-import Timer from '../Timer';
+import Timer from '../Timer/index';
 import Scramble from '../Scramble';
 import UserStats from './UserStats';
 
@@ -80,13 +80,14 @@ function Main({
         onSubmitTime={(e) => onSubmitTime(e)}
         onStatusChange={handleStatusChange}
         useInspection={user.useInspection}
+        type="manual"
       />
       <Divider />
       <TimesTable room={room} stats={stats} />
       <UserStats stats={stats[user.id]} />
       <Paper
         className={classes.waitingForBox}
-        Square
+        square
       >
         <Typography variant="body2">
           Waiting For:
