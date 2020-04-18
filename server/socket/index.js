@@ -13,7 +13,7 @@ const roomMask = (room) => ({
   users: room.private ? undefined : room.users.map((user) => user.displayName),
 });
 
-const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
+const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
 
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
@@ -143,8 +143,11 @@ module.exports = ({ app, expressSession }) => {
     }
 
     function sendNewScramble(room) {
-      room.newAttempt((attempt) => {
-        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, attempt);
+      room.newAttempt().then(({ waitingFor, attempts }) => {
+        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, {
+          waitingFor,
+          attempt: attempts[attempts.length - 1],
+        });
       });
     }
 
@@ -227,6 +230,11 @@ module.exports = ({ app, expressSession }) => {
 
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
       });
     }
 
@@ -328,6 +336,7 @@ module.exports = ({ app, expressSession }) => {
 
         // NOTE: when setting a map in mongoose that the keys are strings
         socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+        socket.room.waitingFor.splice(socket.room.waitingFor.indexOf(socket.userId), 1);
 
         const r = await socket.room.save();
 
@@ -407,6 +416,33 @@ module.exports = ({ app, expressSession }) => {
 
       delete socket.room;
       delete socket.roomId;
+    });
+
+    // option is a true or false value of whether or not they're kibitzing
+    socket.on(Protocol.UPDATE_COMPETING, async (competing) => {
+      if (!isLoggedIn() || !isInRoom()) {
+        return;
+      }
+
+      broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_COMPETING, {
+        userId: socket.userId,
+        competing,
+      });
+
+      socket.room.competing.set(socket.userId.toString(), competing);
+
+      if (competing) {
+        socket.room.save();
+      } else {
+        socket.room.waitingFor.splice(socket.room.waitingFor.indexOf(socket.userId), 1);
+
+        await socket.room.save();
+
+        if (socket.room.doneWithScramble()) {
+          logger.debug('everyone done because user kibitzed, sending new scramble');
+          sendNewScramble(socket.room);
+        }
+      }
     });
   });
 

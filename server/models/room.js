@@ -58,6 +58,16 @@ const Room = new mongoose.Schema({
     default: [],
   },
   users: [User],
+  // userIds waiting for till next round.
+  waitingFor: {
+    type: [Number],
+    default: [],
+  },
+  competing: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
   admin: User,
   expireAt: {
     type: Date,
@@ -101,6 +111,12 @@ Room.methods.addUser = async function (user, updateAdmin) {
   }
 
   this.users.push(user);
+  this.competing.set(user.id.toString(), true);
+
+  if (this.waitingFor.length === 0) {
+    this.waitingFor.push(user.id);
+  }
+
   await this.updateStale(false);
   if (updateAdmin) {
     await this.updateAdminIfNeeded(updateAdmin);
@@ -111,6 +127,8 @@ Room.methods.addUser = async function (user, updateAdmin) {
 
 Room.methods.dropUser = async function (user, updateAdmin) {
   this.users = this.users.filter((i) => i.id !== user.id);
+  this.waitingFor.splice(this.waitingFor.indexOf(user.id), 1);
+
   await this.save();
 
   if (updateAdmin) {
@@ -137,16 +155,12 @@ Room.methods.authenticate = function (password) {
 };
 
 Room.methods.doneWithScramble = function () {
-  if (this.users.length === 0) {
+  if (this.users.filter((user) => this.attempts[this.attempts.length - 1].results
+    .get(user.id.toString())).length === 0) {
     return false;
   }
 
-  if (this.attempts.length === 0) {
-    return 'first';
-  }
-  // check that for every user, there exists a result.
-  const latest = this.attempts[this.attempts.length - 1];
-  return this.users.every((user) => latest.results.get(user.id.toString()));
+  return (this.waitingFor.length === 0 || this.attempts.length === 0) && this.users.length > 0;
 };
 
 Room.methods.genAttempt = function () {
@@ -157,20 +171,21 @@ Room.methods.genAttempt = function () {
   };
 };
 
-Room.methods.newAttempt = function (cb) {
+Room.methods.newAttempt = function () {
   const attempt = this.genAttempt();
 
   this.attempts = this.attempts.concat([attempt]);
-  this.save().then(() => {
-    cb(attempt);
-  });
+
+  this.waitingFor = this.users
+    .filter(({ id }) => this.competing.get(id.toString())).map(({ id }) => +id);
+
+  return this.save();
 };
 
 Room.methods.changeEvent = function (event) {
   this.event = event;
   this.attempts = [];
-  this.attempts.push(this.genAttempt());
-  return this.save();
+  return this.newAttempt();
 };
 
 Room.methods.updateAdminIfNeeded = function (cb) {
