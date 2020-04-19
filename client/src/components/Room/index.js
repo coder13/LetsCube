@@ -106,6 +106,10 @@ class RoomNav extends React.Component {
     if (!inRoom && room.accessCode) {
       dispatch(joinRoom(room._id));
     }
+
+    if (room.name) {
+      document.title = `${room.name} - Let's Cube`;
+    }
   }
 
   componentDidUpdate() {
@@ -114,6 +118,10 @@ class RoomNav extends React.Component {
     // inRoom means we're not connected to a room
     if (!inRoom && room.accessCode) {
       dispatch(joinRoom(room._id));
+    }
+
+    if (room.name) {
+      document.title = `${room.name} - Let's Cube`;
     }
   }
 
@@ -224,6 +232,7 @@ RoomNav.propTypes = {
     _id: PropTypes.string,
     private: PropTypes.bool,
     accessCode: PropTypes.string,
+    name: PropTypes.string,
     admin: PropTypes.shape(),
   }),
   user: PropTypes.shape({
@@ -241,6 +250,7 @@ RoomNav.defaultProps = {
     _id: undefined,
     private: false,
     accessCode: undefined,
+    name: undefined,
   },
   user: {
     id: undefined,

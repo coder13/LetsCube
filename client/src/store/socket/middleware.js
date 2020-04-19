@@ -187,6 +187,7 @@ const socketMiddleware = (store) => {
       // TODO: improve
       if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
         store.dispatch(leaveRoom());
+        document.title = 'Let\'s cube';
       }
     },
     [CONNECT_SOCKET]: () => {
