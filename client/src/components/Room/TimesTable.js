@@ -9,31 +9,19 @@ import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import { formatTime } from '../../lib/utils';
+import User from '../User';
 
 const useStyles = makeStyles((theme) => ({
-  tableHeaderIndex: {
-    width: '1em',
-  },
-  tableHeaderTime: {
-    width: '1em',
-  },
-  tableResultCell: {
-    width: '1em',
-  },
   root: {
     flexGrow: 1,
     display: 'flex',
     overflowY: 'auto',
   },
   table: {
-    padding: 'none',
     display: 'flex',
     flexFlow: 'column',
   },
   thead: {
-    display: 'table',
-    tableLayout: 'fixed',
-    flex: '0 0 auto',
     boxShadow: theme.shadows[1],
   },
   tbody: {
@@ -45,6 +33,15 @@ const useStyles = makeStyles((theme) => ({
     display: 'table',
     tableLayout: 'fixed',
     width: '100%',
+  },
+  tableHeaderTime: {
+    paddingLeft: 0,
+  },
+  tableResultCell: {
+    paddingLeft: '2em',
+  },
+  tableHeaderMean: {
+    paddingLeft: 16,
   },
   disabled: {
     color: '#7f7f7f',
@@ -134,20 +131,18 @@ function TimesTable({
                   [classes.disabled]: !competing[u.id],
                 })}
               >
-                <span>
-                  {u.displayName}
-                </span>
+                <User user={u} />
                 <br />
               </TableCell>
             ))}
           </TableRow>
           <TableRow className={classes.tr}>
-            <TableCell className={classes.tableResultCell} align="left">mean</TableCell>
+            <TableCell align="left">mean</TableCell>
             {sortedUsers.map((u) => (
               <TableCell
                 key={u.id}
                 align="left"
-                className={clsx(classes.tableResultCell, {
+                className={clsx(classes.tableHeaderMean, {
                   [classes.disabled]: !competing[u.id],
                 })}
               >
@@ -171,7 +166,7 @@ function TimesTable({
 
             return (
               <TableRow className={classes.tr} key={attempt.id}>
-                <TableCell className={classes.tableResultCell} align="left">{attempts.length - index}</TableCell>
+                <TableCell align="left">{attempts.length - index}</TableCell>
                 {sortedUsers.map((u) => (index === 0 && !attempt.results[u.id] ? (
                   <TableStatusCell key={u.id} status={statuses[u.id]} />
                 ) : (

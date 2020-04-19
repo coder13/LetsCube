@@ -47,10 +47,11 @@ const schema = new mongoose.Schema({
       delete ret.accessToken;
       if (!doc.showWCAID) {
         delete ret.wcaId;
-        delete ret.name;
+        if (!doc.preferRealName) {
+          delete ret.name;
+        }
       }
 
-      delete ret.showWCAID;
       delete ret.__v;
     },
   },
