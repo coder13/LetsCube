@@ -224,7 +224,7 @@ class Timer extends React.Component {
     }
   }
 
-  touchStart() {
+  touchStart(e) {
     const { focused, disabled } = this.props;
     const { status } = this.state;
 
@@ -237,6 +237,7 @@ class Timer extends React.Component {
         this.setStatus(STATUS.SUBMITTING_DOWN);
         break;
       case STATUS.RESTING:
+        e.preventDefault();
         this.setStatus(STATUS.PRIMING);
         break;
       case STATUS.INSPECTING:
