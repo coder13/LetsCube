@@ -9,6 +9,7 @@ import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import Select from '@material-ui/core/Select';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
+import { useConfirm } from 'material-ui-confirm';
 import {
   deleteRoom,
   requestNewScramble,
@@ -32,6 +33,7 @@ const useStyles = makeStyles(() => ({
 
 function AdminToolbar({ dispatch, room }) {
   const classes = useStyles();
+  const confirm = useConfirm();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -55,7 +57,10 @@ function AdminToolbar({ dispatch, room }) {
   };
 
   const handleDeleteRoom = () => {
-    dispatch(deleteRoom(room._id));
+    confirm({ description: 'Are you sure you want to delete this room? All times will disappear.' })
+      .then(() => {
+        dispatch(deleteRoom(room._id));
+      });
   };
 
   return (

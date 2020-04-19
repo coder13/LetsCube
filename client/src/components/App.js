@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { ConnectedRouter } from 'connected-react-router';
 import { ThemeProvider } from '@material-ui/core/styles';
 import CssBaseline from '@material-ui/core/CssBaseline';
+import { ConfirmProvider } from 'material-ui-confirm';
 import theme from '../theme';
 import { store, history } from '../store';
 import Navigation from './Navigation';
@@ -13,10 +14,12 @@ function App() {
     <AppContainer>
       <Provider store={store}>
         <ConnectedRouter history={history} noInitialPop>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <Navigation />
-          </ThemeProvider>
+          <ConfirmProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <Navigation />
+            </ThemeProvider>
+          </ConfirmProvider>
         </ConnectedRouter>
       </Provider>
     </AppContainer>
