@@ -167,13 +167,15 @@ class RoomNav extends React.Component {
 
     return (
       <Paper className={classes.root}>
-        <Paper
-          className={classes.toolbarContainer}
-          square
-        >
-          <UserToolbar />
-          { this.isAdmin() && <AdminToolbar /> }
-        </Paper>
+        { loggedIn && (
+          <Paper
+            className={classes.toolbarContainer}
+            square
+          >
+            <UserToolbar />
+            { this.isAdmin() && <AdminToolbar /> }
+          </Paper>
+        )}
         <Divider />
         <Grid container direction="row" className={classes.container}>
           { !loggedIn ? <Login />
@@ -205,22 +207,24 @@ class RoomNav extends React.Component {
 
         </Grid>
 
-        <BottomNavigation
-          value={currentPanel}
-          showLabels
-          onChange={(e, v) => this.handleChangePanel(e, v)}
-          className={classes.bottomNav}
-        >
-          {panels.map((panel, index) => (
-            <BottomNavigationAction
-              key={panel.name}
-              className={classes.bottomNavItem}
-              label={panel.name}
-              value={index}
-              icon={panel.icon}
-            />
-          ))}
-        </BottomNavigation>
+        { loggedIn && (
+          <BottomNavigation
+            value={currentPanel}
+            showLabels
+            onChange={(e, v) => this.handleChangePanel(e, v)}
+            className={classes.bottomNav}
+          >
+            {panels.map((panel, index) => (
+              <BottomNavigationAction
+                key={panel.name}
+                className={classes.bottomNavItem}
+                label={panel.name}
+                value={index}
+                icon={panel.icon}
+              />
+            ))}
+          </BottomNavigation>
+        )}
       </Paper>
     );
   }
