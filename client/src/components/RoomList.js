@@ -27,6 +27,9 @@ const useStyles = makeStyles((theme) => ({
   },
   createRoom: {
     padding: '1em',
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
+    },
   },
 }));
 
