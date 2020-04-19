@@ -3,16 +3,21 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Input from '@material-ui/core/Input';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Checkbox from '@material-ui/core/Checkbox';
+import Button from '@material-ui/core/Button';
 import initialStyles from './styles';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     ...initialStyles(theme).root,
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   input: {
     maxWidth: '300px',
     margin: 'auto',
-    fontSize: '4em',
+    fontSize: '3em',
     backgroundColor: theme.palette.grey[300],
   },
   inputProps: {
@@ -22,6 +27,11 @@ const useStyles = makeStyles((theme) => ({
       border: `1px solid ${theme.palette.divider}`,
       borderRadius: theme.borderRadius,
     },
+  },
+  penaltyBox: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 }));
 
@@ -52,13 +62,13 @@ function parseTime(inputTime) {
 function ManualTimer({ disabled, onSubmitTime }) {
   const classes = useStyles();
   const [timeInput, setTimeInput] = React.useState('');
-  const [DNF] = React.useState(false);
-  const [AUF] = React.useState(false);
+  const [DNF, setDNF] = React.useState(false);
+  const [AUF, setAUF] = React.useState(false);
 
   const onSubmit = (e) => {
     e.preventDefault();
     const time = parseTime(timeInput);
-    if (time !== false) {
+    if (time) {
       onSubmitTime({
         time,
         penalties: {
@@ -66,6 +76,8 @@ function ManualTimer({ disabled, onSubmitTime }) {
           AUF,
         },
       });
+      setAUF(false);
+      setDNF(false);
       setTimeInput('');
     }
   };
@@ -86,6 +98,31 @@ function ManualTimer({ disabled, onSubmitTime }) {
           fullWidth
         />
       </form>
+      <div className={classes.penaltyBox}>
+        <FormControlLabel
+          control={(
+            <Checkbox
+              size="medium"
+              variant="outlined"
+              checked={AUF}
+              onChange={() => setAUF(!AUF)}
+            />
+          )}
+          label="AUF"
+        />
+        <FormControlLabel
+          control={(
+            <Checkbox
+              size="medium"
+              variant="outlined"
+              checked={DNF}
+              onChange={() => setDNF(!DNF)}
+            />
+          )}
+          label="DNF"
+        />
+        <Button variant="outlined" onClick={onSubmit}>SUBMIT</Button>
+      </div>
     </Box>
   );
 }
@@ -93,7 +130,6 @@ function ManualTimer({ disabled, onSubmitTime }) {
 ManualTimer.propTypes = {
   disabled: PropTypes.bool.isRequired,
   onSubmitTime: PropTypes.func.isRequired,
-  // focused: PropTypes.bool.isRequired,
 };
 
 export default ManualTimer;
