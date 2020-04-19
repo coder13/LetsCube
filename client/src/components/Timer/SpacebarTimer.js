@@ -10,7 +10,10 @@ import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import {
   formatTime, setInterval, clearInterval, now,
-} from '../lib/utils';
+} from '../../lib/utils';
+import styles from './styles';
+
+const useStyles = withStyles(styles);
 
 /*
   Complicated beast.
@@ -41,41 +44,6 @@ const STATUS = {
 };
 
 const STATUSES = [STATUS.RESTING, STATUS.INSPECTING, STATUS.TIMING, STATUS.SUBMITTING];
-
-const useStyles = withStyles((theme) => ({
-  root: {
-    display: 'flex',
-    width: '100%',
-    height: '9em',
-    flexGrow: 0,
-    textAlign: 'center',
-    flexDirection: 'column',
-    padding: 'auto',
-    justifyContent: 'center',
-  },
-  disabled: {
-    color: '#7f7f7f',
-  },
-  PRIMING: {
-    color: 'green',
-  },
-  INSPECTING_PRIMING: {
-    color: 'green',
-  },
-  INSPECTING: {
-    color: 'red',
-  },
-  fullscreen: {
-    position: 'fixed',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0,
-    zIndex: theme.zIndex.tooltip + 1,
-    backgroundColor: 'white',
-    transition: `background-color .2s ${theme.transitions.easing.easeInOut}`,
-  },
-}));
 
 class Timer extends React.Component {
   constructor(props) {

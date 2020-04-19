@@ -5,13 +5,14 @@ import { connect } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
+import Button from '@material-ui/core/Button';
 import calcStats from '../../lib/stats';
 import {
   submitResult,
   sendStatus,
 } from '../../store/room/actions';
 import TimesTable from './TimesTable';
-import Timer from '../Timer';
+import Timer from '../Timer/index';
 import Scramble from '../Scramble';
 import UserStats from './UserStats';
 
@@ -33,6 +34,7 @@ function Main({
   dispatch, room, user, timerFocused,
 }) {
   const classes = useStyles();
+  const [timerType, setTimerType] = React.useState('manual');
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -58,6 +60,10 @@ function Main({
     dispatch(sendStatus(status));
   };
 
+  const toggleTimerType = () => {
+    setTimerType(timerType === 'spacebar' ? 'manual' : 'spacebar');
+  };
+
   const {
     users, attempts, waitingFor,
   } = room;
@@ -75,18 +81,36 @@ function Main({
         scrambles={latestAttempt.scrambles}
       />
       <Divider />
-      <Timer
-        disabled={timerDisabled}
-        onSubmitTime={(e) => onSubmitTime(e)}
-        onStatusChange={handleStatusChange}
-        useInspection={user.useInspection}
-      />
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+      }}
+      >
+        <Button
+          style={{
+            fontSize: '.75em',
+            padding: 0,
+          }}
+          onClick={toggleTimerType}
+        >
+          Switch to
+          {' '}
+          {timerType === 'spacebar' ? 'manual' : 'spacebar'}
+        </Button>
+        <Timer
+          disabled={timerDisabled}
+          onSubmitTime={(e) => onSubmitTime(e)}
+          onStatusChange={handleStatusChange}
+          useInspection={user.useInspection}
+          type={timerType}
+        />
+      </div>
       <Divider />
       <TimesTable room={room} stats={stats} />
       <UserStats stats={stats[user.id]} />
       <Paper
         className={classes.waitingForBox}
-        Square
+        square
       >
         <Typography variant="body2">
           Waiting For:
