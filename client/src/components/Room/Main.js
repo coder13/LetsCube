@@ -34,7 +34,7 @@ function Main({
   dispatch, room, user, timerFocused,
 }) {
   const classes = useStyles();
-  const [timerType, setTimerType] = React.useState('manual');
+  const [timerType, setTimerType] = React.useState('spacebar');
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
