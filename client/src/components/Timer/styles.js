@@ -2,7 +2,7 @@ export default (theme) => ({
   root: {
     display: 'flex',
     width: '100%',
-    height: '9em',
+    height: '6rem',
     flexGrow: 0,
     textAlign: 'center',
     flexDirection: 'column',
@@ -30,5 +30,9 @@ export default (theme) => ({
     zIndex: theme.zIndex.tooltip + 1,
     backgroundColor: 'white',
     transition: `background-color .2s ${theme.transitions.easing.easeInOut}`,
+  },
+  timerText: {
+    fontSize: '3rem',
+    fontWeight: 300,
   },
 });

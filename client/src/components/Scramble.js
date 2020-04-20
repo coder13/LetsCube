@@ -4,27 +4,29 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
-    margin: '.5em',
+    padding: '.5em',
     textAlign: 'center',
     '-webkit-user-select': 'text',
     '-webkit-touch-callout': 'text',
     '-moz-user-select': 'text',
     '-ms-user-select': 'text',
     'user-select': 'text',
+    backgroundColor: theme.palette.grey[100],
+    color: theme.palette.text.primary,
   },
   scramble: {
     fontFamily: 'Roboto Mono, monospace',
-    fontSize: '1.25em',
+    fontSize: '1rem',
   },
   disabled: {
     color: '#7f7f7f',
   },
   // eslint-disable-next-line quote-props
   minx: {
-    lineHeight: '1.25em',
-    fontSize: '1.25em',
+    lineHeight: '.90rem',
+    fontSize: '.75rem',
   },
   line: {
     display: 'block',

@@ -1,4 +1,5 @@
 import React from 'react';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Popover from '@material-ui/core/Popover';
@@ -6,10 +7,14 @@ import Typography from '@material-ui/core/Typography';
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    display: 'inline',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    textAlign: 'center',
   },
   name: {
     padding: 0,
+    fontSize: '.75rem',
   },
   paper: {
     padding: theme.spacing(1),
@@ -20,9 +25,12 @@ const useStyles = makeStyles((theme) => ({
   p: {
     paddingBottom: '.5em',
   },
+  admin: {
+    color: theme.palette.primary.dark,
+  },
 }));
 
-function User({ user }) {
+function User({ user, admin }) {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
 
@@ -37,13 +45,18 @@ function User({ user }) {
   const open = Boolean(anchorEl);
 
   return (
-    <div className={classes.root}>
+    <div
+      className={clsx(classes.root, {
+        [classes.admin]: admin,
+      })}
+    >
       <Typography
         className={classes.name}
         aria-haspopup="true"
         onMouseEnter={handlePopoverOpen}
         onMouseLeave={handlePopoverClose}
         component="span"
+        variant="subtitle2"
       >
         {user.displayName}
       </Typography>
@@ -66,6 +79,11 @@ function User({ user }) {
         }}
         disableRestoreFocus
       >
+        {admin && (
+          <Typography className={classes.p} variant="h6">
+            In Control
+          </Typography>
+        )}
         {user.wcaId && (
           <Typography className={classes.p} variant="body1">
             {`WCA ID: ${user.wcaId}`}
@@ -94,6 +112,11 @@ User.propTypes = {
     name: PropTypes.string,
     showWCAID: PropTypes.bool,
   }).isRequired,
+  admin: PropTypes.bool,
+};
+
+User.defaultProps = {
+  admin: false,
 };
 
 export default User;

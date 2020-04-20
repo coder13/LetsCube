@@ -9,8 +9,6 @@ import Typography from '@material-ui/core/Typography';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import Avatar from '@material-ui/core/Avatar';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -89,16 +87,6 @@ function Header({ children, user, room }) {
           { loggedIn
             ? (
               <div style={{ display: 'flex' }}>
-                <ListItem style={{ padding: '.5em' }}>
-                  <ListItemText
-                    primary={
-                      <Typography variant="h6">{user.name}</Typography>
-                    }
-                    secondary={
-                      <Typography variant="caption">{user.wcaId}</Typography>
-                    }
-                  />
-                </ListItem>
                 <IconButton onClick={handleMenu} color="inherit">
                   <Avatar src={user.avatar.thumb_url} />
                 </IconButton>

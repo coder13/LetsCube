@@ -7,12 +7,18 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
+import blue from '@material-ui/core/colors/blue';
 import { formatTime } from '../../lib/utils';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     padding: 0,
     marging: 0,
+  },
+  td: {
+    backgroundColor: blue[200],
+    borderBottomColor: blue[300],
+    color: theme.palette.text.primary,
   },
 }));
 
@@ -36,14 +42,14 @@ function UserStats({ stats }) {
         <TableHead>
           <TableRow>
             {keys.map((key) => (
-              <TableCell key={key}>{key}</TableCell>
+              <TableCell key={key} className={classes.td}>{key}</TableCell>
             ))}
           </TableRow>
         </TableHead>
         <TableBody>
           <TableRow>
             {keys.map((key) => (
-              <TableCell key={key}>{formatTime(stats[key])}</TableCell>
+              <TableCell key={key} className={classes.td}>{formatTime(stats[key])}</TableCell>
             ))}
           </TableRow>
         </TableBody>

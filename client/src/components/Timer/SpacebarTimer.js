@@ -421,8 +421,7 @@ class Timer extends React.Component {
     return (
       <>
         <Typography
-          variant="h1"
-          className={clsx({
+          className={clsx(classes.timerText, {
             [classes.disabled]: disabled || !focused,
           }, classes[status])}
         >
