@@ -1,11 +1,11 @@
 {
   "server": {
-    "host": "",
     "port": 8080
   },
   "mongodb": "mongodb://127.0.0.1/letscube",
   "wcaSource": "https://staging.worldcubeassociation.org",
   "auth": {
+    "secret": "",
     "callbackUrl": "",
     "clientID": "",
     "clientSecret": ""
