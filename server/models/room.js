@@ -69,6 +69,7 @@ const Room = new mongoose.Schema({
     default: {},
   },
   admin: User,
+  owner: User,
   expireAt: {
     type: Date,
     default: undefined,
@@ -192,6 +193,12 @@ Room.methods.updateAdminIfNeeded = function (cb) {
   if (this.users.length === 0) {
     this.admin = null;
     return this.save();
+  }
+
+  const findOwner = this.users.find((user) => user.id === this.owner.id);
+  if (findOwner && this.admin && this.admin.id !== findOwner.id) {
+    this.admin = findOwner;
+    return this.save().then(cb);
   }
 
   if (!this.admin || this.admin.id !== this.users[0].id) {

@@ -295,6 +295,8 @@ module.exports = ({ app, expressSession }) => {
         newRoom.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
       }
 
+      newRoom.owner = socket.user;
+
       const room = await newRoom.save();
       io.emit(Protocol.ROOM_CREATED, room);
       await joinRoom(room, (r) => {
