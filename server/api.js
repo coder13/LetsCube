@@ -35,9 +35,11 @@ module.exports = () => {
     }
 
     User.findOne({
-      username,
+      username: {
+        $regex: new RegExp(`^${username}$`, 'i'),
+      },
     }).then((user) => {
-      if (user) {
+      if (user && user.id !== req.user.id) {
         sendError(res, {
           statusCode: 500,
           message: 'User with username already exists',
