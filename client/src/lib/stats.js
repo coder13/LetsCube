@@ -9,18 +9,14 @@ export const aoN = (n) => (attempts) => {
     return undefined;
   }
 
-  lastN.sort();
+  lastN.sort((a, b) => a - b);
 
   // if we have 2 DNFs / invalid attempts
   if (lastN[1] < 0) {
     return -1;
   }
 
-  if (lastN[0] < 0) {
-    return (lastN.slice(1).reduce(sum) - Math.max(...lastN)) / (n - 2);
-  }
-
-  return (lastN.reduce(sum) - Math.min(...lastN) - Math.max(...lastN)) / (n - 2);
+  return lastN.slice(1, n - 1).reduce(sum) / (n - 2);
 };
 
 export const mean = (attempts) => average(attempts.filter((t) => t > 0));
