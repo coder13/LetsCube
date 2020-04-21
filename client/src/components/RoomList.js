@@ -21,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
   alert: {
     padding: '1em',
     '& a': {
-      color: theme.palette.warning.contrastText,
+      color: theme.palette.text.primary,
       textDecoration: 'none',
     },
   },
@@ -51,7 +51,7 @@ function RoomList({ dispatch, rooms, user }) {
           className={classes.alert}
           severity="error"
           action={(
-            <Button component={Link} color="inherit" variant="filled" to="/profile">
+            <Button component={Link} color="inherit" to="/profile">
               GO TO PROFILE
             </Button>
           )}
