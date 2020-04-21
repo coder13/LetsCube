@@ -50,6 +50,7 @@ const schema = new mongoose.Schema({
         if (!doc.preferRealName) {
           delete ret.name;
         }
+        ret.avatar = {};
       }
 
       delete ret.__v;
