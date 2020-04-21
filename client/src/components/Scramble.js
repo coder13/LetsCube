@@ -29,6 +29,10 @@ const useStyles = makeStyles((theme) => ({
   line: {
     display: 'block',
   },
+  hidden: {
+    color: '#00000000',
+    transition: 'color .4s',
+  },
 }));
 
 function Megaminx({ scramble }) {
@@ -42,12 +46,15 @@ function Megaminx({ scramble }) {
   ));
 }
 
-function Scramble({ event, scrambles, disabled }) {
+function Scramble({
+  event, scrambles, disabled, hidden,
+}) {
   const classes = useStyles();
 
   return (
     <div className={clsx(classes.root, {
       [classes.disabled]: disabled,
+      [classes.hidden]: hidden,
     })}
     >
       <Typography
@@ -66,12 +73,14 @@ Scramble.propTypes = {
   event: PropTypes.string,
   scrambles: PropTypes.arrayOf(PropTypes.string),
   disabled: PropTypes.bool,
+  hidden: PropTypes.bool,
 };
 
 Scramble.defaultProps = {
   event: '333',
   scrambles: [],
   disabled: false,
+  hidden: false,
 };
 
 export default Scramble;

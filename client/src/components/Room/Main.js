@@ -71,6 +71,7 @@ function Main({
   const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
   const timerDisabled = !timerFocused || !room.competing[user.id]
     || room.waitingFor.indexOf(user.id) === -1;
+  const hidden = room.competing[user.id] && waitingFor.indexOf(user.id) === -1;
 
   const stats = calcStats(attempts, users);
 
@@ -80,6 +81,7 @@ function Main({
         <Scramble
           event={room.event}
           disabled={timerDisabled}
+          hidden={hidden}
           scrambles={latestAttempt.scrambles}
         />
         <Divider />
