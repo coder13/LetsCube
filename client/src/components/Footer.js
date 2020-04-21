@@ -1,9 +1,13 @@
 import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, useTheme } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Link from '@material-ui/core/Link';
+import IconButton from '@material-ui/core/IconButton';
+import EmojiObjectsIcon from '@material-ui/icons/EmojiObjects';
+import EmojiObjectsOutlinedIcon from '@material-ui/icons/EmojiObjectsOutlined';
 import { version } from '../../package.json';
+import { useToggleTheme } from '../theme';
 
 const Links = [{
   text: 'Contribute Idea',
@@ -33,7 +37,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: '1.125em',
     margin: '.5em',
     verticalAlign: 'middle',
-    color: '#7f7f7f',
+    color: theme.palette.text.primary,
     '&:hover': {
       textDecoration: 'none',
       opacity: 0.75,
@@ -43,14 +47,29 @@ const useStyles = makeStyles((theme) => ({
 
 function Footer() {
   const classes = useStyles();
+  const theme = useTheme();
+  const toggleTheme = useToggleTheme();
 
   return (
     <Paper square>
       <Grid
         container
         className={classes.root}
-        justify="flex-end"
       >
+        <Grid item>
+          <IconButton
+            size="small"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            {theme.palette.type === 'dark' ? (
+              <EmojiObjectsIcon />
+            ) : (
+              <EmojiObjectsOutlinedIcon />
+            )}
+          </IconButton>
+        </Grid>
+        <Grid item className={classes.grow} />
         <Grid item>
           {Links.map((link) => (
             <Link

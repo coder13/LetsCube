@@ -25,7 +25,7 @@ const Icons = {
   SCRAMBLE: (event) => <Icon className={`cubing-icon event-${event}`} />,
 };
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -45,7 +45,7 @@ const useStyles = makeStyles(() => ({
     flexGrow: 0,
     width: '100%',
     padding: '1em',
-    backgroundColor: '#fefefe',
+    backgroundColor: theme.palette.background.default,
     borderRadius: 0,
   },
   message: {

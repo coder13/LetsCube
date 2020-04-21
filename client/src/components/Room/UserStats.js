@@ -7,7 +7,6 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import blue from '@material-ui/core/colors/blue';
 import { formatTime } from '../../lib/utils';
 
 const useStyles = makeStyles((theme) => ({
@@ -16,8 +15,8 @@ const useStyles = makeStyles((theme) => ({
     marging: 0,
   },
   td: {
-    backgroundColor: blue[200],
-    borderBottomColor: blue[300],
+    backgroundColor: theme.palette.common.blue,
+    borderBottomColor: theme.palette.common.blueBorder,
     color: theme.palette.text.primary,
   },
 }));

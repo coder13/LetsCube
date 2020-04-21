@@ -54,7 +54,7 @@ const useStyles = withStyles((theme) => ({
     width: '100%',
     height: '4em',
     flexGrow: 0,
-    backgroundColor: '#e6e6e6',
+    backgroundColor: theme.palette.background.default,
     [theme.breakpoints.up('md')]: {
       display: 'none',
     },

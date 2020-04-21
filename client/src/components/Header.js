@@ -116,7 +116,7 @@ function Header({ children, user, room }) {
       <main className={classes.content}>
         {children}
       </main>
-      <Footer />
+      { !room._id && <Footer /> }
     </div>
   );
 }

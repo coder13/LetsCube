@@ -9,8 +9,6 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import green from '@material-ui/core/colors/green';
-import grey from '@material-ui/core/colors/grey';
 import { formatTime } from '../../lib/utils';
 import User from '../User';
 
@@ -51,24 +49,24 @@ const useStyles = makeStyles((theme) => ({
     width: '3rem',
     flexShrink: 1,
     height: '1.7rem',
-    backgroundColor: green[200],
-    borderBottomColor: green[300],
+    backgroundColor: theme.palette.common.green,
+    borderBottomColor: theme.palette.common.greenBorder,
     color: theme.palette.text.primary,
   },
   tableIndexMean: {
     width: '3rem',
     flexShrink: 1,
     height: '1.7rem',
-    backgroundColor: green[200],
-    borderBottomColor: green[300],
+    backgroundColor: theme.palette.common.green,
+    borderBottomColor: theme.palette.common.greenBorder,
     color: theme.palette.text.primary,
   },
   tableHeaderTime: {
     width: '5rem',
     height: '1.7rem',
     flexGrow: 1,
-    backgroundColor: grey[100],
-    borderBottomColor: grey[300],
+    backgroundColor: theme.palette.background.default,
+    borderBottomColor: theme.palette.divider,
     color: theme.palette.text.primary,
   },
   tableResultCell: {
@@ -80,12 +78,15 @@ const useStyles = makeStyles((theme) => ({
     width: '5rem',
     height: '1.7rem',
     flexGrow: 1,
-    backgroundColor: grey[100],
-    borderBottomColor: grey[200],
+    backgroundColor: theme.palette.background.default,
+    borderBottomColor: theme.palette.divider,
     color: theme.palette.text.primary,
   },
   disabled: {
-    color: '#7f7f7f',
+    color: theme.palette.text.disabled,
+  },
+  highlight: {
+    color: theme.palette.common.red,
   },
 }));
 
@@ -117,8 +118,8 @@ function TableTimeCell({ attempt: { time, penalties }, highlight }) {
     <TableCell className={clsx(classes.td, classes.tableResultCell)} align="left">
       <Typography
         variant="subtitle2"
-        style={{
-          color: highlight ? 'red' : 'black',
+        className={{
+          [classes.highlight]: highlight,
         }}
       >
         {time === null ? '' : displayTime}

@@ -17,14 +17,16 @@ const useStyles = makeStyles((theme) => ({
   input: {
     maxWidth: '300px',
     margin: 'auto',
-    fontSize: '3em',
-    backgroundColor: theme.palette.grey[300],
+    fontSize: '2.5em',
+    backgroundColor: theme.palette.background.default,
+    border: `1px solid ${theme.palette.divider}`,
   },
   inputProps: {
     textAlign: 'center',
+    border: `1px solid ${theme.palette.background.paper}`,
     '&:focus': {
-      backgroundColor: theme.palette.grey[400],
-      border: `1px solid ${theme.palette.divider}`,
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.primary.main}`,
       borderRadius: theme.borderRadius,
     },
   },

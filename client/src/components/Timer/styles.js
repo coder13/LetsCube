@@ -10,16 +10,16 @@ export default (theme) => ({
     justifyContent: 'center',
   },
   disabled: {
-    color: '#7f7f7f',
+    color: theme.palette.text.disabled,
   },
   PRIMING: {
-    color: 'green',
+    color: theme.palette.common.green,
   },
   INSPECTING_PRIMING: {
-    color: 'green',
+    color: theme.palette.common.green,
   },
   INSPECTING: {
-    color: 'red',
+    color: theme.palette.common.red,
   },
   fullscreen: {
     position: 'fixed',
@@ -28,7 +28,7 @@ export default (theme) => ({
     top: 0,
     left: 0,
     zIndex: theme.zIndex.tooltip + 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.palette.background.paper,
     transition: `background-color .2s ${theme.transitions.easing.easeInOut}`,
   },
   timerText: {

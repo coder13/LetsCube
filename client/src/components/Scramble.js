@@ -13,15 +13,13 @@ const useStyles = makeStyles((theme) => ({
     '-moz-user-select': 'text',
     '-ms-user-select': 'text',
     'user-select': 'text',
-    backgroundColor: theme.palette.grey[100],
-    color: theme.palette.text.primary,
   },
   scramble: {
     fontFamily: 'Roboto Mono, monospace',
     fontSize: '1rem',
   },
   disabled: {
-    color: '#7f7f7f',
+    color: theme.palette.text.disabled,
   },
   // eslint-disable-next-line quote-props
   minx: {

@@ -26,7 +26,7 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: '.5em',
   },
   admin: {
-    color: theme.palette.primary.dark,
+    color: theme.palette.type === 'light' ? theme.palette.primary.main : '#9EBDFF',
   },
 }));
 
