@@ -3,9 +3,15 @@ const average = (a) => (a.length ? a.reduce(sum) / a.length : undefined);
 const getTimeOrDNF = (a) => (a && !(a.penalties && a.penalties.DNF) ? a.time : -1);
 
 export const aoN = (n) => (attempts) => {
+  if (!n) {
+    return undefined;
+  }
+
   const lastN = attempts.slice(-n);
 
-  if (lastN.length < (n - 1)) {
+  const d = Math.ceil(lastN.length * 0.05);
+
+  if (lastN.length < (n - d)) {
     return undefined;
   }
 
@@ -16,7 +22,10 @@ export const aoN = (n) => (attempts) => {
     return -1;
   }
 
-  return lastN.slice(1, n - 1).reduce(sum) / (n - 2);
+  /* eslint-disable no-console */
+  console.log(n, d, attempts, lastN);
+
+  return lastN.slice(d, n - d).reduce(sum) / (n - d * 2);
 };
 
 export const mean = (attempts) => average(attempts.filter((t) => t > 0));
@@ -44,7 +53,12 @@ export default function (_attempts, users) {
       mean: mean(userAttempts),
       ao5: aoN(5)(userAttempts),
       ao12: aoN(12)(userAttempts),
+      ao50: aoN(50)(userAttempts),
+      ao100: aoN(100)(userAttempts),
     };
+
+    /* eslint-disable no-console */
+    console.log(stats);
   });
 
   return stats;
