@@ -85,30 +85,32 @@ function Main({
           scrambles={latestAttempt.scrambles}
         />
         <Divider />
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-        }}
-        >
-          <Button
-            style={{
-              fontSize: '.75em',
-              padding: 0,
-            }}
-            onClick={toggleTimerType}
+        {room.competing[user.id] && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+          }}
           >
-            Switch to
-            {' '}
-            {timerType === 'spacebar' ? 'manual' : 'spacebar'}
-          </Button>
-          <Timer
-            disabled={timerDisabled}
-            onSubmitTime={(e) => onSubmitTime(e)}
-            onStatusChange={handleStatusChange}
-            useInspection={user.useInspection}
-            type={timerType}
-          />
-        </div>
+            <Button
+              style={{
+                fontSize: '.75em',
+                padding: 0,
+              }}
+              onClick={toggleTimerType}
+            >
+              Switch to
+              {' '}
+              {timerType === 'spacebar' ? 'manual' : 'spacebar'}
+            </Button>
+            <Timer
+              disabled={timerDisabled}
+              onSubmitTime={(e) => onSubmitTime(e)}
+              onStatusChange={handleStatusChange}
+              useInspection={user.useInspection}
+              type={timerType}
+            />
+          </div>
+        )}
         <Divider />
         <TimesTable room={room} stats={stats} />
         <UserStats stats={stats[user.id]} />
