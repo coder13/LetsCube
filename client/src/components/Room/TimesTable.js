@@ -10,6 +10,8 @@ import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import { formatTime } from '../../lib/utils';
+import { useStatsDialog } from './StatsDialogProvider';
+import TableCellButton from '../TableCellButton';
 import User from '../User';
 
 const useStyles = makeStyles((theme) => ({
@@ -90,12 +92,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-
 function TableStatusCell({ status }) {
   const classes = useStyles();
 
   return (
-    <TableCell className={clsx(classes.td, classes.tableResultCell)} align="left">
+    <TableCell className={clsx(classes.td, classes.tableResultCell)}>
       <Typography variant="subtitle1">{status === 'RESTING' ? '' : status}</Typography>
     </TableCell>
   );
@@ -115,12 +116,12 @@ function TableTimeCell({ attempt: { time, penalties }, highlight }) {
   const displayTime = formatTime(time, penalties);
 
   return (
-    <TableCell className={clsx(classes.td, classes.tableResultCell)} align="left">
+    <TableCell className={clsx(classes.td, classes.tableResultCell)}>
       <Typography
         variant="subtitle2"
-        className={{
+        className={clsx({
           [classes.highlight]: highlight,
-        }}
+        })}
       >
         {time === null ? '' : displayTime}
       </Typography>
@@ -151,6 +152,7 @@ function TimesTable({
 }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
+  const showStatsDialog = useStatsDialog();
 
   if (tableBodyRef.current) {
     // scrolls the times.
@@ -160,18 +162,30 @@ function TimesTable({
   // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
   const sortedUsers = users.sort((userA, userB) => +competing[userB.id] - +competing[userA.id]);
 
+  const showScramble = (attempt) => {
+    showStatsDialog({
+      title: `Solve ${attempt.id + 1}`,
+      stats: [{
+        scramble: attempt.scrambles[0],
+        results: users.map((user) => ({
+          name: user.displayName,
+          result: attempt.results[user.id],
+        })).sort((a, b) => a.time - b.time),
+      }],
+    });
+  };
+
   return (
     <TableContainer className={classes.root}>
       <Table stickyHeader className={classes.table} size="small">
         <TableHead className={classes.thead}>
           <TableRow className={classes.tr}>
-            <TableCell align="left" className={clsx(classes.td, classes.tableHeaderIndex)}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
               <Typography variant="subtitle2">#</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
               <TableCell
                 key={u.id}
-                align="left"
                 className={clsx(classes.td, classes.tableHeaderTime, {
                   [classes.disabled]: !competing[u.id],
                 })}
@@ -183,13 +197,12 @@ function TimesTable({
           </TableRow>
 
           <TableRow className={classes.tr}>
-            <TableCell align="left" className={clsx(classes.td, classes.tableIndexMean)}>
+            <TableCell className={clsx(classes.td, classes.tableIndexMean)}>
               <Typography variant="subtitle2">mean</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
               <TableCell
                 key={u.id}
-                align="left"
                 className={clsx(classes.td, classes.tableHeaderMean, {
                   [classes.disabled]: !competing[u.id],
                 })}
@@ -214,9 +227,12 @@ function TimesTable({
 
             return (
               <TableRow className={classes.tr} key={attempt.id}>
-                <TableCell align="left" className={clsx(classes.td, classes.tableHeaderIndex)}>
+                <TableCellButton
+                  className={clsx(classes.td, classes.tableHeaderIndex)}
+                  onClick={() => showScramble(attempt)}
+                >
                   <Typography variant="subtitle2">{attempts.length - index}</Typography>
-                </TableCell>
+                </TableCellButton>
                 {sortedUsers.map((u) => (index === 0 && !attempt.results[u.id] ? (
                   <TableStatusCell key={u.id} status={statuses[u.id]} />
                 ) : (

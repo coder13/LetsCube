@@ -11,6 +11,7 @@ import {
   submitResult,
   sendStatus,
 } from '../../store/room/actions';
+import { StatsDialogProvider } from './StatsDialogProvider';
 import TimesTable from './TimesTable';
 import Timer from '../Timer/index';
 import Scramble from '../Scramble';
@@ -75,49 +76,51 @@ function Main({
 
   return (
     <Paper className={classes.root} variant="outlined" square>
-      <Scramble
-        event={room.event}
-        disabled={timerDisabled}
-        scrambles={latestAttempt.scrambles}
-      />
-      <Divider />
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-      }}
-      >
-        <Button
-          style={{
-            fontSize: '.75em',
-            padding: 0,
-          }}
-          onClick={toggleTimerType}
-        >
-          Switch to
-          {' '}
-          {timerType === 'spacebar' ? 'manual' : 'spacebar'}
-        </Button>
-        <Timer
+      <StatsDialogProvider>
+        <Scramble
+          event={room.event}
           disabled={timerDisabled}
-          onSubmitTime={(e) => onSubmitTime(e)}
-          onStatusChange={handleStatusChange}
-          useInspection={user.useInspection}
-          type={timerType}
+          scrambles={latestAttempt.scrambles}
         />
-      </div>
-      <Divider />
-      <TimesTable room={room} stats={stats} />
-      <UserStats stats={stats[user.id]} />
-      <Paper
-        className={classes.waitingForBox}
-        square
-      >
-        <Typography variant="body2">
-          Waiting For:
-          {' '}
-          {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
-        </Typography>
-      </Paper>
+        <Divider />
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+        }}
+        >
+          <Button
+            style={{
+              fontSize: '.75em',
+              padding: 0,
+            }}
+            onClick={toggleTimerType}
+          >
+            Switch to
+            {' '}
+            {timerType === 'spacebar' ? 'manual' : 'spacebar'}
+          </Button>
+          <Timer
+            disabled={timerDisabled}
+            onSubmitTime={(e) => onSubmitTime(e)}
+            onStatusChange={handleStatusChange}
+            useInspection={user.useInspection}
+            type={timerType}
+          />
+        </div>
+        <Divider />
+        <TimesTable room={room} stats={stats} />
+        <UserStats stats={stats[user.id]} />
+        <Paper
+          className={classes.waitingForBox}
+          square
+        >
+          <Typography variant="body2">
+            Waiting For:
+            {' '}
+            {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+          </Typography>
+        </Paper>
+      </StatsDialogProvider>
     </Paper>
   );
 }
