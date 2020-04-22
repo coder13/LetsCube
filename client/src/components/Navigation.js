@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import { connect } from 'react-redux';
@@ -8,10 +8,14 @@ import Snackbar from '@material-ui/core/Snackbar';
 import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
 import Header from './Header';
-import RoomList from './RoomList';
-import Room from './Room/index';
-import Profile from './Profile';
+// import RoomList from './RoomList';
+// import Room from './Room/index';
+// import Profile from './Profile';
 import { closeMessage } from '../store/messages/actions';
+
+const RoomList = lazy(() => import('./RoomList'));
+const Room = lazy(() => import('./Room/index'));
+const Profile = lazy(() => import('./Profile'));
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -54,6 +58,19 @@ function App({
     dispatch(closeMessage(index));
   };
 
+  const Loading = (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+      }}
+    >
+      <CircularProgress color="inherit" />
+    </div>
+  );
+
   return (
     <div className={classes.root}>
       <Backdrop className={classes.backdrop} open={!connected}>
@@ -66,13 +83,15 @@ function App({
       </Backdrop>
 
       <Header user={user} room={room}>
-        <Switch>
-          <Route exact path="/" component={RoomList} />
-          { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
-          { (user.id || user.fetching)
-            && (<Route exact path="/profile" component={Profile} user={user} />)}
-          <Redirect to="/" />
-        </Switch>
+        <Suspense fallback={Loading}>
+          <Switch>
+            <Route exact path="/" component={RoomList} />
+            { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
+            { (user.id || user.fetching)
+              && (<Route exact path="/profile" component={Profile} user={user} />)}
+            <Redirect to="/" />
+          </Switch>
+        </Suspense>
       </Header>
 
       {messages[0] ? (
