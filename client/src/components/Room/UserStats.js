@@ -23,7 +23,12 @@ const useStyles = makeStyles((theme) => ({
 
 function UserStats({ stats }) {
   const classes = useStyles();
-  const keys = Object.keys(stats).filter((key) => !!stats[key]);
+
+  if (!stats) {
+    return '';
+  }
+
+  const keys = Object.keys(stats.current).filter((key) => !!stats.current[key]);
 
   if (!keys || keys.length === 0) {
     return '';
@@ -40,6 +45,7 @@ function UserStats({ stats }) {
       >
         <TableHead>
           <TableRow>
+            <TableCell className={classes.td} />
             {keys.map((key) => (
               <TableCell key={key} className={classes.td}>{key}</TableCell>
             ))}
@@ -47,8 +53,19 @@ function UserStats({ stats }) {
         </TableHead>
         <TableBody>
           <TableRow>
+            <TableCell className={classes.td}>Current</TableCell>
             {keys.map((key) => (
-              <TableCell key={key} className={classes.td}>{formatTime(stats[key])}</TableCell>
+              <TableCell key={key} className={classes.td}>
+                {formatTime(stats.current[key])}
+              </TableCell>
+            ))}
+          </TableRow>
+          <TableRow>
+            <TableCell className={classes.td}>Best</TableCell>
+            {keys.map((key) => (
+              <TableCell key={key} className={classes.td}>
+                {formatTime(stats.best[key])}
+              </TableCell>
             ))}
           </TableRow>
         </TableBody>
@@ -62,7 +79,10 @@ UserStats.propTypes = {
 };
 
 UserStats.defaultProps = {
-  stats: {},
+  stats: {
+    current: {},
+    best: {},
+  },
 };
 
 export default UserStats;
