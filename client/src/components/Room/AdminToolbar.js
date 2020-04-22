@@ -50,7 +50,10 @@ function AdminToolbar({ dispatch, room }) {
   };
 
   const handleChangeEvent = (event) => {
-    dispatch(changeEvent(event.target.value));
+    confirm({ description: 'Are you sure you want to change events? All times will disappear.' })
+      .then(() => {
+        dispatch(changeEvent(event.target.value));
+      });
   };
 
   const handleDeleteRoom = () => {
