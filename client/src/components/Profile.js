@@ -206,16 +206,6 @@ function Profile({ user, dispatch }) {
                 )}
                 label="Show WCA Identity"
               />
-              <FormControlLabel
-                control={(
-                  <Checkbox
-                    checked={user.useInspection}
-                    onChange={handleToggle}
-                    name="useInspection"
-                  />
-                )}
-                label="Use inspection"
-              />
               <p>All preferences get saved automatically.</p>
             </Paper>
           </Grid>
@@ -235,7 +225,6 @@ Profile.propTypes = {
     showWCAID: PropTypes.bool,
     canJoinRoom: PropTypes.bool,
     wcaId: PropTypes.string,
-    useInspection: PropTypes.bool,
     avatar: PropTypes.shape({
       url: PropTypes.string,
     }),
@@ -253,7 +242,6 @@ Profile.defaultProps = {
     showWCAID: false,
     canJoinRoom: false,
     wcaId: '',
-    useInspection: false,
     avatar: {
       url: undefined,
     },

@@ -30,6 +30,10 @@ const schema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  timerType: {
+    type: String,
+    default: 'spacebar',
+  },
   accessToken: {
     type: String,
     required: true,

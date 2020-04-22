@@ -14,6 +14,7 @@ const INITIAL_STATE = {
   preferUsername: undefined,
   displayName: undefined,
   useInspection: false,
+  timerType: 'spacebar',
   avatar: {
     thumb_url: undefined,
   },
