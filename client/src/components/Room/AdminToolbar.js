@@ -37,9 +37,6 @@ function AdminToolbar({ dispatch, room }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const menuOpen = Boolean(anchorEl);
 
-  const canGenNewScramble = () => room && room.attempts.length
-    && Object.keys(room.attempts[room.attempts.length - 1].results).length;
-
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -67,7 +64,6 @@ function AdminToolbar({ dispatch, room }) {
     <Toolbar className={classes.adminToolbar}>
       <FormGroup row variant="text">
         <Button
-          disabled={!canGenNewScramble()}
           onClick={handleNewScramble}
         >
           New Scramble

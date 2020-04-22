@@ -22,9 +22,6 @@ export const aoN = (n) => (attempts) => {
     return -1;
   }
 
-  /* eslint-disable no-console */
-  console.log(n, d, attempts, lastN);
-
   return lastN.slice(d, n - d).reduce(sum) / (n - d * 2);
 };
 
@@ -56,9 +53,6 @@ export default function (_attempts, users) {
       ao50: aoN(50)(userAttempts),
       ao100: aoN(100)(userAttempts),
     };
-
-    /* eslint-disable no-console */
-    console.log(stats);
   });
 
   return stats;
