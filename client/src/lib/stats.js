@@ -36,9 +36,6 @@ export const bestAoN = (n) => (attempts) => {
     averages.push(aoN(n)(attempts.slice(i, i + n)));
   }
 
-  console.log(n, attempts.length - n);
-  console.log(averages);
-
   return averages.filter((i) => i > 0).sort(sort)[0] || undefined;
 };
 
