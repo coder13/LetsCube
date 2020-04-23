@@ -20,7 +20,7 @@ export const formatTime = (time, options) => {
     s += 2;
   }
 
-  if (_options.auf) {
+  if (_options.AUF) {
     s += 2;
   }
 
