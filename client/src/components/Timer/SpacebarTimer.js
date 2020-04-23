@@ -168,7 +168,7 @@ class Timer extends React.Component {
       event.preventDefault();
     }
 
-    if (event.keyCode === 192 && status === STATUS.INSPECTING) { // escape
+    if (event.keyCode === 27 && status === STATUS.INSPECTING) { // escape
       clearInterval(this.timerObj);
       this.reset();
     }
