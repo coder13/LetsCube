@@ -1,7 +1,21 @@
 const sum = (a, b) => a + b;
 const average = (a) => (a.length ? a.reduce(sum) / a.length : undefined);
 const getTimeOrDNF = (a) => (a && !(a.penalties && a.penalties.DNF) ? a.time : -1);
-const sort = (a, b) => a - b;
+const sort = (a, b) => {
+  if (a > 0 && b > 0) {
+    return a - b;
+  }
+
+  if (a < 0) {
+    return 1;
+  }
+
+  if (b < 0) {
+    return -1;
+  }
+
+  return 0;
+};
 
 export const aoN = (n) => (attempts) => {
   if (!n) {
@@ -19,7 +33,7 @@ export const aoN = (n) => (attempts) => {
   lastN.sort(sort);
 
   // if we have 2 DNFs / invalid attempts
-  if (lastN[1] < 0) {
+  if (lastN[lastN.length - 2] < 0) {
     return -1;
   }
 
