@@ -30,10 +30,6 @@ function UserStats({ stats }) {
 
   const keys = Object.keys(stats.current).filter((key) => !!stats.current[key]);
 
-  if (!keys || keys.length === 0) {
-    return '';
-  }
-
   return (
     <Paper
       className={classes.root}
