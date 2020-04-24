@@ -41,7 +41,7 @@ export const parseNumericalTime = (time) => {
   const minutes = ((time - seconds) / 10000) % 100;
   const hours = Math.floor((time - seconds) / 10000 / 100);
   return (seconds + minutes * 6000 + hours * 360000) * 10;
-}
+};
 
 // Returns undefined for invalid input
 export const parseTime = (inputTime) => {
@@ -68,7 +68,7 @@ export const parseTime = (inputTime) => {
   }
 
   return (((((hours * 3600) + minutes * 60) + seconds) * 100) + centiSeconds) * 10;
-}
+};
 
 
 // Better refresh and cross compatability.
