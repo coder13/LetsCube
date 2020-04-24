@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'letscube-api',
-    script: 'NODE_ENV=prod index.js',
+    script: 'node ./index.js',
 
     // Options reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
     args: '',
@@ -9,7 +9,7 @@ module.exports = {
     autorestart: true,
     watch: false,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       NODE_ENV: 'prod',
     },
   }],
