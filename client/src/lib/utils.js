@@ -36,6 +36,41 @@ export const formatTime = (time, options) => {
   return DNF ? `DNF(${formattedTimeWithPenalties})` : formattedTimeWithPenalties;
 };
 
+export const parseNumericalTime = (time) => {
+  const seconds = time % 10000;
+  const minutes = ((time - seconds) / 10000) % 100;
+  const hours = Math.floor((time - seconds) / 10000 / 100);
+  return (seconds + minutes * 6000 + hours * 360000) * 10;
+}
+
+// Returns undefined for invalid input
+export const parseTime = (inputTime) => {
+  if (!inputTime) {
+    return undefined;
+  }
+
+  const match = inputTime.match(/^(?:(\d*):)??(?:(\d*):)?(\d+)?(?:[.,](\d*))?$/);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  const decimalStr = match[4] || '';
+  const decimal = parseInt(decimalStr || '0', 10);
+  const denominator = 10 ** (decimalStr.length - 2);
+  const centiSeconds = !decimal ? 0 : Math.round(decimal / denominator);
+
+  if (!match[1] && !match[2] && !match[4]) {
+    return parseNumericalTime(seconds);
+  }
+
+  return (((((hours * 3600) + minutes * 60) + seconds) * 100) + centiSeconds) * 10;
+}
+
+
 // Better refresh and cross compatability.
 const requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame
   || window.mozRequestAnimationFrame || window.oRequestAnimationFrame
