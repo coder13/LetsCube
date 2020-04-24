@@ -101,7 +101,7 @@ function UserToolbar({ dispatch, room, user }) {
                 name="timerType"
                 variant="standard"
               >
-                <MenuItem value="spacebar">Spacebar</MenuItem>
+                <MenuItem value="spacebar">Keyboard</MenuItem>
                 <MenuItem value="manual">Manual</MenuItem>
               </Select>
             </FormControl>
