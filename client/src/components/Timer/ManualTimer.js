@@ -66,6 +66,7 @@ function ManualTimer({ disabled, onSubmitTime }) {
   const [timeInput, setTimeInput] = React.useState('');
   const [DNF, setDNF] = React.useState(false);
   const [AUF, setAUF] = React.useState(false);
+  const inputRef = React.createRef(null);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -84,6 +85,10 @@ function ManualTimer({ disabled, onSubmitTime }) {
     }
   };
 
+  React.useEffect(() => {
+    inputRef.current.focus();
+  });
+
   return (
     <Box className={classes.root}>
       <form onSubmit={onSubmit}>
@@ -93,6 +98,7 @@ function ManualTimer({ disabled, onSubmitTime }) {
           inputProps={{
             className: classes.inputProps,
           }}
+          inputRef={inputRef}
           disabled={disabled}
           value={timeInput}
           onChange={(e) => setTimeInput(e.target.value)}
