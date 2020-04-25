@@ -30,6 +30,11 @@ const useStyles = makeStyles((theme) => ({
   waitingForBox: {
     padding: '.5em',
   },
+  scrambleBox: {
+    padding: '.5em',
+    textAlign: 'center',
+    justifyContent: 'center',
+  },
 }));
 
 function Main({
@@ -75,12 +80,19 @@ function Main({
   return (
     <Paper className={classes.root} variant="outlined" square>
       <StatsDialogProvider>
-        <Scramble
-          event={room.event}
-          disabled={timerDisabled}
-          hidden={hidden}
-          scrambles={latestAttempt.scrambles}
-        />
+        <div className={classes.scrambleBox}>
+          { hidden ? (
+            <Typography variant="h6" style={{ fontWeight: 400 }}>
+              Waiting for other solvers...
+            </Typography>
+          ) : (
+            <Scramble
+              event={room.event}
+              disabled={timerDisabled}
+              scrambles={latestAttempt.scrambles}
+            />
+          )}
+        </div>
         <Divider />
         {room.competing[user.id] && (
           <Timer

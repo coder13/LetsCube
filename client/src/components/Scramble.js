@@ -6,8 +6,6 @@ import Typography from '@material-ui/core/Typography';
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    padding: '.5em',
-    textAlign: 'center',
     '-webkit-user-select': 'text',
     '-webkit-touch-callout': 'text',
     '-moz-user-select': 'text',
@@ -16,7 +14,6 @@ const useStyles = makeStyles((theme) => ({
   },
   scramble: {
     fontFamily: 'Roboto Mono, monospace',
-    fontSize: '1rem',
   },
   disabled: {
     color: theme.palette.text.disabled,
@@ -28,10 +25,6 @@ const useStyles = makeStyles((theme) => ({
   },
   line: {
     display: 'block',
-  },
-  hidden: {
-    color: '#00000000',
-    transition: 'color .4s',
   },
 }));
 
@@ -47,18 +40,17 @@ function Megaminx({ scramble }) {
 }
 
 function Scramble({
-  event, scrambles, disabled, hidden,
+  event, scrambles, disabled,
 }) {
   const classes = useStyles();
 
   return (
     <div className={clsx(classes.root, {
       [classes.disabled]: disabled,
-      [classes.hidden]: hidden,
     })}
     >
       <Typography
-        variant="subtitle2"
+        variant="h6"
         className={clsx({
           [classes[event]]: true,
         }, classes.scramble)}
@@ -73,14 +65,12 @@ Scramble.propTypes = {
   event: PropTypes.string,
   scrambles: PropTypes.arrayOf(PropTypes.string),
   disabled: PropTypes.bool,
-  hidden: PropTypes.bool,
 };
 
 Scramble.defaultProps = {
   event: '333',
   scrambles: [],
   disabled: false,
-  hidden: false,
 };
 
 export default Scramble;
