@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
@@ -6,6 +6,9 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
+import Popover from '@material-ui/core/Popover';
+import IconButton from '@material-ui/core/IconButton';
+import HelpIcon from '@material-ui/icons/Help';
 import { Cube } from 'react-cube-svg';
 import calcStats from '../../lib/stats';
 import {
@@ -41,6 +44,7 @@ function Main({
   dispatch, room, user, timerFocused,
 }) {
   const classes = useStyles();
+  const [helpAnchor, setHelpAnchor] = useState(null);
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -94,15 +98,46 @@ function Main({
           )}
         </div>
         <Divider />
-        {room.competing[user.id] && (
-          <Timer
-            disabled={timerDisabled}
-            onSubmitTime={(e) => onSubmitTime(e)}
-            onStatusChange={handleStatusChange}
-            useInspection={user.useInspection}
-            type={user.timerType}
-          />
-        )}
+        <div>
+          <div style={{ position: 'relative', width: 0, height: 0 }}>
+            <div style={{ position: 'absolute', top: 0, left: 0 }}>
+              <IconButton
+                color="inherit"
+                onClick={(e) => setHelpAnchor(e.currentTarget)}
+              >
+                <HelpIcon />
+              </IconButton>
+              <Popover
+                open={!!helpAnchor}
+                anchorEl={helpAnchor}
+                onClose={() => setHelpAnchor(null)}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'left',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'left',
+                }}
+              >
+                <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
+                  <p>Press `Spacebar` to start the timer.</p>
+                  <p>Press any key to stop the timer.</p>
+                  <p>Press `Enter` to submit time.</p>
+                </Typography>
+              </Popover>
+            </div>
+          </div>
+          {room.competing[user.id] && (
+            <Timer
+              disabled={timerDisabled}
+              onSubmitTime={(e) => onSubmitTime(e)}
+              onStatusChange={handleStatusChange}
+              useInspection={user.useInspection}
+              type={user.timerType}
+            />
+          )}
+        </div>
         <Divider />
         <TimesTable room={room} stats={stats} />
         <Grid container>
