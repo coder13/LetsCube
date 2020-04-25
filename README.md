@@ -22,4 +22,4 @@ npm install # installs pre-commit hook
 
 ```cd client && npm install && npm run start```
 
-For more on the internals, check the [wiki](https://github.com/coder13/LetsCube/wiki)
+For more on the internals and contributing, check out the [wiki](https://github.com/coder13/LetsCube/wiki)
