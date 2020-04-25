@@ -64,6 +64,9 @@ const useStyles = makeStyles((theme) => ({
     borderBottomColor: theme.palette.divider,
     color: theme.palette.text.primary,
   },
+  tableHeaderName: {
+    height: '3rem',
+  },
   tableResultCell: {
     width: '5rem',
     height: '1.7rem',
@@ -173,15 +176,16 @@ function TimesTable({
       <Table stickyHeader className={classes.table} size="small">
         <TableHead className={classes.thead}>
           <TableRow className={classes.tr}>
-            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex,
+              classes.tableHeaderName)}
+            >
               <Typography variant="subtitle2">#</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
               <TableCell
                 key={u.id}
-                className={clsx(classes.td, classes.tableHeaderTime, {
-                  [classes.disabled]: !competing[u.id],
-                })}
+                className={clsx(classes.td, classes.tableHeaderTime,
+                  classes.tableHeaderName)}
               >
                 <User user={u} admin={admin.id === u.id} />
                 <br />
