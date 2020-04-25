@@ -29,7 +29,6 @@ const useStyles = makeStyles((theme) => ({
   },
   tbody: {
     flexGrow: 1,
-    overflowY: 'auto',
     height: '0px',
     '&:scollbar': {
       width: 200,
@@ -49,15 +48,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tableHeaderIndex: {
     width: '3rem',
-    flexShrink: 1,
-    height: '1.7rem',
-    backgroundColor: theme.palette.common.green,
-    borderBottomColor: theme.palette.common.greenBorder,
-    color: theme.palette.text.primary,
-  },
-  tableIndexMean: {
-    width: '3rem',
-    flexShrink: 1,
+    flexShrink: 0,
     height: '1.7rem',
     backgroundColor: theme.palette.common.green,
     borderBottomColor: theme.palette.common.greenBorder,
@@ -67,6 +58,8 @@ const useStyles = makeStyles((theme) => ({
     width: '5rem',
     height: '1.7rem',
     flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: '6em',
     backgroundColor: theme.palette.background.default,
     borderBottomColor: theme.palette.divider,
     color: theme.palette.text.primary,
@@ -197,7 +190,7 @@ function TimesTable({
           </TableRow>
 
           <TableRow className={classes.tr}>
-            <TableCell className={clsx(classes.td, classes.tableIndexMean)}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
               <Typography variant="subtitle2">mean</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
