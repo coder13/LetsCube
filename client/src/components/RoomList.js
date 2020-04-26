@@ -16,6 +16,7 @@ import AddIcon from '@material-ui/icons/Add';
 import AddRoomDialog from './AddRoomDialog';
 import RoomListItem from './RoomListItem';
 import { createRoom } from '../store/rooms/actions';
+import UserCounter from './UserCounter';
 
 const useStyles = makeStyles((theme) => ({
   alert: {
@@ -99,6 +100,7 @@ function RoomList({ dispatch, rooms, user }) {
         onCreateRoom={onCreateRoom}
         onClose={() => setCreateRoomDialogOpen(false)}
       />
+      <UserCounter />
     </Container>
   );
 }

@@ -8,7 +8,6 @@ import EmojiObjectsIcon from '@material-ui/icons/EmojiObjects';
 import EmojiObjectsOutlinedIcon from '@material-ui/icons/EmojiObjectsOutlined';
 import { version } from '../../package.json';
 import { useToggleTheme } from '../theme';
-import UserCounter from './UserCounter';
 
 const Links = [{
   text: 'Contribute Idea',
@@ -69,9 +68,6 @@ function Footer() {
               <EmojiObjectsOutlinedIcon />
             )}
           </IconButton>
-        </Grid>
-        <Grid item>
-          <UserCounter />
         </Grid>
         <Grid item className={classes.grow} />
         <Grid item>
