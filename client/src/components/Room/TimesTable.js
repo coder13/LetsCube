@@ -175,6 +175,11 @@ function TimesTable({
     });
   };
 
+  const bestMean = Math.min(...sortedUsers
+    .map((u) => stats[u.id] && stats[u.id].mean).filter((i) => i >= 0));
+  /* eslint-disable no-console */
+  console.log(bestMean);
+
   return (
     <TableContainer className={classes.root}>
       <Table stickyHeader className={classes.table} size="small">
@@ -201,16 +206,13 @@ function TimesTable({
               <Typography variant="subtitle2">mean</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
-              <TableCell
+              <TableTimeCell
                 key={u.id}
-                className={clsx(classes.td, classes.tableHeaderMean, {
-                  [classes.disabled]: !competing[u.id],
-                })}
-              >
-                <Typography variant="subtitle2">
-                  {stats[u.id] ? formatTime(stats[u.id].mean).toString() : ''}
-                </Typography>
-              </TableCell>
+                attempt={{
+                  time: stats[u.id] ? stats[u.id].mean : 0,
+                }}
+                highlight={stats[u.id] && bestMean === stats[u.id].mean}
+              />
             ))}
           </TableRow>
         </TableHead>
