@@ -2,14 +2,17 @@ import React from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 // import { makeStyles } from '@material-ui/core/styles';
-// import Paper from '@material-ui/core/Paper';
+import Paper from '@material-ui/core/Paper';
 // import Typography from '@material-ui/core/Typography'
 
 function UserCounter({ userCount }) {
   return (
-    <p>
-      {`Users Online: ${userCount}`}
-    </p>
+    <Paper>
+      <p>
+        {`Users Online: ${userCount}`}
+      </p>
+    </Paper>
+
   );
 }
 
@@ -18,7 +21,7 @@ UserCounter.propTypes = {
 };
 
 UserCounter.defaultProps = {
-  userCount: 100000000000000,
+  userCount: 0,
 };
 
 const mapStateToProps = (state) => ({

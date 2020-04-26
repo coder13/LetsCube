@@ -46,62 +46,64 @@ function RoomList({ dispatch, rooms, user }) {
   };
 
   return (
-    <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
-      { showAlert && (
-        <Alert
-          className={classes.alert}
-          severity="error"
-          action={(
-            <Button component={Link} color="inherit" to="/profile">
-              GO TO PROFILE
-            </Button>
-          )}
-        >
-          <Link to="/profile">
-            Must update profile settings before joining a room.
-          </Link>
-        </Alert>
-      )}
-
-      <br />
-      {user.id && (
-        <>
-          <ListItem
-            button
-            className={classes.createRoom}
-            variant="contained"
-            color="primary"
-            component={Button}
-            onClick={() => setCreateRoomDialogOpen(true)}
+    <div>
+      <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
+        { showAlert && (
+          <Alert
+            className={classes.alert}
+            severity="error"
+            action={(
+              <Button component={Link} color="inherit" to="/profile">
+                GO TO PROFILE
+              </Button>
+            )}
           >
-            <ListItemIcon>
-              <AddIcon />
-            </ListItemIcon>
-            Create Room
-          </ListItem>
-          <br />
-        </>
-      )}
-      <Paper>
-        <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-          {publicRooms.map((room) => (
-            <RoomListItem key={room._id} room={room} disabled={showAlert} />
-          ))}
-        </List>
-        <Divider />
-        <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
-          {privateRooms.map((room) => (
-            <RoomListItem key={room._id} room={room} disabled={showAlert} />
-          ))}
-        </List>
-      </Paper>
-      <AddRoomDialog
-        open={createRoomDialogOpen}
-        onCreateRoom={onCreateRoom}
-        onClose={() => setCreateRoomDialogOpen(false)}
-      />
+            <Link to="/profile">
+              Must update profile settings before joining a room.
+            </Link>
+          </Alert>
+        )}
+
+        <br />
+        {user.id && (
+          <>
+            <ListItem
+              button
+              className={classes.createRoom}
+              variant="contained"
+              color="primary"
+              component={Button}
+              onClick={() => setCreateRoomDialogOpen(true)}
+            >
+              <ListItemIcon>
+                <AddIcon />
+              </ListItemIcon>
+              Create Room
+            </ListItem>
+            <br />
+          </>
+        )}
+        <Paper>
+          <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
+            {publicRooms.map((room) => (
+              <RoomListItem key={room._id} room={room} disabled={showAlert} />
+            ))}
+          </List>
+          <Divider />
+          <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
+            {privateRooms.map((room) => (
+              <RoomListItem key={room._id} room={room} disabled={showAlert} />
+            ))}
+          </List>
+        </Paper>
+        <AddRoomDialog
+          open={createRoomDialogOpen}
+          onCreateRoom={onCreateRoom}
+          onClose={() => setCreateRoomDialogOpen(false)}
+        />
+      </Container>
       <UserCounter />
-    </Container>
+    </div>
   );
 }
 
