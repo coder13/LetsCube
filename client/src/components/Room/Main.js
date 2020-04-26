@@ -176,7 +176,7 @@ function Main({
                 variant="outlined"
               >
                 <Cube
-                  size="120"
+                  size={120}
                   scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                 />
               </Paper>
