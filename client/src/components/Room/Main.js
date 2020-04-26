@@ -45,6 +45,7 @@ function Main({
 }) {
   const classes = useStyles();
   const [helpAnchor, setHelpAnchor] = useState(null);
+  const [currentAttemptId, setCurrentAttemptId] = useState();
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -56,9 +57,8 @@ function Main({
       return;
     }
 
-    const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
     dispatch(submitResult({
-      id: latestAttempt.id,
+      id: currentAttemptId,
       result: {
         time: event.time,
         penalties: event.penalties,
@@ -68,6 +68,11 @@ function Main({
 
   const handleStatusChange = (status) => {
     dispatch(sendStatus(status));
+  };
+
+  const handlePriming = () => {
+    const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
+    setCurrentAttemptId(latestAttempt.id);
   };
 
   const {
@@ -134,6 +139,7 @@ function Main({
               onSubmitTime={(e) => onSubmitTime(e)}
               onStatusChange={handleStatusChange}
               useInspection={user.useInspection}
+              onPriming={handlePriming}
               type={user.timerType}
             />
           )}
