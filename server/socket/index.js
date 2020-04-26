@@ -114,7 +114,7 @@ module.exports = ({ app, expressSession }) => {
     // New user online
     usersOnline += 1;
     if (usersOnline > 0) {
-      io.emit(Protocol.USER_COUNT, usersOnline);
+      broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
     }
     logger.debug(`Users online: ${usersOnline}`);
 
@@ -408,7 +408,7 @@ module.exports = ({ app, expressSession }) => {
       logger.debug(`Users online: ${usersOnline}`);
 
       if (usersOnline > 0) {
-        broadcastToEveryone(Protocol.USER_COUNT, usersOnline);
+        broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
       }
 
       if (socket.roomId) {
