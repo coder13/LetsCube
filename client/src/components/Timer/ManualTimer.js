@@ -45,12 +45,15 @@ function ManualTimer({ disabled, onSubmitTime }) {
   const [AUF, setAUF] = React.useState(false);
   const inputRef = React.createRef(null);
 
+  const finalTime = (time) => time + (AUF ? 2000 : 0);
+
   const onSubmit = (e) => {
     e.preventDefault();
     const time = parseTime(timeInput);
+
     if (time) {
       onSubmitTime({
-        time,
+        time: finalTime(time),
         penalties: {
           DNF,
           AUF,

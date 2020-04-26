@@ -177,8 +177,6 @@ function TimesTable({
 
   const bestMean = Math.min(...sortedUsers
     .map((u) => stats[u.id] && stats[u.id].mean).filter((i) => i >= 0));
-  /* eslint-disable no-console */
-  console.log(bestMean);
 
   return (
     <TableContainer className={classes.root}>

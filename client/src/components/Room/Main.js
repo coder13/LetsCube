@@ -57,13 +57,15 @@ function Main({
       return;
     }
 
+    const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
     dispatch(submitResult({
-      id: currentAttemptId,
+      id: currentAttemptId || latestAttempt.id,
       result: {
         time: event.time,
         penalties: event.penalties,
       },
     }));
+    setCurrentAttemptId(null);
   };
 
   const handleStatusChange = (status) => {
