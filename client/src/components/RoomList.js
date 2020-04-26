@@ -4,8 +4,7 @@ import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
-// import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
+import Container from '@material-ui/core/Container';
 import Divider from '@material-ui/core/Divider';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -48,7 +47,7 @@ function RoomList({ dispatch, rooms, user }) {
 
   return (
     <div>
-      <Grid container>
+      <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
         { showAlert && (
           <Alert
             className={classes.alert}
@@ -68,48 +67,42 @@ function RoomList({ dispatch, rooms, user }) {
         <br />
         {user.id && (
           <>
-            <Grid item xs>
-              <ListItem
-                button
-                className={classes.createRoom}
-                variant="contained"
-                color="primary"
-                component={Button}
-                onClick={() => setCreateRoomDialogOpen(true)}
-              >
-                <ListItemIcon>
-                  <AddIcon />
-                </ListItemIcon>
-                Create Room
-              </ListItem>
-              <br />
-            </Grid>
+            <ListItem
+              button
+              className={classes.createRoom}
+              variant="contained"
+              color="primary"
+              component={Button}
+              onClick={() => setCreateRoomDialogOpen(true)}
+            >
+              <ListItemIcon>
+                <AddIcon />
+              </ListItemIcon>
+              Create Room
+            </ListItem>
+            <br />
           </>
         )}
-        <Grid item xs>
-          <Paper>
-            <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-              {publicRooms.map((room) => (
-                <RoomListItem key={room._id} room={room} disabled={showAlert} />
-              ))}
-            </List>
-            <Divider />
-            <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
-              {privateRooms.map((room) => (
-                <RoomListItem key={room._id} room={room} disabled={showAlert} />
-              ))}
-            </List>
-          </Paper>
-        </Grid>
+        <Paper>
+          <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
+            {publicRooms.map((room) => (
+              <RoomListItem key={room._id} room={room} disabled={showAlert} />
+            ))}
+          </List>
+          <Divider />
+          <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
+            {privateRooms.map((room) => (
+              <RoomListItem key={room._id} room={room} disabled={showAlert} />
+            ))}
+          </List>
+        </Paper>
         <AddRoomDialog
           open={createRoomDialogOpen}
           onCreateRoom={onCreateRoom}
           onClose={() => setCreateRoomDialogOpen(false)}
         />
-      </Grid>
-      <Grid item xs>
-        <UserCounter />
-      </Grid>
+      </Container>
+      <UserCounter />
     </div>
   );
 }
