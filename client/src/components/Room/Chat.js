@@ -164,7 +164,7 @@ function Chat({
           })}
         </List>
         {!user.id && (
-          <Alert severity="warning">Chat is disabled for anonymous users</Alert>
+          <Alert severity="warning">Login to chat</Alert>
         )}
         <Paper
           component="form"
