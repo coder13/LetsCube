@@ -73,7 +73,7 @@ function UserToolbar({ dispatch, room, user }) {
           <SettingsIcon />
         </Button>
         <Button onClick={handleCompeting}>
-          {userCompeting ? 'Start Skipping' : 'Start Competing'}
+          {userCompeting ? 'Spectate' : 'Compete'}
         </Button>
       </FormGroup>
       <Dialog fullWidth open={open} onClose={handleClose}>

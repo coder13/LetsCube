@@ -16,9 +16,9 @@ test('Handles time conversions', () => {
 
 test('Handles penalties', () => {
   expect(formatTime(20, { DNF: true })).toBe('DNF(0.02)');
-  expect(formatTime(20, { AUF: true })).toBe('2.02+');
-  expect(formatTime(20, { DNF: true, AUF: true })).toBe('DNF(2.02+)');
-  expect(formatTime(20, { inspection: true, DNF: true, AUF: true })).toBe('DNF(+4.02+)');
+  expect(formatTime(20, { AUF: true })).toBe('0.02+');
+  expect(formatTime(20, { DNF: true, AUF: true })).toBe('DNF(0.02+)');
+  expect(formatTime(20, { inspection: true, DNF: true, AUF: true })).toBe('DNF(+0.02+)');
 });
 
 test('Parses numerical time', () => {

@@ -95,10 +95,13 @@ class Timer extends React.Component {
   }
 
   setStatus(status) {
-    const { onStatusChange } = this.props;
+    const { onStatusChange, onPriming } = this.props;
     this.setState({ status });
 
     switch (status) {
+      case STATUS.PRIMING:
+        onPriming();
+        break;
       case STATUS.INSPECTING:
         this.setState({
           started: now(),
@@ -462,6 +465,7 @@ Timer.propTypes = {
   hideTime: PropTypes.bool,
   classes: PropTypes.shape().isRequired,
   onStatusChange: PropTypes.func,
+  onPriming: PropTypes.func,
 };
 
 Timer.defaultProps = {
@@ -469,6 +473,7 @@ Timer.defaultProps = {
   focused: true,
   hideTime: false,
   onStatusChange: () => {},
+  onPriming: () => {},
 };
 
 export default useStyles(Timer);

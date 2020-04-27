@@ -29,7 +29,6 @@ const useStyles = makeStyles((theme) => ({
   },
   tbody: {
     flexGrow: 1,
-    overflowY: 'auto',
     height: '0px',
     '&:scollbar': {
       width: 200,
@@ -49,15 +48,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tableHeaderIndex: {
     width: '3rem',
-    flexShrink: 1,
-    height: '1.7rem',
-    backgroundColor: theme.palette.common.green,
-    borderBottomColor: theme.palette.common.greenBorder,
-    color: theme.palette.text.primary,
-  },
-  tableIndexMean: {
-    width: '3rem',
-    flexShrink: 1,
+    flexShrink: 0,
     height: '1.7rem',
     backgroundColor: theme.palette.common.green,
     borderBottomColor: theme.palette.common.greenBorder,
@@ -67,9 +58,14 @@ const useStyles = makeStyles((theme) => ({
     width: '5rem',
     height: '1.7rem',
     flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: '6em',
     backgroundColor: theme.palette.background.default,
     borderBottomColor: theme.palette.divider,
     color: theme.palette.text.primary,
+  },
+  tableHeaderName: {
+    height: '3rem',
   },
   tableResultCell: {
     width: '5rem',
@@ -175,20 +171,24 @@ function TimesTable({
     });
   };
 
+  const bestMean = Math.min(...sortedUsers
+    .map((u) => stats[u.id] && stats[u.id].mean).filter((i) => i >= 0));
+
   return (
     <TableContainer className={classes.root}>
       <Table stickyHeader className={classes.table} size="small">
         <TableHead className={classes.thead}>
           <TableRow className={classes.tr}>
-            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex,
+              classes.tableHeaderName)}
+            >
               <Typography variant="subtitle2">#</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
               <TableCell
                 key={u.id}
-                className={clsx(classes.td, classes.tableHeaderTime, {
-                  [classes.disabled]: !competing[u.id],
-                })}
+                className={clsx(classes.td, classes.tableHeaderTime,
+                  classes.tableHeaderName)}
               >
                 <User user={u} admin={admin.id === u.id} />
                 <br />
@@ -197,20 +197,17 @@ function TimesTable({
           </TableRow>
 
           <TableRow className={classes.tr}>
-            <TableCell className={clsx(classes.td, classes.tableIndexMean)}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
               <Typography variant="subtitle2">mean</Typography>
             </TableCell>
             {sortedUsers.map((u) => (
-              <TableCell
+              <TableTimeCell
                 key={u.id}
-                className={clsx(classes.td, classes.tableHeaderMean, {
-                  [classes.disabled]: !competing[u.id],
-                })}
-              >
-                <Typography variant="subtitle2">
-                  {stats[u.id] ? formatTime(stats[u.id].mean).toString() : ''}
-                </Typography>
-              </TableCell>
+                attempt={{
+                  time: stats[u.id] ? stats[u.id].mean : 0,
+                }}
+                highlight={stats[u.id] && bestMean === stats[u.id].mean}
+              />
             ))}
           </TableRow>
         </TableHead>

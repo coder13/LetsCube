@@ -16,14 +16,6 @@ export const formatTime = (time, options) => {
 
   let s = time / 1000;
 
-  if (_options.inspection) {
-    s += 2;
-  }
-
-  if (_options.AUF) {
-    s += 2;
-  }
-
   const hours = Math.floor(s / 3600);
   s %= 3600;
   const minutes = Math.floor(s / 60);
