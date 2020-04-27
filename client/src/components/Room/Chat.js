@@ -6,6 +6,7 @@ import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import FormControl from '@material-ui/core/FormControl';
 import Input from '@material-ui/core/Input';
+import Alert from '@material-ui/lab/Alert';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
@@ -70,7 +71,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Chat({
-  dispatch, messages, users, onFocus, onDefocus,
+  dispatch, messages, users, onFocus, onDefocus, user,
 }) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
@@ -128,28 +129,30 @@ function Chat({
               );
             }
 
-            const user = findUser(userId);
-            const avatar = user && user.avatar.url;
-            const displayAvatar = !avatar || index === 0 || messages[index - 1].userId !== user.id;
-            const isNextMessageTheSameUser = messages[index + 1]
-              && messages[index + 1].userId === user.id;
+            const sender = findUser(userId);
+            const avatar = sender && sender.avatar.url;
+            const displayAvatar = !avatar
+                                || index === 0
+                                || messages[index - 1].userId !== sender.id;
+            const isNextMessageTheSameSender = messages[index + 1]
+              && messages[index + 1].userId === sender.id;
 
             return (
               <ListItem
                 key={id}
                 alignItems="flex-start"
                 className={clsx(classes.message, {
-                  [classes.lastMessageForUser]: !isNextMessageTheSameUser,
+                  [classes.lastMessageForUser]: !isNextMessageTheSameSender,
                 })}
               >
                 <ListItemAvatar>
                   {displayAvatar
-                    && <Avatar src={user.avatar.url} />}
+                    && <Avatar src={sender.avatar.url} />}
                 </ListItemAvatar>
 
                 <ListItemText
                   className={classes.selectable}
-                  primary={displayAvatar ? user.displayName : ''}
+                  primary={displayAvatar ? sender.displayName : ''}
                   secondary={(
                     <Typography variant="body2">
                       {text}
@@ -160,17 +163,20 @@ function Chat({
             );
           })}
         </List>
+        {!user.id && (
+          <Alert severity="warning">Login to chat</Alert>
+        )}
         <Paper
           component="form"
           onSubmit={handleSubmit}
           className={classes.paper}
           elevation={8}
         >
-          <FormControl fullWidth>
+          <FormControl fullWidth disabled={!user.id && 'disabled'}>
             <Input
               className={classes.input}
               fullWidth
-              placeholder="Send message"
+              placeholder="Send Message"
               value={message}
               onChange={handleChange}
             />
@@ -192,6 +198,10 @@ Chat.propTypes = {
   dispatch: PropTypes.func.isRequired,
   onFocus: PropTypes.func,
   onDefocus: PropTypes.func,
+  user: PropTypes.shape({
+    id: PropTypes.number,
+    canJoinRoom: PropTypes.bool,
+  }),
 };
 
 Chat.defaultProps = {
@@ -199,11 +209,16 @@ Chat.defaultProps = {
   users: [],
   onFocus: () => {},
   onDefocus: () => {},
+  user: {
+    id: undefined,
+    canJoinRoom: false,
+  },
 };
 
 const mapStateToProps = (state) => ({
   messages: state.chat.messages,
   users: state.chat.users,
+  user: state.user,
 });
 
 export default connect(mapStateToProps)(Chat);
