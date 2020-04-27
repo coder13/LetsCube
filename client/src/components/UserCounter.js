@@ -1,18 +1,24 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
-// import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 // import Typography from '@material-ui/core/Typography'
 
-function UserCounter({ userCount }) {
-  return (
-    <Paper>
-      <p>
-        {`Users Online: ${userCount}`}
-      </p>
-    </Paper>
+const useStyles = makeStyles(() => ({
+  paper: {
+    padding: '1em',
+    textAlgin: 'center',
+  },
+}));
 
+function UserCounter({ userCount }) {
+  const classes = useStyles();
+
+  return (
+    <Paper className={classes.paper}>
+      {`Users Online: ${userCount}`}
+    </Paper>
   );
 }
 

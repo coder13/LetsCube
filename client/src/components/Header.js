@@ -34,6 +34,7 @@ const useStyles = makeStyles(() => ({
     display: 'flex',
     flexGrow: 1,
     flexDirection: 'column',
+    alignItems: 'stretch',
   },
   roomTitleGrid: {
     flexGrow: 1,
