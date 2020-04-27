@@ -12,6 +12,7 @@ import socketReducer from './socket/reducer';
 import userReducer from './user/reducer';
 import messageReducer from './messages/reducers';
 import chatReducer from './chat/reducer';
+import serverReducer from './server/reducers';
 
 import socketMiddleware from './socket/middleware';
 
@@ -46,6 +47,7 @@ const rootReducer = combineReducers({
   user: userReducer,
   messages: messageReducer,
   chat: chatReducer,
+  server: serverReducer,
 });
 
 const middlewares = [

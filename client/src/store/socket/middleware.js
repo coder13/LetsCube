@@ -41,6 +41,7 @@ import {
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
+import { userCountUpdated } from '../server/actions'
 
 const socketMiddleware = (store) => {
   // The socket's connection state changed
@@ -176,6 +177,9 @@ const socketMiddleware = (store) => {
           text: `${displayName} ${competing ? 'competing' : 'skipping'}`,
           icon: 'USER',
         }));
+      },
+      [Protocol.UPDATE_USER_COUNT]: (userCount) => {
+        store.dispatch(userCountUpdated(userCount));
       },
     },
   });
