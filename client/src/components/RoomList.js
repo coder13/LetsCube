@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import Container from '@material-ui/core/Container';
+import Grid from '@material-ui/core/Grid';
 import Divider from '@material-ui/core/Divider';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -31,9 +32,22 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: theme.palette.primary.dark,
     },
   },
+
+  sideArea: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+  },
+
+  userCounter: {
+    padding: '1em',
+    textAlign: 'left',
+  },
 }));
 
-function RoomList({ dispatch, rooms, user }) {
+function RoomList({
+  dispatch, rooms, user, userCount,
+}) {
   const classes = useStyles();
   const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
   const publicRooms = rooms.filter((room) => !room.private);
@@ -45,61 +59,74 @@ function RoomList({ dispatch, rooms, user }) {
   };
 
   return (
-    <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
-      { showAlert && (
-        <Alert
-          className={classes.alert}
-          severity="error"
-          action={(
-            <Button component={Link} color="inherit" to="/profile">
-              GO TO PROFILE
-            </Button>
-          )}
-        >
-          <Link to="/profile">
-            Must update profile settings before joining a room.
-          </Link>
-        </Alert>
-      )}
-
-      <br />
-      {user.id && (
-        <>
-          <ListItem
-            button
-            className={classes.createRoom}
-            variant="contained"
-            color="primary"
-            component={Button}
-            onClick={() => setCreateRoomDialogOpen(true)}
+    <div style={{ height: '100%' }}>
+      <Grid container direction="row" style={{ height: '100%' }}>
+        <Grid item className={classes.sideArea}>
+          <Paper
+            elevation={0}
+            className={classes.userCounter}
+            square
           >
-            <ListItemIcon>
-              <AddIcon />
-            </ListItemIcon>
-            Create Room
-          </ListItem>
+            {`Users Online: ${userCount}`}
+          </Paper>
+        </Grid>
+        <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
+          { showAlert && (
+            <Alert
+              className={classes.alert}
+              severity="error"
+              action={(
+                <Button component={Link} color="inherit" to="/profile">
+                  GO TO PROFILE
+                </Button>
+              )}
+            >
+              <Link to="/profile">
+                Must update profile settings before joining a room.
+              </Link>
+            </Alert>
+          )}
+
           <br />
-        </>
-      )}
-      <Paper>
-        <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-          {publicRooms.map((room) => (
-            <RoomListItem key={room._id} room={room} disabled={showAlert} />
-          ))}
-        </List>
-        <Divider />
-        <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
-          {privateRooms.map((room) => (
-            <RoomListItem key={room._id} room={room} disabled={showAlert} />
-          ))}
-        </List>
-      </Paper>
-      <AddRoomDialog
-        open={createRoomDialogOpen}
-        onCreateRoom={onCreateRoom}
-        onClose={() => setCreateRoomDialogOpen(false)}
-      />
-    </Container>
+          {user.id && (
+            <>
+              <ListItem
+                button
+                className={classes.createRoom}
+                variant="contained"
+                color="primary"
+                component={Button}
+                onClick={() => setCreateRoomDialogOpen(true)}
+              >
+                <ListItemIcon>
+                  <AddIcon />
+                </ListItemIcon>
+                Create Room
+              </ListItem>
+              <br />
+            </>
+          )}
+          <Paper>
+            <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
+              {publicRooms.map((room) => (
+                <RoomListItem key={room._id} room={room} disabled={showAlert} />
+              ))}
+            </List>
+            <Divider />
+            <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
+              {privateRooms.map((room) => (
+                <RoomListItem key={room._id} room={room} disabled={showAlert} />
+              ))}
+            </List>
+          </Paper>
+          <AddRoomDialog
+            open={createRoomDialogOpen}
+            onCreateRoom={onCreateRoom}
+            onClose={() => setCreateRoomDialogOpen(false)}
+          />
+        </Container>
+      </Grid>
+    </div>
   );
 }
 
@@ -110,6 +137,7 @@ RoomList.propTypes = {
     canJoinRoom: PropTypes.bool,
   }),
   dispatch: PropTypes.func.isRequired,
+  userCount: PropTypes.number,
 };
 
 RoomList.defaultProps = {
@@ -118,11 +146,13 @@ RoomList.defaultProps = {
     id: undefined,
     canJoinRoom: false,
   },
+  userCount: 0,
 };
 
 const mapStateToProps = (state) => ({
   rooms: state.roomList.rooms,
   user: state.user,
+  userCount: state.server.user_count,
 });
 
 export default connect(mapStateToProps)(RoomList);

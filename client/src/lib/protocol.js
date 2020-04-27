@@ -30,4 +30,5 @@ module.exports = {
   UPDATE_PREFERENCES: 'update_preferences',
   UPDATE_STATUS: 'update_status',
   UPDATE_COMPETING: 'update_competing',
+  UPDATE_USER_COUNT: 'user_count',
 };
