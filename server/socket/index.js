@@ -419,7 +419,9 @@ module.exports = ({ app, expressSession }) => {
         return;
       }
 
-      leaveRoom();
+      await leaveRoom();
+
+      delete SocketUsers[socket.userId];
     });
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
