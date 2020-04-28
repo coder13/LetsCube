@@ -27,6 +27,7 @@ module.exports = {
   NEW_ATTEMPT: 'new_attempt',
   REQUEST_SCRAMBLE: 'request_scramble',
   CHANGE_EVENT: 'change_event',
+  EDIT_ROOM: 'edit_room',
   UPDATE_PREFERENCES: 'update_preferences',
   UPDATE_STATUS: 'update_status',
   UPDATE_COMPETING: 'update_competing',

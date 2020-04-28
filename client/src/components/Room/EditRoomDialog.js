@@ -18,11 +18,13 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function EditRoomDialog({ open, onSave, onCancel }) {
+function EditRoomDialog({
+  room, open, onSave, onCancel,
+}) {
   const classes = useStyles();
-  const [stateName, setName] = React.useState('');
-  const [statePrivate, setPrivate] = React.useState(false);
-  const [statePassword, setPassword] = React.useState('');
+  const [stateName, setName] = React.useState(room.name);
+  const [statePrivate, setPrivate] = React.useState(room.private);
+  const [statePassword, setPassword] = React.useState(room.accessCode);
 
   const handleCancel = () => {
     onCancel();
@@ -88,6 +90,11 @@ function EditRoomDialog({ open, onSave, onCancel }) {
 }
 
 EditRoomDialog.propTypes = {
+  room: PropTypes.shape({
+    name: PropTypes.string,
+    private: PropTypes.bool,
+    accessCode: PropTypes.string,
+  }).isRequired,
   open: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,

@@ -14,6 +14,7 @@ import {
   deleteRoom,
   requestNewScramble,
   changeEvent,
+  editRoom,
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
 import EditRoomDialog from './EditRoomDialog'
@@ -65,8 +66,8 @@ function AdminToolbar({ dispatch, room }) {
       });
   };
 
-  const onEditRoom = () => {
-
+  const onEditRoom = (options) => {
+    dispatch(editRoom(options));
   };
 
   return (
@@ -117,6 +118,7 @@ function AdminToolbar({ dispatch, room }) {
         </Menu>
       </Toolbar>
       <EditRoomDialog
+        room={room}
         open={showEditRoomDialog}
         onSave={onEditRoom}
         onCancel={() => setShowEditRoomDialog(false)}
