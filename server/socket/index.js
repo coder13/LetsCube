@@ -418,6 +418,10 @@ module.exports = ({ app, expressSession }) => {
         socket.room = await fetchRoom(socket.roomId);
       }
 
+      if (socket.user && socket.room) {
+        await leaveRoom();
+      }
+
       if (socket.user) {
         delete SocketUsers[socket.userId];
         usersOnline = Object.keys(SocketUsers).length;
@@ -426,10 +430,6 @@ module.exports = ({ app, expressSession }) => {
         if (usersOnline > 0) {
           broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
         }
-      }
-
-      if (socket.user && socket.room) {
-        await leaveRoom();
       }
     });
 
