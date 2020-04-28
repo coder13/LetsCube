@@ -82,8 +82,8 @@ function AddRoomDialog({ open, onCreateRoom, onClose }) {
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleSubmit} color="primary" disabled={!roomName || (isPrivate && !password)}>Create</Button>
         <Button onClick={handleClose} color="secondary">Cancel</Button>
+        <Button onClick={handleSubmit} color="primary" disabled={!roomName || (isPrivate && !password)}>Create</Button>
       </DialogActions>
     </Dialog>
   );

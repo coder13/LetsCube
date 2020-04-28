@@ -16,6 +16,7 @@ import {
   changeEvent,
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
+import EditRoomDialog from './EditRoomDialog'
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {
@@ -35,6 +36,7 @@ function AdminToolbar({ dispatch, room }) {
   const classes = useStyles();
   const confirm = useConfirm();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
   const menuOpen = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -63,56 +65,63 @@ function AdminToolbar({ dispatch, room }) {
       });
   };
 
-  const handleEditRoom = () => {
+  const onEditRoom = () => {
 
-  }
+  };
 
   return (
-    <Toolbar className={classes.adminToolbar}>
-      <FormGroup row variant="text">
-        <Button
-          onClick={handleNewScramble}
+    <>
+      <Toolbar className={classes.adminToolbar}>
+        <FormGroup row variant="text">
+          <Button
+            onClick={handleNewScramble}
+          >
+            New Scramble
+          </Button>
+          <Select
+            id="change-event-select"
+            className={classes.changeEventSelect}
+            value={room.event}
+            onChange={handleChangeEvent}
+            variant="standard"
+          >
+            {Events.map((event) => (
+              <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
+            ))}
+          </Select>
+          <Button
+            color="inherit"
+            onClick={handleMenu}
+            style={{ paddingLeft: '1em' }}
+          >
+            <MoreVertIcon />
+          </Button>
+        </FormGroup>
+        <Menu
+          id="admin-menu"
+          anchorEl={anchorEl}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          keepMounted
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          open={menuOpen}
+          onClose={handleClose}
         >
-          New Scramble
-        </Button>
-        <Select
-          id="change-event-select"
-          className={classes.changeEventSelect}
-          value={room.event}
-          onChange={handleChangeEvent}
-          variant="standard"
-        >
-          {Events.map((event) => (
-            <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
-          ))}
-        </Select>
-        <Button
-          color="inherit"
-          onClick={handleMenu}
-          style={{ paddingLeft: '1em' }}
-        >
-          <MoreVertIcon />
-        </Button>
-      </FormGroup>
-      <Menu
-        id="admin-menu"
-        anchorEl={anchorEl}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        keepMounted
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        open={menuOpen}
-        onClose={handleClose}
-      >
-        <MenuItem onClick={handleEditRoom}>Edit Room</MenuItem>
-        <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
-      </Menu>
-    </Toolbar>
+          <MenuItem onClick={() => setShowEditRoomDialog(true)}>Edit Room</MenuItem>
+          <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
+        </Menu>
+      </Toolbar>
+      <EditRoomDialog
+        open={showEditRoomDialog}
+        onSave={onEditRoom}
+        onCancel={() => setShowEditRoomDialog(false)}
+      />
+    </>
   );
 }
 
