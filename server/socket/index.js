@@ -43,6 +43,15 @@ async function attachUser(socket, next) {
   if (!SocketUsers[socket.userId]) {
     SocketUsers[socket.userId] = {};
   }
+
+  if (userId) {
+    try {
+      socket.user = await User.findOne({ id: socket.userId });
+    } catch (e) {
+      logger.error(e, { userId: socket.userId });
+    }
+  }
+
   next();
 }
 
@@ -404,24 +413,24 @@ module.exports = ({ app, expressSession }) => {
 
     socket.on(Protocol.DISCONNECT, async () => {
       logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
-      usersOnline = Object.keys(SocketUsers).length;
-      logger.debug(`Users online: ${usersOnline}`);
-
-      if (usersOnline > 0) {
-        broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
-      }
 
       if (socket.roomId) {
         socket.room = await fetchRoom(socket.roomId);
       }
 
-      if (!socket.user || !socket.room) {
-        return;
+      if (socket.user && socket.room) {
+        await leaveRoom();
       }
 
-      await leaveRoom();
+      if (socket.user) {
+        delete SocketUsers[socket.userId];
+        usersOnline = Object.keys(SocketUsers).length;
+        logger.debug(`Users online: ${usersOnline}`);
 
-      delete SocketUsers[socket.userId];
+        if (usersOnline > 0) {
+          broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
+        }
+      }
     });
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
