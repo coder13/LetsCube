@@ -63,6 +63,10 @@ function AdminToolbar({ dispatch, room }) {
       });
   };
 
+  const handleEditRoom = () => {
+
+  }
+
   return (
     <Toolbar className={classes.adminToolbar}>
       <FormGroup row variant="text">
@@ -105,6 +109,7 @@ function AdminToolbar({ dispatch, room }) {
         open={menuOpen}
         onClose={handleClose}
       >
+        <MenuItem onClick={handleEditRoom}>Edit Room</MenuItem>
         <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
       </Menu>
     </Toolbar>
