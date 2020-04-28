@@ -5,7 +5,6 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
 import Divider from '@material-ui/core/Divider';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -19,6 +18,24 @@ import RoomListItem from './RoomListItem';
 import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1,
+    height: '100%',
+  },
+  roomList: {
+    display: 'flex',
+    flexDirection: 'column',
+    overflowY: 'auto',
+    flexGrow: 1,
+    height: 0,
+  },
+  sideArea: {
+    display: 'flex',
+    flexDirection: 'row',
+    height: '3em',
+  },
   alert: {
     padding: '1em',
     '& a': {
@@ -32,16 +49,11 @@ const useStyles = makeStyles((theme) => ({
       backgroundColor: theme.palette.primary.dark,
     },
   },
-
-  sideArea: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    flexDirection: 'row',
-  },
-
   userCounter: {
+    display: 'flex',
+    width: '12em',
     padding: '1em',
-    textAlign: 'left',
+    alignItems: 'center',
   },
 }));
 
@@ -59,18 +71,9 @@ function RoomList({
   };
 
   return (
-    <div style={{ height: '100%' }}>
-      <Grid container direction="row" style={{ height: '100%' }}>
-        <Grid item className={classes.sideArea}>
-          <Paper
-            elevation={0}
-            className={classes.userCounter}
-            square
-          >
-            {`Users Online: ${userCount}`}
-          </Paper>
-        </Grid>
-        <Container maxWidth="md" disableGutters style={{ padding: '1em' }}>
+    <div className={classes.root}>
+      <div className={classes.roomList}>
+        <Container maxWidth="md" disableGutters>
           { showAlert && (
             <Alert
               className={classes.alert}
@@ -119,13 +122,22 @@ function RoomList({
               ))}
             </List>
           </Paper>
-          <AddRoomDialog
-            open={createRoomDialogOpen}
-            onCreateRoom={onCreateRoom}
-            onClose={() => setCreateRoomDialogOpen(false)}
-          />
         </Container>
-      </Grid>
+      </div>
+      <div className={classes.sideArea}>
+        <Paper
+          className={classes.userCounter}
+          variant="outlined"
+          square
+        >
+          {`Users Online: ${userCount}`}
+        </Paper>
+      </div>
+      <AddRoomDialog
+        open={createRoomDialogOpen}
+        onCreateRoom={onCreateRoom}
+        onClose={() => setCreateRoomDialogOpen(false)}
+      />
     </div>
   );
 }
@@ -152,7 +164,7 @@ RoomList.defaultProps = {
 const mapStateToProps = (state) => ({
   rooms: state.roomList.rooms,
   user: state.user,
-  userCount: state.server.user_count,
+  userCount: state.server.userCount,
 });
 
 export default connect(mapStateToProps)(RoomList);
