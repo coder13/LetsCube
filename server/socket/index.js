@@ -392,6 +392,16 @@ module.exports = ({ app, expressSession }) => {
       }).catch(logger.error);
     });
 
+    socket.on(Protocol.EDIT_ROOM, async (options) => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      socket.room.editRoom(options).then((r) => {
+        broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+      }).catch(logger.error);
+    });
+
     // Simplest event here. Just echo the message to everyone else.
     socket.on(Protocol.MESSAGE, (message) => {
       if (!isLoggedIn() || !isInRoom()) {

@@ -34,8 +34,10 @@ function EditRoomDialog({
     onSave({
       name: stateName,
       private: statePrivate,
-      password: statePassword,
+      password: statePrivate ? statePassword : null,
     });
+
+    onCancel(); // Close the dialog box
   }
 
   const handlePrivate = () => {
