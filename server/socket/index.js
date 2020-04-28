@@ -112,7 +112,7 @@ module.exports = ({ app, expressSession }) => {
     }
 
     // New user online
-    usersOnline += 1;
+    usersOnline = Object.keys(SocketUsers).length;
     if (usersOnline > 0) {
       broadcastToEveryone(Protocol.UPDATE_USER_COUNT, usersOnline);
     }
@@ -404,7 +404,7 @@ module.exports = ({ app, expressSession }) => {
 
     socket.on(Protocol.DISCONNECT, async () => {
       logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
-      usersOnline -= 1;
+      usersOnline = Object.keys(SocketUsers).length;
       logger.debug(`Users online: ${usersOnline}`);
 
       if (usersOnline > 0) {
