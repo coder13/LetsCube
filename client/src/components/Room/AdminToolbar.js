@@ -17,7 +17,7 @@ import {
   editRoom,
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
-import EditRoomDialog from './EditRoomDialog'
+import RoomConfigureDialog from '../RoomConfigureDialog'
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {
@@ -117,7 +117,7 @@ function AdminToolbar({ dispatch, room }) {
           <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
         </Menu>
       </Toolbar>
-      <EditRoomDialog
+      <RoomConfigureDialog
         room={room}
         open={showEditRoomDialog}
         onSave={onEditRoom}

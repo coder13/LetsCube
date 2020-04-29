@@ -18,15 +18,18 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function EditRoomDialog({
+function RoomConfigureDialog({
   room, open, onSave, onCancel,
 }) {
   const classes = useStyles();
   const [stateName, setName] = React.useState(room.name);
   const [statePrivate, setPrivate] = React.useState(room.private);
-  const [statePassword, setPassword] = React.useState(room.accessCode);
+  const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
 
   const handleCancel = () => {
+    setName(room.name);
+    setPrivate(room.private);
+    setPassword(room.accessCode);
     onCancel();
   }
 
@@ -56,7 +59,9 @@ function EditRoomDialog({
 
   return (
     <Dialog open={open} onClose={handleCancel}>
-      <DialogTitle>Edit Room</DialogTitle>
+      <DialogTitle>
+        {room._id ? 'Edit Room' : 'Create Room'}
+      </DialogTitle>
       <DialogContent className={classes.paper}>
         <TextField
           id="roomName"
@@ -91,19 +96,26 @@ function EditRoomDialog({
   );
 }
 
-EditRoomDialog.propTypes = {
+RoomConfigureDialog.propTypes = {
   room: PropTypes.shape({
+    _id: PropTypes.string,
     name: PropTypes.string,
     private: PropTypes.bool,
     accessCode: PropTypes.string,
-  }).isRequired,
+  }),
   open: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
 };
 
-EditRoomDialog.defaultProps = {
+RoomConfigureDialog.defaultProps = {
+  room: {
+    _id: undefined,
+    name: '',
+    private: false,
+    accessCode: null,
+  },
   open: false,
 };
 
-export default EditRoomDialog;
+export default RoomConfigureDialog;
