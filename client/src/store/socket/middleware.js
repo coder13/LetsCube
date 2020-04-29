@@ -41,7 +41,7 @@ import {
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
-import { userCountUpdated } from '../server/actions'
+import { userCountUpdated } from '../server/actions';
 
 const socketMiddleware = (store) => {
   // The socket's connection state changed
