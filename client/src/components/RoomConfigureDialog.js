@@ -29,7 +29,8 @@ function RoomConfigureDialog({
   const handleCancel = () => {
     setName(room.name);
     setPrivate(room.private);
-    setPassword(room.accessCode);
+    setPassword(null);
+
     onCancel();
   }
 
@@ -40,6 +41,7 @@ function RoomConfigureDialog({
       password: statePrivate ? statePassword : null,
     });
 
+    setPassword(null);
     onCancel(); // Close the dialog box
   }
 
@@ -80,11 +82,11 @@ function RoomConfigureDialog({
         />
         <TextField
           id="password"
-          label="Password"
+          label={room._id ? 'New Password' : 'Password'}
           type="password"
           disabled={!statePrivate}
           onChange={handlePasswordChange}
-          autoFocus
+          // autoFocus
           fullWidth
         />
       </DialogContent>
