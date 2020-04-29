@@ -32,7 +32,7 @@ function RoomConfigureDialog({
     setPassword(null);
 
     onCancel();
-  }
+  };
 
   const handleSave = () => {
     onSave({
@@ -43,7 +43,7 @@ function RoomConfigureDialog({
 
     setPassword(null);
     onCancel(); // Close the dialog box
-  }
+  };
 
   const handlePrivate = () => {
     setPrivate(!statePrivate);

@@ -17,7 +17,7 @@ import {
   editRoom,
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
-import RoomConfigureDialog from '../RoomConfigureDialog'
+import RoomConfigureDialog from '../RoomConfigureDialog';
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {
