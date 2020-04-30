@@ -396,10 +396,12 @@ module.exports = ({ app, expressSession }) => {
       if (!checkAdmin()) {
         return;
       }
-
-      socket.room.editRoom(options).then((r) => {
-        broadcastToAllInRoom(r.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
-      }).catch(logger.error);
+      try {
+        const room = await socket.room.edit(options);
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+      } catch (e) {
+        (logger.error(e));
+      }
     });
 
     // Simplest event here. Just echo the message to everyone else.
