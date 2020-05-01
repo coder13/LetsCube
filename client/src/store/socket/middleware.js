@@ -17,6 +17,7 @@ import {
   JOIN_ROOM,
   LEAVE_ROOM,
   SUBMIT_RESULT,
+  SEND_EDIT_RESULT,
   REQUEST_SCRAMBLE,
   CHANGE_EVENT,
   SEND_STATUS,
@@ -28,6 +29,7 @@ import {
   userLeft,
   newAttempt,
   newResult,
+  editResult,
   receiveStatus,
   updateAdmin,
   updateCompetingForUser,
@@ -161,6 +163,9 @@ const socketMiddleware = (store) => {
       [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));
       },
+      [Protocol.EDIT_RESULT]: (result) => {
+        store.dispatch(editResult(result));
+      },
       [Protocol.MESSAGE]: (message) => {
         store.dispatch(receiveChat(message));
       },
@@ -219,6 +224,9 @@ const socketMiddleware = (store) => {
     },
     [SUBMIT_RESULT]: (event) => {
       socket.emit(Protocol.SUBMIT_RESULT, event.result);
+    },
+    [SEND_EDIT_RESULT]: (event) => {
+      socket.emit(Protocol.SEND_EDIT_RESULT, event.result);
     },
     [REQUEST_SCRAMBLE]: (event) => {
       socket.emit(Protocol.REQUEST_SCRAMBLE, event.result);

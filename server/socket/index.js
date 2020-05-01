@@ -374,6 +374,34 @@ module.exports = ({ app, expressSession }) => {
       }
     });
 
+    socket.on(Protocol.SEND_EDIT_RESULT, async (result) => {
+      if (!socket.user || !socket.roomId) {
+        return;
+      }
+
+      try {
+        if (!socket.room.attempts[result.id]) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 400,
+            event: Protocol.SEND_EDIT_RESULT,
+            message: 'Invalid ID for result modification',
+          });
+          return;
+        }
+
+        socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+
+        const r = await socket.room.save();
+
+        broadcastToAllInRoom(r.accessCode, Protocol.EDIT_RESULT, {
+          ...result,
+          userId: socket.user.id,
+        });
+      } catch (e) {
+        logger.error(e);
+      }
+    });
+
     socket.on(Protocol.REQUEST_SCRAMBLE, async () => {
       if (!checkAdmin()) {
         return;
