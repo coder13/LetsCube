@@ -10,7 +10,7 @@ import {
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
-import { formatRawTime } from '../../lib/utils';
+import { formatRawTime, parseTime } from '../../lib/utils';
 
 function EditDialog({
   editTime,
@@ -23,6 +23,7 @@ function EditDialog({
   const [auf, setAuf] = useState(penalties ? penalties.AUF : false);
   const [dnf, setDnf] = useState(penalties ? penalties.DNF : false);
   const [timeInput, setTimeInput] = useState(time - (auf ? 2000 : 0));
+  const [inputError, setInputError] = useState(false);
 
   // change the input fields whenever dialog's props change
   useEffect(() => {
@@ -37,8 +38,20 @@ function EditDialog({
     setTimeInput(formatRawTime(time - (penalties.AUF ? 2000 : 0)));
   }, [time, penalties]);
 
+  const resetDialog = () => {
+    onClose();
+    setInputError(false);
+  }
+
   const editTimeCallback = useCallback(() => {
+    let t = parseTime(timeInput)
+    if (!t) {
+      setInputError(true);
+      return;
+    }
+    t += (auf ? 2000 : 0);
     editTime(timeInput, penalties, auf, dnf);
+    setInputError(false);
   }, [editTime, timeInput, penalties, auf, dnf]);
 
   return (
@@ -49,9 +62,11 @@ function EditDialog({
       <DialogContent>
         <TextField
           autoFocus
+          error={inputError}
           margin="dense"
           id="time"
           label="Enter original time without penalties (e.g. 12.34)"
+          helperText={inputError ? 'Invalid input.' : ''}
           value={timeInput}
           onChange={(e) => setTimeInput(e.target.value)}
           fullWidth
@@ -66,7 +81,7 @@ function EditDialog({
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="default">
+        <Button onClick={resetDialog} color="default">
           Close
         </Button>
         <Button onClick={editTimeCallback} color="primary">
