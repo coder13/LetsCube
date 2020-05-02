@@ -13,7 +13,8 @@ import Button from '@material-ui/core/Button';
 import Alert from '@material-ui/lab/Alert';
 import ListSubheader from '@material-ui/core/ListSubheader';
 import AddIcon from '@material-ui/icons/Add';
-import AddRoomDialog from './AddRoomDialog';
+// import AddRoomDialog from './AddRoomDialog';
+import RoomConfigureDialog from './RoomConfigureDialog';
 import RoomListItem from './RoomListItem';
 import { createRoom } from '../store/rooms/actions';
 
@@ -133,10 +134,10 @@ function RoomList({
           {`Users Online: ${userCount}`}
         </Paper>
       </div>
-      <AddRoomDialog
+      <RoomConfigureDialog
         open={createRoomDialogOpen}
-        onCreateRoom={onCreateRoom}
-        onClose={() => setCreateRoomDialogOpen(false)}
+        onSave={onCreateRoom}
+        onCancel={() => setCreateRoomDialogOpen(false)}
       />
     </div>
   );

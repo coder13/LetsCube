@@ -21,6 +21,7 @@ import {
   CHANGE_EVENT,
   SEND_STATUS,
   UPDATE_COMPETING,
+  EDIT_ROOM,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -225,6 +226,9 @@ const socketMiddleware = (store) => {
     },
     [CHANGE_EVENT]: ({ event }) => {
       socket.emit(Protocol.CHANGE_EVENT, event);
+    },
+    [EDIT_ROOM]: ({ options }) => {
+      socket.emit(Protocol.EDIT_ROOM, options);
     },
     [SEND_CHAT]: ({ message }) => {
       socket.emit(Protocol.MESSAGE, message);

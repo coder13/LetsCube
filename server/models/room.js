@@ -189,6 +189,16 @@ Room.methods.changeEvent = function (event) {
   return this.newAttempt();
 };
 
+Room.methods.edit = function (options) {
+  this.name = options.name;
+  if (options.private) {
+    this.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+  } else {
+    this.password = null;
+  }
+  return this.save();
+};
+
 Room.methods.updateAdminIfNeeded = function (cb) {
   if (this.users.length === 0) {
     this.admin = null;
