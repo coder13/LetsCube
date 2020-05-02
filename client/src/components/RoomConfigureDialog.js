@@ -92,7 +92,9 @@ function RoomConfigureDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancel} color="secondary">Cancel</Button>
-        <Button onClick={handleSave} color="primary" disabled={!stateName || (statePrivate && !statePassword)}>Save</Button>
+        <Button onClick={handleSave} color="primary" disabled={!stateName || (statePrivate && !statePassword)}>
+          {room.id ? 'Save' : 'Create'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
