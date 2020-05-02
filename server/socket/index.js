@@ -399,6 +399,10 @@ module.exports = ({ app, expressSession }) => {
       try {
         const room = await socket.room.edit(options);
         broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+
+        Room.find().then((rooms) => {
+          broadcastToEveryone(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
+        });
       } catch (e) {
         (logger.error(e));
       }
