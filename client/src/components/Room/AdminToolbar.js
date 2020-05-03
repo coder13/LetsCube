@@ -129,7 +129,7 @@ function AdminToolbar({ dispatch, room, user }) {
       <ManageUsersDialog
         room={room}
         open={showManageUsersDialog}
-        onCancel={() => showManageUsersDialog(false)}
+        onClose={() => setShowManageUsersDialog(false)}
         self={user}
       />
     </>
