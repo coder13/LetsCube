@@ -39,7 +39,7 @@ function AdminToolbar({ dispatch, room, user }) {
   const confirm = useConfirm();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
-  const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(true);
+  const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(false);
   const menuOpen = Boolean(anchorEl);
 
   const handleMenu = (event) => {
