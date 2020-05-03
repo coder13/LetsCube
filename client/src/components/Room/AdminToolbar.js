@@ -18,6 +18,7 @@ import {
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
 import RoomConfigureDialog from '../RoomConfigureDialog';
+import ManageUsersDialog from './ManageUsersDialog';
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {
@@ -33,11 +34,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function AdminToolbar({ dispatch, room }) {
+function AdminToolbar({ dispatch, room, user }) {
   const classes = useStyles();
   const confirm = useConfirm();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
+  const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(true);
   const menuOpen = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -114,6 +116,7 @@ function AdminToolbar({ dispatch, room }) {
           onClose={handleClose}
         >
           <MenuItem onClick={() => setShowEditRoomDialog(true)}>Edit Room</MenuItem>
+          <MenuItem onClick={() => setShowManageUsersDialog(true)}>Manage Users</MenuItem>
           <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
         </Menu>
       </Toolbar>
@@ -122,6 +125,12 @@ function AdminToolbar({ dispatch, room }) {
         open={showEditRoomDialog}
         onSave={onEditRoom}
         onCancel={() => setShowEditRoomDialog(false)}
+      />
+      <ManageUsersDialog
+        room={room}
+        open={showManageUsersDialog}
+        onCancel={() => showManageUsersDialog(false)}
+        self={user}
       />
     </>
   );
@@ -134,6 +143,7 @@ AdminToolbar.propTypes = {
     attempts: PropTypes.array,
     event: PropTypes.string,
   }),
+  user: PropTypes.shape({}),
 };
 
 AdminToolbar.defaultProps = {
@@ -142,10 +152,14 @@ AdminToolbar.defaultProps = {
     attempts: [],
     event: undefined,
   },
+  user: {
+
+  },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
+  user: state.user,
 });
 
 export default connect(mapStateToProps)(AdminToolbar);

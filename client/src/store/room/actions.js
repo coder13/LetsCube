@@ -16,6 +16,7 @@ export const RECEIVE_STATUS = 'room/receive_status';
 export const UPDATE_COMPETING = 'room/update_competing';
 export const UPDATE_COMPETING_FOR_USER = 'room/update_competing_for_user';
 export const EDIT_ROOM = 'room/edit_room';
+export const KICK_USER = 'room/kick_user';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -113,4 +114,9 @@ export const updateCompetingForUser = (userId, competing) => ({
 export const editRoom = (options) => ({
   type: EDIT_ROOM,
   options,
+});
+
+export const kickUser = (userId) => ({
+  type: KICK_USER,
+  userId,
 });

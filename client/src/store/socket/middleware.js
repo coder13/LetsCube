@@ -22,6 +22,7 @@ import {
   SEND_STATUS,
   UPDATE_COMPETING,
   EDIT_ROOM,
+  KICK_USER,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -117,6 +118,9 @@ const socketMiddleware = (store) => {
       },
       [Protocol.FORCE_JOIN]: (room) => {
         store.dispatch(push(`/rooms/${room._id}`));
+      },
+      [Protocol.FORCE_LEAVE]: () => {
+        store.dispatch(push('/'));
       },
       [Protocol.JOIN]: (room) => {
         store.dispatch(roomJoined(room.accessCode)); // update socket store
@@ -241,6 +245,9 @@ const socketMiddleware = (store) => {
     },
     [UPDATE_COMPETING]: ({ competing }) => {
       socket.emit(Protocol.UPDATE_COMPETING, competing);
+    },
+    [KICK_USER]: ({ userId }) => {
+      socket.emit(Protocol.KICK_USER, userId);
     },
   };
 
