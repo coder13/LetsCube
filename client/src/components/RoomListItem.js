@@ -6,7 +6,7 @@ import Typography from '@material-ui/core/Typography';
 import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import ListItemLink from './ListItemLink';
-import { getNameFromId } from '../lib/wca';
+import { getNameFromId } from '../lib/events';
 
 function RoomListItem({ room, disabled }) {
   const userText = room.usersLength === 0 ? ' empty'

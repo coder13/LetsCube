@@ -13,7 +13,7 @@ import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import Footer from './Footer';
-import { getNameFromId } from '../lib/wca';
+import { getNameFromId } from '../lib/events';
 
 const useStyles = makeStyles(() => ({
   root: {

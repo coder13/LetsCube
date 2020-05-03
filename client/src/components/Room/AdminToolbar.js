@@ -8,6 +8,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import Select from '@material-ui/core/Select';
+import ListSubheader from '@material-ui/core/ListSubheader';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { useConfirm } from 'material-ui-confirm';
 import {
@@ -16,7 +17,7 @@ import {
   changeEvent,
   editRoom,
 } from '../../store/room/actions';
-import { Events } from '../../lib/wca';
+import { Events } from '../../lib/events';
 import RoomConfigureDialog from '../RoomConfigureDialog';
 import ManageUsersDialog from './ManageUsersDialog';
 
@@ -88,7 +89,12 @@ function AdminToolbar({ dispatch, room, user }) {
             onChange={handleChangeEvent}
             variant="standard"
           >
-            {Events.map((event) => (
+            <ListSubheader>WCA</ListSubheader>
+            {Events.filter((e) => e.group === 'WCA').map((event) => (
+              <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
+            ))}
+            <ListSubheader>Other</ListSubheader>
+            {Events.filter((e) => e.group !== 'WCA').map((event) => (
               <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
             ))}
           </Select>
