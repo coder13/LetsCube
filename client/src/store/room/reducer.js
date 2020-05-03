@@ -10,6 +10,7 @@ import {
   UPDATE_ADMIN,
   RECEIVE_STATUS,
   UPDATE_COMPETING_FOR_USER,
+  TIMER_FOCUSED,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -28,6 +29,7 @@ const INITIAL_STATE = {
   admin: {
     id: null,
   },
+  timerFocused: true,
 };
 
 const reducers = {
@@ -103,6 +105,10 @@ const reducers = {
     waitingFor: action.competing
       ? state.waitingFor
       : state.waitingFor.filter((user) => user !== action.userId),
+  }),
+  [TIMER_FOCUSED]: (state, action) => ({
+    ...state,
+    timerFocused: action.focus,
   }),
 };
 

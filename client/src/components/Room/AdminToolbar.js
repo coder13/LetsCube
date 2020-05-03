@@ -15,6 +15,7 @@ import {
   requestNewScramble,
   changeEvent,
   editRoom,
+  timerFocused,
 } from '../../store/room/actions';
 import { Events } from '../../lib/wca';
 import RoomConfigureDialog from '../RoomConfigureDialog';
@@ -66,8 +67,19 @@ function AdminToolbar({ dispatch, room }) {
       });
   };
 
+  const onOpenEditRoom = () => {
+    setShowEditRoomDialog(true);
+    dispatch(timerFocused(false));
+  };
+
+  const onCloseEditRoom = () => {
+    setShowEditRoomDialog(false);
+    dispatch(timerFocused(true));
+  }
+
   const onEditRoom = (options) => {
     dispatch(editRoom(options));
+    dispatch(timerFocused(true));
   };
 
   return (
@@ -113,7 +125,7 @@ function AdminToolbar({ dispatch, room }) {
           open={menuOpen}
           onClose={handleClose}
         >
-          <MenuItem onClick={() => setShowEditRoomDialog(true)}>Edit Room</MenuItem>
+          <MenuItem onClick={onOpenEditRoom}>Edit Room</MenuItem>
           <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
         </Menu>
       </Toolbar>
@@ -121,7 +133,7 @@ function AdminToolbar({ dispatch, room }) {
         room={room}
         open={showEditRoomDialog}
         onSave={onEditRoom}
-        onCancel={() => setShowEditRoomDialog(false)}
+        onCancel={onCloseEditRoom}
       />
     </>
   );
