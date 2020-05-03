@@ -179,7 +179,7 @@ module.exports = ({ app, expressSession }) => {
 
       if (!SocketUsers[socket.userId][socket.roomId]
         || SocketUsers[socket.userId][socket.roomId].length === 0) {
-        logger.warning(`SocketUsers[${socket.userId}][${socket.roomId}] has length 0 for some reason`, SocketUsers[socket.userId]);
+        logger.warn(`SocketUsers[${socket.userId}][${socket.roomId}] has length 0 for some reason`, SocketUsers[socket.userId]);
         return;
       }
 
@@ -229,7 +229,7 @@ module.exports = ({ app, expressSession }) => {
           SocketUsers[socket.user.id][room._id] = [];
         }
 
-        SocketUsers[socket.user.id][room._id].push(socket.id);
+        SocketUsers[socket.user.id][room._id].push(socket);
 
         const r = await room.addUser(socket.user, (_room) => {
           broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
@@ -405,6 +405,53 @@ module.exports = ({ app, expressSession }) => {
         });
       } catch (e) {
         (logger.error(e));
+      }
+    });
+
+    socket.on(Protocol.KICK_USER, async (userId) => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      if (!SocketUsers[userId]) {
+        logger.debug('Invalid user to kick', { userId });
+        return;
+      }
+
+      if (!SocketUsers[userId][socket.roomId]) {
+        logger.debug('Invalid room to kick user from', { roomId: socket.roomId });
+        return;
+      }
+
+      await Promise.all(
+        SocketUsers[userId][socket.roomId].map((s) => {
+          io.to(s.id).emit(Protocol.FORCE_LEAVE);
+          return new Promise((resolve) => {
+            s.leave(socket.room.accessCode, () => {
+              resolve();
+            });
+          });
+        }),
+      );
+
+      try {
+        const room = await socket.room.dropUser({ id: userId });
+
+        if (!room) {
+          logger.debug('User kick failed for some reason');
+        }
+
+        broadcastToAllInRoom(socket.room.accessCode, Protocol.USER_LEFT, userId);
+        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
+
+        delete SocketUsers[userId][room._id];
+      } catch (e) {
+        logger.error(e);
       }
     });
 
