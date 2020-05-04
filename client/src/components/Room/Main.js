@@ -10,6 +10,10 @@ import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import HelpIcon from '@material-ui/icons/Help';
 import { Cube } from 'react-cube-svg';
+import watch from 'redux-watch';
+import useSound from 'use-sound';
+import notifSFX from '../../assets/notification.mp3';
+import { store } from '../../store';
 import calcStats from '../../lib/stats';
 import {
   submitResult,
@@ -46,6 +50,9 @@ function Main({
   const classes = useStyles();
   const [helpAnchor, setHelpAnchor] = useState(null);
   const [currentAttemptId, setCurrentAttemptId] = useState();
+
+  const [volume] = useState(0.05);
+  const [playNotification] = useSound(notifSFX, { volume });
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -87,6 +94,15 @@ function Main({
 
   const stats = calcStats(attempts, users);
   const showScramble = latestAttempt.scrambles && room.event === '333';
+
+  const watcher = watch(store.getState, 'room.attempts');
+  store.subscribe(watcher((newValue, oldValue) => {
+    // We need to check if there a new attempt is added
+    // Not just if they were modified (eg. Time submitted)
+    if (newValue.length > oldValue.length) {
+      playNotification();
+    }
+  }));
 
   return (
     <Paper className={classes.root} variant="outlined" square>
