@@ -17,6 +17,7 @@ export const UPDATE_COMPETING = 'room/update_competing';
 export const UPDATE_COMPETING_FOR_USER = 'room/update_competing_for_user';
 export const EDIT_ROOM = 'room/edit_room';
 export const TIMER_FOCUSED = 'room/timer_focused';
+export const KICK_USER = 'room/kick_user';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -119,4 +120,9 @@ export const editRoom = (options) => ({
 export const timerFocused = (focus) => ({
   type: TIMER_FOCUSED,
   focus,
+});
+
+export const kickUser = (userId) => ({
+  type: KICK_USER,
+  userId,
 });

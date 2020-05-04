@@ -4,6 +4,7 @@ const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const uuidv4 = require('uuid/v4');
 const User = require('./user');
+const { Events } = require('../../client/src/lib/events');
 
 // const lengths = {
 
@@ -85,7 +86,7 @@ Room.index({
 });
 
 Room.virtual('scrambler').get(function () {
-  return new Scrambow().setType(this.event);
+  return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
 Room.virtual('usersLength').get(function () {

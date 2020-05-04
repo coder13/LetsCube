@@ -8,6 +8,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import Select from '@material-ui/core/Select';
+import ListSubheader from '@material-ui/core/ListSubheader';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { useConfirm } from 'material-ui-confirm';
 import {
@@ -16,8 +17,9 @@ import {
   changeEvent,
   editRoom,
 } from '../../store/room/actions';
-import { Events } from '../../lib/wca';
+import { Events } from '../../lib/events';
 import RoomConfigureDialog from '../RoomConfigureDialog';
+import ManageUsersDialog from './ManageUsersDialog';
 
 const useStyles = makeStyles(() => ({
   adminToolbar: {
@@ -33,11 +35,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function AdminToolbar({ dispatch, room }) {
+function AdminToolbar({ dispatch, room, user }) {
   const classes = useStyles();
   const confirm = useConfirm();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
+  const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(false);
   const menuOpen = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -86,7 +89,12 @@ function AdminToolbar({ dispatch, room }) {
             onChange={handleChangeEvent}
             variant="standard"
           >
-            {Events.map((event) => (
+            <ListSubheader>WCA</ListSubheader>
+            {Events.filter((e) => e.group === 'WCA').map((event) => (
+              <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
+            ))}
+            <ListSubheader>Other</ListSubheader>
+            {Events.filter((e) => e.group !== 'WCA').map((event) => (
               <MenuItem key={event.id} dense value={event.id}>{event.name}</MenuItem>
             ))}
           </Select>
@@ -114,6 +122,7 @@ function AdminToolbar({ dispatch, room }) {
           onClose={handleClose}
         >
           <MenuItem onClick={() => setShowEditRoomDialog(true)}>Edit Room</MenuItem>
+          <MenuItem onClick={() => setShowManageUsersDialog(true)}>Manage Users</MenuItem>
           <MenuItem onClick={handleDeleteRoom}>Delete Room</MenuItem>
         </Menu>
       </Toolbar>
@@ -122,6 +131,12 @@ function AdminToolbar({ dispatch, room }) {
         open={showEditRoomDialog}
         onSave={onEditRoom}
         onCancel={() => setShowEditRoomDialog(false)}
+      />
+      <ManageUsersDialog
+        room={room}
+        open={showManageUsersDialog}
+        onClose={() => setShowManageUsersDialog(false)}
+        self={user}
       />
     </>
   );
@@ -134,6 +149,7 @@ AdminToolbar.propTypes = {
     attempts: PropTypes.array,
     event: PropTypes.string,
   }),
+  user: PropTypes.shape({}),
 };
 
 AdminToolbar.defaultProps = {
@@ -142,10 +158,14 @@ AdminToolbar.defaultProps = {
     attempts: [],
     event: undefined,
   },
+  user: {
+
+  },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
+  user: state.user,
 });
 
 export default connect(mapStateToProps)(AdminToolbar);

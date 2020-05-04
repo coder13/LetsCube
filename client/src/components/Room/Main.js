@@ -9,7 +9,7 @@ import Typography from '@material-ui/core/Typography';
 import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import HelpIcon from '@material-ui/icons/Help';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener'
+import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import { Cube } from 'react-cube-svg';
 import calcStats from '../../lib/stats';
 import {

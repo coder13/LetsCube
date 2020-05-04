@@ -16,6 +16,7 @@ module.exports = {
   ROOM_DELETED: 'room_deleted',
   UPDATE_ADMIN: 'update_admin',
   FORCE_JOIN: 'force_join',
+  FORCE_LEAVE: 'force_leave',
   FETCH_ROOM: 'fetch_room',
   JOIN_ROOM: 'join_room',
   LEAVE_ROOM: 'leave_room',
@@ -32,4 +33,5 @@ module.exports = {
   UPDATE_STATUS: 'update_status',
   UPDATE_COMPETING: 'update_competing',
   UPDATE_USER_COUNT: 'user_count',
+  KICK_USER: 'kick_user',
 };
