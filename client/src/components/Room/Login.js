@@ -5,6 +5,9 @@ import { connect } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
+import IconButton from '@material-ui/core/IconButton';
+import ArrowBackIcon from '@material-ui/icons/ArrowBack';
+import { Link } from 'react-router-dom';
 import {
   joinRoom,
 } from '../../store/room/actions';
@@ -46,6 +49,11 @@ function Login({ dispatch, roomId, loginFailed }) {
 
   return (
     <Paper className={classes.root} elevation={1}>
+      <Link to="/">
+        <IconButton aria-label="back">
+          <ArrowBackIcon />
+        </IconButton>
+      </Link>
       <Paper
         elevation={2}
         style={{
