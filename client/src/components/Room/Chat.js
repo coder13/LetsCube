@@ -14,7 +14,6 @@ import ListItemAvatar from '@material-ui/core/ListItemAvatar';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Icon from '@material-ui/core/Icon';
 import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
 import PersonIcon from '@material-ui/icons/Person';
@@ -71,7 +70,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Chat({
-  dispatch, messages, users, onFocus, onDefocus, user,
+  dispatch, messages, users, user,
 }) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
@@ -97,93 +96,91 @@ function Chat({
   }, [messages]);
 
   return (
-    <ClickAwayListener onClickAway={onDefocus}>
-      <Paper className={classes.root} variant="outlined" square onClick={onFocus}>
-        <List className={classes.messages} ref={listRef}>
-          {messages.map(({
-            id, userId, text, secondary, icon, event,
-          }, index) => {
-            if (userId === -1) {
-              return (
-                <ListItem dense key={id} className={classes.systemMessage}>
-                  <ListItemIcon
-                    style={{ display: 'block' }}
-                  >
-                    {icon === 'SCRAMBLE' ? Icons[icon](event) : Icons[icon]}
-                  </ListItemIcon>
-
-                  <ListItemText
-                    className={classes.selectable}
-                    primary={(
-                      <Typography variant="body1">
-                        {text}
-                      </Typography>
-                    )}
-                    secondary={(
-                      <Typography variant="body2">
-                        {secondary}
-                      </Typography>
-                    )}
-                  />
-                </ListItem>
-              );
-            }
-
-            const sender = findUser(userId);
-            const avatar = sender && sender.avatar.url;
-            const displayAvatar = !avatar
-                                || index === 0
-                                || messages[index - 1].userId !== sender.id;
-            const isNextMessageTheSameSender = messages[index + 1]
-              && messages[index + 1].userId === sender.id;
-
+    <Paper className={classes.root} variant="outlined" square>
+      <List className={classes.messages} ref={listRef}>
+        {messages.map(({
+          id, userId, text, secondary, icon, event,
+        }, index) => {
+          if (userId === -1) {
             return (
-              <ListItem
-                key={id}
-                alignItems="flex-start"
-                className={clsx(classes.message, {
-                  [classes.lastMessageForUser]: !isNextMessageTheSameSender,
-                })}
-              >
-                <ListItemAvatar>
-                  {displayAvatar
-                    && <Avatar src={sender.avatar.url} />}
-                </ListItemAvatar>
+              <ListItem dense key={id} className={classes.systemMessage}>
+                <ListItemIcon
+                  style={{ display: 'block' }}
+                >
+                  {icon === 'SCRAMBLE' ? Icons[icon](event) : Icons[icon]}
+                </ListItemIcon>
 
                 <ListItemText
                   className={classes.selectable}
-                  primary={displayAvatar ? sender.displayName : ''}
+                  primary={(
+                    <Typography variant="body1">
+                      {text}
+                    </Typography>
+                  )}
                   secondary={(
                     <Typography variant="body2">
-                      {text}
+                      {secondary}
                     </Typography>
                   )}
                 />
               </ListItem>
             );
-          })}
-        </List>
-        {!user.id && (
-          <Alert severity="warning">Login to chat</Alert>
-        )}
-        <Paper
-          component="form"
-          onSubmit={handleSubmit}
-          className={classes.paper}
-          elevation={8}
-        >
-          <FormControl fullWidth disabled={!user.id && 'disabled'}>
-            <Input
-              className={classes.input}
-              fullWidth
-              placeholder="Send Message"
-              value={message}
-              onChange={handleChange}
-            />
-          </FormControl>
-        </Paper>
+          }
+
+          const sender = findUser(userId);
+          const avatar = sender && sender.avatar.url;
+          const displayAvatar = !avatar
+                              || index === 0
+                              || messages[index - 1].userId !== sender.id;
+          const isNextMessageTheSameSender = messages[index + 1]
+            && messages[index + 1].userId === sender.id;
+
+          return (
+            <ListItem
+              key={id}
+              alignItems="flex-start"
+              className={clsx(classes.message, {
+                [classes.lastMessageForUser]: !isNextMessageTheSameSender,
+              })}
+            >
+              <ListItemAvatar>
+                {displayAvatar
+                  && <Avatar src={sender.avatar.url} />}
+              </ListItemAvatar>
+
+              <ListItemText
+                className={classes.selectable}
+                primary={displayAvatar ? sender.displayName : ''}
+                secondary={(
+                  <Typography variant="body2">
+                    {text}
+                  </Typography>
+                )}
+              />
+            </ListItem>
+          );
+        })}
+      </List>
+      {!user.id && (
+        <Alert severity="warning">Login to chat</Alert>
+      )}
+      <Paper
+        component="form"
+        onSubmit={handleSubmit}
+        className={classes.paper}
+        elevation={8}
+      >
+        <FormControl fullWidth disabled={!user.id && 'disabled'}>
+          <Input
+            className={classes.input}
+            fullWidth
+            placeholder="Send Message"
+            value={message}
+            onChange={handleChange}
+          />
+        </FormControl>
       </Paper>
-    </ClickAwayListener>
+    </Paper>
   );
 }
 
@@ -196,8 +193,6 @@ Chat.propTypes = {
     }),
   })),
   dispatch: PropTypes.func.isRequired,
-  onFocus: PropTypes.func,
-  onDefocus: PropTypes.func,
   user: PropTypes.shape({
     id: PropTypes.number,
     canJoinRoom: PropTypes.bool,
@@ -207,8 +202,6 @@ Chat.propTypes = {
 Chat.defaultProps = {
   messages: [],
   users: [],
-  onFocus: () => {},
-  onDefocus: () => {},
   user: {
     id: undefined,
     canJoinRoom: false,
