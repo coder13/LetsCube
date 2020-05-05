@@ -10,6 +10,8 @@ import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import HelpIcon from '@material-ui/icons/Help';
 import { Cube } from 'react-cube-svg';
+import UIfx from 'uifx'
+import notifSFX from '../../assets/notification.mp3'
 import calcStats from '../../lib/stats';
 import {
   submitResult,
