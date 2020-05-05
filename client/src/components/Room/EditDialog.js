@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import {
-  Dialog,
-  DialogActions,
-  DialogTitle,
-  DialogContent,
-  TextField,
-} from '@material-ui/core';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import DialogContent from '@material-ui/core/DialogContent';
+import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -41,10 +39,12 @@ function EditDialog({
   const resetDialog = () => {
     onClose();
     setInputError(false);
-  }
+  };
 
-  const editTimeCallback = useCallback(() => {
-    let t = parseTime(timeInput)
+  const editTimeCallback = (e) => {
+    e.preventDefault();
+
+    let t = parseTime(timeInput);
     if (!t) {
       setInputError(true);
       return;
@@ -52,7 +52,7 @@ function EditDialog({
     t += (auf ? 2000 : 0);
     editTime(timeInput, penalties, auf, dnf);
     setInputError(false);
-  }, [editTime, timeInput, penalties, auf, dnf]);
+  };
 
   return (
     <Dialog fullWidth open={open}>
