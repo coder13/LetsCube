@@ -18,6 +18,7 @@ import {
   timerFocused,
 } from '../../store/room/actions';
 import { StatsDialogProvider } from './StatsDialogProvider';
+import { EditDialogProvider } from './EditDialogProvider';
 import TimesTable from './TimesTable';
 import Timer from '../Timer/index';
 import Scramble from '../Scramble';
@@ -102,98 +103,100 @@ function Main({
     <ClickAwayListener onClickAway={onTimerDefocused}>
       <Paper className={classes.root} variant="outlined" square onClick={onTimerFocused}>
         <StatsDialogProvider>
-          <div className={classes.scrambleBox}>
-            { hidden ? (
-              <Typography variant="h6" style={{ fontWeight: 400 }}>
-                Waiting for other solvers...
-              </Typography>
-            ) : (
-              <Scramble
-                event={room.event}
-                disabled={timerDisabled}
-                scrambles={latestAttempt.scrambles}
-              />
-            )}
-          </div>
-          <Divider />
-          <div>
-            <div style={{ position: 'relative', width: 0, height: 0 }}>
-              <div style={{ position: 'absolute', top: 0, left: 0 }}>
-                <IconButton
-                  color="inherit"
-                  onClick={(e) => setHelpAnchor(e.currentTarget)}
-                >
-                  <HelpIcon />
-                </IconButton>
-                <Popover
-                  open={!!helpAnchor}
-                  anchorEl={helpAnchor}
-                  onClose={() => setHelpAnchor(null)}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'left',
-                  }}
-                >
-                  <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
-                    <p>Press `Spacebar` to start the timer.</p>
-                    <p>Press any key to stop the timer.</p>
-                    <p>Press `Enter` to submit time.</p>
-                  </Typography>
-                </Popover>
-              </div>
-            </div>
-            {room.competing[user.id] && (
-              <Timer
-                disabled={timerDisabled}
-                onSubmitTime={(e) => onSubmitTime(e)}
-                onStatusChange={handleStatusChange}
-                useInspection={user.useInspection}
-                onPriming={handlePriming}
-                type={user.timerType}
-              />
-            )}
-          </div>
-          <Divider />
-          <TimesTable room={room} stats={stats} />
-          <Grid container>
-            <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
-              <UserStats stats={stats[user.id]} />
-              <Paper
-                className={classes.waitingForBox}
-                square
-                variant="outlined"
-              >
-                <Typography variant="body2">
-                  Waiting For:
-                  {' '}
-                  {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+          <EditDialogProvider dispatch={dispatch}>
+            <div className={classes.scrambleBox}>
+              { hidden ? (
+                <Typography variant="h6" style={{ fontWeight: 400 }}>
+                  Waiting for other solvers...
                 </Typography>
-              </Paper>
-            </Grid>
-            {showScramble && (
-              <Grid item xs={2} sm={3}>
+              ) : (
+                <Scramble
+                  event={room.event}
+                  disabled={timerDisabled}
+                  scrambles={latestAttempt.scrambles}
+                />
+              )}
+            </div>
+            <Divider />
+            <div>
+              <div style={{ position: 'relative', width: 0, height: 0 }}>
+                <div style={{ position: 'absolute', top: 0, left: 0 }}>
+                  <IconButton
+                    color="inherit"
+                    onClick={(e) => setHelpAnchor(e.currentTarget)}
+                  >
+                    <HelpIcon />
+                  </IconButton>
+                  <Popover
+                    open={!!helpAnchor}
+                    anchorEl={helpAnchor}
+                    onClose={() => setHelpAnchor(null)}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'left',
+                    }}
+                  >
+                    <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
+                      <p>Press `Spacebar` to start the timer.</p>
+                      <p>Press any key to stop the timer.</p>
+                      <p>Press `Enter` to submit time.</p>
+                    </Typography>
+                  </Popover>
+                </div>
+              </div>
+              {room.competing[user.id] && (
+                <Timer
+                  disabled={timerDisabled}
+                  onSubmitTime={(e) => onSubmitTime(e)}
+                  onStatusChange={handleStatusChange}
+                  useInspection={user.useInspection}
+                  onPriming={handlePriming}
+                  type={user.timerType}
+                />
+              )}
+            </div>
+            <Divider />
+            <TimesTable room={room} stats={stats} userId={user.id} />
+            <Grid container>
+              <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
+                <UserStats stats={stats[user.id]} />
                 <Paper
+                  className={classes.waitingForBox}
                   square
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                  }}
                   variant="outlined"
                 >
-                  <Cube
-                    size={120}
-                    scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
-                  />
+                  <Typography variant="body2">
+                    Waiting For:
+                    {' '}
+                    {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+                  </Typography>
                 </Paper>
               </Grid>
-            )}
-          </Grid>
+              {showScramble && (
+                <Grid item xs={2} sm={3}>
+                  <Paper
+                    square
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                    }}
+                    variant="outlined"
+                  >
+                    <Cube
+                      size={120}
+                      scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
+                    />
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
+          </EditDialogProvider>
         </StatsDialogProvider>
       </Paper>
     </ClickAwayListener>

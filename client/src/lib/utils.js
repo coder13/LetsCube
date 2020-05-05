@@ -1,6 +1,21 @@
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const fixed = (n, d) => Number(n).toFixed(d === undefined ? 2 : d);
 
+export const formatRawTime = (time) => {
+  if (time === undefined || time === null || time < 0) {
+    return '0.00';
+  }
+
+  let s = time / 1000;
+
+  const hours = Math.floor(s / 3600);
+  s %= 3600;
+  const minutes = Math.floor(s / 60);
+  const seconds = fixed(s % 60, s > 600 ? 0 : 2);
+
+  return `${hours ? `${hours}:` : ''}${minutes ? `${hours ? pad(minutes) : minutes}:` : ''}${minutes ? pad(seconds) : seconds}`;
+};
+
 /*
   time: number in terms of milliseconds
   Options:
@@ -14,16 +29,7 @@ export const formatTime = (time, options) => {
     return 'DNF';
   }
 
-  let s = time / 1000;
-
-  const hours = Math.floor(s / 3600);
-  s %= 3600;
-  const minutes = Math.floor(s / 60);
-  const seconds = _options.milli !== undefined
-    ? fixed(s % 60, _options.milli)
-    : fixed(s % 60, s > 600 ? 0 : 2);
-
-  const formattedTime = `${hours ? `${hours}:` : ''}${minutes ? `${hours ? pad(minutes) : minutes}:` : ''}${minutes ? pad(seconds) : seconds}`;
+  const formattedTime = formatRawTime(time);
   const formattedTimeWithPenalties = `${inspection ? '+' : ''}${formattedTime}${AUF ? '+' : ''}`;
   return DNF ? `DNF(${formattedTimeWithPenalties})` : formattedTimeWithPenalties;
 };

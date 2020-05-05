@@ -7,6 +7,8 @@ import {
   JOIN_ROOM,
   NEW_ATTEMPT,
   NEW_RESULT,
+  EDIT_RESULT,
+  SEND_EDIT_RESULT,
   UPDATE_ADMIN,
   RECEIVE_STATUS,
   UPDATE_COMPETING_FOR_USER,
@@ -90,6 +92,20 @@ const reducers = {
     // remove user from waiting for for current attempt
     waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
   }),
+  [EDIT_RESULT]: (state, action) => ({
+    ...state,
+    attempts: state.attempts.map((attempt) => {
+      if (attempt.id === action.result.id) {
+        return {
+          ...attempt,
+          results: { ...attempt.results, [action.result.userId]: action.result.result },
+        };
+      }
+
+      return attempt;
+    }),
+  }),
+  [SEND_EDIT_RESULT]: (state) => state,
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
   [RECEIVE_STATUS]: (state, action) => ({
     ...state,

@@ -5,6 +5,8 @@ export const JOIN_ROOM = 'room/join';
 export const LEAVE_ROOM = 'room/leave';
 export const SUBMIT_RESULT = 'room/submit_result';
 export const NEW_RESULT = 'room/new_result';
+export const EDIT_RESULT = 'room/edit_result';
+export const SEND_EDIT_RESULT = 'room/send_edit_result';
 export const USER_JOIN = 'room/user_join';
 export const USER_LEFT = 'room/user_left';
 export const NEW_ATTEMPT = 'room/new_attempt';
@@ -51,6 +53,16 @@ export const submitResult = (result) => ({
 // A new result came in
 export const newResult = (result) => ({
   type: NEW_RESULT,
+  result,
+});
+
+export const editResult = (result) => ({
+  type: EDIT_RESULT,
+  result,
+});
+
+export const sendEditResult = (result) => ({
+  type: SEND_EDIT_RESULT,
   result,
 });
 
