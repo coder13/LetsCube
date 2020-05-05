@@ -51,8 +51,8 @@ function Main({
   const [helpAnchor, setHelpAnchor] = useState(null);
   const [currentAttemptId, setCurrentAttemptId] = useState();
 
-  const [volume] = useState(0.05);
-  const [playNotification] = useSound(notifSFX, { volume });
+  const [volume] = useState(0.15);
+  const [playNotification] = useSound(notifSFX, { volume, interrupt: true });
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -99,7 +99,7 @@ function Main({
   store.subscribe(watcher((newValue, oldValue) => {
     // We need to check if there a new attempt is added
     // Not just if they were modified (eg. Time submitted)
-    if (newValue.length > oldValue.length) {
+    if (newValue.length > oldValue.length && !user.muteTimer) {
       playNotification();
     }
   }));
@@ -226,6 +226,7 @@ Main.propTypes = {
   user: PropTypes.shape({
     id: PropTypes.number,
     useInspection: PropTypes.bool,
+    muteTimer: PropTypes.bool,
     timerType: PropTypes.string,
   }),
   timerFocused: PropTypes.bool,
@@ -250,6 +251,7 @@ Main.defaultProps = {
   user: {
     id: undefined,
     useInspection: false,
+    muteTimer: false,
     timerType: 'spacebar',
   },
   timerFocused: true,
