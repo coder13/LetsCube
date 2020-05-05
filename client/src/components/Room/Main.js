@@ -10,8 +10,8 @@ import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import HelpIcon from '@material-ui/icons/Help';
 import { Cube } from 'react-cube-svg';
-import UIfx from 'uifx'
-import notifSFX from '../../assets/notification.mp3'
+import UIfx from 'uifx';
+import notificationAsset from '../../assets/notification.mp3';
 import calcStats from '../../lib/stats';
 import {
   submitResult,
@@ -51,6 +51,18 @@ class Main extends React.Component {
       helpAnchor: null,
       currentAttemptId: undefined,
     };
+  }
+
+  componentDidUpdate(prevProps) {
+    const { room, user } = this.props;
+    const attemptsUpdated = room.attempts.length > prevProps.room.attempts.length;
+    if (!user.muteTimer && attemptsUpdated) {
+      const notification = new UIfx(
+        notificationAsset,
+        { volume: 0.2 },
+      );
+      notification.play();
+    }
   }
 
   onSubmitTime(event) {
@@ -158,9 +170,9 @@ class Main extends React.Component {
                 <Timer
                   disabled={timerDisabled}
                   onSubmitTime={(e) => this.onSubmitTime(e)}
-                  onStatusChange={(status) => { this.handleStatusChange(status) }}
+                  onStatusChange={(status) => { this.handleStatusChange(status); }}
                   useInspection={user.useInspection}
-                  onPriming={() => { this.handlePriming() }}
+                  onPriming={() => { this.handlePriming(); }}
                   type={user.timerType}
                 />
               )}
