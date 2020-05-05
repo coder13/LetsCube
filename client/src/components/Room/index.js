@@ -93,7 +93,6 @@ class RoomNav extends React.Component {
     } = this.props;
 
     this.state = {
-      timerFocused: true,
       currentPanel: 0,
     };
 
@@ -125,18 +124,6 @@ class RoomNav extends React.Component {
     }
   }
 
-  onFocus() {
-    this.setState({
-      timerFocused: false,
-    });
-  }
-
-  onDefocus() {
-    this.setState({
-      timerFocused: true,
-    });
-  }
-
   isAdmin() {
     const { room, user } = this.props;
     return room.admin && room.admin.id === user.id;
@@ -153,7 +140,7 @@ class RoomNav extends React.Component {
       classes, fetching, inRoom, room,
     } = this.props;
 
-    const { currentPanel, timerFocused } = this.state;
+    const { currentPanel } = this.state;
 
     const loggedIn = !room.private || inRoom;
 
@@ -188,7 +175,7 @@ class RoomNav extends React.Component {
                   })}
                   md={8}
                 >
-                  <Main timerFocused={timerFocused} />
+                  <Main />
                 </Grid>
                 <Grid
                   item
@@ -197,10 +184,7 @@ class RoomNav extends React.Component {
                   })}
                   md={4}
                 >
-                  <Chat
-                    onFocus={() => this.onFocus()}
-                    onDefocus={() => this.onDefocus()}
-                  />
+                  <Chat />
                 </Grid>
               </>
             )}
