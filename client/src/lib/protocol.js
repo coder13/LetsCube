@@ -25,6 +25,8 @@ module.exports = {
   USER_LEFT: 'user_left',
   SUBMIT_RESULT: 'submit_result',
   NEW_RESULT: 'new_result',
+  SEND_EDIT_RESULT: 'send_edit_result',
+  EDIT_RESULT: 'edit_result',
   NEW_ATTEMPT: 'new_attempt',
   REQUEST_SCRAMBLE: 'request_scramble',
   CHANGE_EVENT: 'change_event',
