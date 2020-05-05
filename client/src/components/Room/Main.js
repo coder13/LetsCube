@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
+import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
@@ -10,10 +10,6 @@ import Popover from '@material-ui/core/Popover';
 import IconButton from '@material-ui/core/IconButton';
 import HelpIcon from '@material-ui/icons/Help';
 import { Cube } from 'react-cube-svg';
-import watch from 'redux-watch';
-import useSound from 'use-sound';
-import notifSFX from '../../assets/notification.mp3';
-import { store } from '../../store';
 import calcStats from '../../lib/stats';
 import {
   submitResult,
@@ -26,7 +22,7 @@ import Timer from '../Timer/index';
 import Scramble from '../Scramble';
 import UserStats from './UserStats';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -45,17 +41,20 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Main({
-  dispatch, room, user, timerFocused,
-}) {
-  const classes = useStyles();
-  const [helpAnchor, setHelpAnchor] = useState(null);
-  const [currentAttemptId, setCurrentAttemptId] = useState();
+class Main extends React.Component {
+  constructor(props) {
+    super(props);
 
-  const [volume] = useState(0.15);
-  const [playNotification] = useSound(notifSFX, { volume, interrupt: true });
+    this.state = {
+      helpAnchor: null,
+      currentAttemptId: undefined,
+    };
+  }
 
-  const onSubmitTime = (event) => {
+  onSubmitTime(event) {
+    const { dispatch, room, user } = this.props;
+    const { currentAttemptId } = this.state;
+
     if (!room.attempts.length) {
       return;
     }
@@ -73,138 +72,139 @@ function Main({
         penalties: event.penalties,
       },
     }));
-    setCurrentAttemptId(null);
-  };
+    this.setState({ currentAttemptId: null });
+  }
 
-  const handleStatusChange = (status) => {
+  handleStatusChange(status) {
+    const { dispatch } = this.props;
     dispatch(sendStatus(status));
-  };
+  }
 
-  const handlePriming = () => {
+  handlePriming() {
+    const { room } = this.props;
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
-    setCurrentAttemptId(latestAttempt.id);
-  };
+    this.setState({ currentAttemptId: latestAttempt.id });
+  }
 
-  const {
-    users, attempts, waitingFor,
-  } = room;
-  const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-  const timerDisabled = !timerFocused || !room.competing[user.id]
-    || room.waitingFor.indexOf(user.id) === -1;
-  const hidden = room.competing[user.id] && waitingFor.indexOf(user.id) === -1;
+  render() {
+    const {
+      classes, dispatch, room, user, timerFocused,
+    } = this.props;
 
-  const stats = calcStats(attempts, users);
-  const showScramble = latestAttempt.scrambles && room.event === '333';
+    const { helpAnchor } = this.state;
 
-  const watcher = watch(store.getState, 'room.attempts');
-  store.subscribe(watcher((newValue, oldValue) => {
-    // We need to check if there a new attempt is added
-    // Not just if they were modified (eg. Time submitted)
-    if (newValue.length > oldValue.length && !user.muteTimer) {
-      playNotification();
-    }
-  }));
+    const {
+      users, attempts, waitingFor,
+    } = room;
+    const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
+    const timerDisabled = !timerFocused || !room.competing[user.id]
+      || room.waitingFor.indexOf(user.id) === -1;
+    const hidden = room.competing[user.id] && waitingFor.indexOf(user.id) === -1;
 
-  return (
-    <Paper className={classes.root} variant="outlined" square>
-      <StatsDialogProvider>
-        <EditDialogProvider dispatch={dispatch}>
-          <div className={classes.scrambleBox}>
-            { hidden ? (
-              <Typography variant="h6" style={{ fontWeight: 400 }}>
-                Waiting for other solvers...
-              </Typography>
-            ) : (
-              <Scramble
-                event={room.event}
-                disabled={timerDisabled}
-                scrambles={latestAttempt.scrambles}
-              />
-            )}
-          </div>
-          <Divider />
-          <div>
-            <div style={{ position: 'relative', width: 0, height: 0 }}>
-              <div style={{ position: 'absolute', top: 0, left: 0 }}>
-                <IconButton
-                  color="inherit"
-                  onClick={(e) => setHelpAnchor(e.currentTarget)}
-                >
-                  <HelpIcon />
-                </IconButton>
-                <Popover
-                  open={!!helpAnchor}
-                  anchorEl={helpAnchor}
-                  onClose={() => setHelpAnchor(null)}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'left',
-                  }}
-                >
-                  <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
-                    <p>Press `Spacebar` to start the timer.</p>
-                    <p>Press any key to stop the timer.</p>
-                    <p>Press `Enter` to submit time.</p>
-                  </Typography>
-                </Popover>
-              </div>
-            </div>
-            {room.competing[user.id] && (
-              <Timer
-                disabled={timerDisabled}
-                onSubmitTime={(e) => onSubmitTime(e)}
-                onStatusChange={handleStatusChange}
-                useInspection={user.useInspection}
-                onPriming={handlePriming}
-                type={user.timerType}
-              />
-            )}
-          </div>
-          <Divider />
-          <TimesTable room={room} stats={stats} userId={user.id} />
-          <Grid container>
-            <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
-              <UserStats stats={stats[user.id]} />
-              <Paper
-                className={classes.waitingForBox}
-                square
-                variant="outlined"
-              >
-                <Typography variant="body2">
-                  Waiting For:
-                  {' '}
-                  {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+    const stats = calcStats(attempts, users);
+    const showScramble = latestAttempt.scrambles && room.event === '333';
+
+    return (
+      <Paper className={classes.root} variant="outlined" square>
+        <StatsDialogProvider>
+          <EditDialogProvider dispatch={dispatch}>
+            <div className={classes.scrambleBox}>
+              { hidden ? (
+                <Typography variant="h6" style={{ fontWeight: 400 }}>
+                  Waiting for other solvers...
                 </Typography>
-              </Paper>
-            </Grid>
-            {showScramble && (
-              <Grid item xs={2} sm={3}>
+              ) : (
+                <Scramble
+                  event={room.event}
+                  disabled={timerDisabled}
+                  scrambles={latestAttempt.scrambles}
+                />
+              )}
+            </div>
+            <Divider />
+            <div>
+              <div style={{ position: 'relative', width: 0, height: 0 }}>
+                <div style={{ position: 'absolute', top: 0, left: 0 }}>
+                  <IconButton
+                    color="inherit"
+                    onClick={(e) => this.setState({ helpAnchor: e.currentTarget })}
+                  >
+                    <HelpIcon />
+                  </IconButton>
+                  <Popover
+                    open={!!helpAnchor}
+                    anchorEl={helpAnchor}
+                    onClose={() => this.setState({ helpAnchor: null })}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'left',
+                    }}
+                  >
+                    <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
+                      <p>Press `Spacebar` to start the timer.</p>
+                      <p>Press any key to stop the timer.</p>
+                      <p>Press `Enter` to submit time.</p>
+                    </Typography>
+                  </Popover>
+                </div>
+              </div>
+              {room.competing[user.id] && (
+                <Timer
+                  disabled={timerDisabled}
+                  onSubmitTime={(e) => this.onSubmitTime(e)}
+                  onStatusChange={(status) => { this.handleStatusChange(status) }}
+                  useInspection={user.useInspection}
+                  onPriming={() => { this.handlePriming() }}
+                  type={user.timerType}
+                />
+              )}
+            </div>
+            <Divider />
+            <TimesTable room={room} stats={stats} userId={user.id} />
+            <Grid container>
+              <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
+                <UserStats stats={stats[user.id]} />
                 <Paper
+                  className={classes.waitingForBox}
                   square
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                  }}
                   variant="outlined"
                 >
-                  <Cube
-                    size={120}
-                    scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
-                  />
+                  <Typography variant="body2">
+                    Waiting For:
+                    {' '}
+                    {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+                  </Typography>
                 </Paper>
               </Grid>
-            )}
-          </Grid>
-        </EditDialogProvider>
-      </StatsDialogProvider>
-    </Paper>
-  );
+              {showScramble && (
+                <Grid item xs={2} sm={3}>
+                  <Paper
+                    square
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                    }}
+                    variant="outlined"
+                  >
+                    <Cube
+                      size={120}
+                      scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
+                    />
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
+          </EditDialogProvider>
+        </StatsDialogProvider>
+      </Paper>
+    );
+  }
 }
 
 Main.propTypes = {
@@ -234,6 +234,7 @@ Main.propTypes = {
   }),
   timerFocused: PropTypes.bool,
   dispatch: PropTypes.func.isRequired,
+  classes: PropTypes.shape().isRequired,
 };
 
 Main.defaultProps = {
@@ -265,4 +266,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(Main);
+export default connect(mapStateToProps)(useStyles(Main));
