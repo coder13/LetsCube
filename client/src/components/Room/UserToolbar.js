@@ -91,6 +91,17 @@ function UserToolbar({ dispatch, room, user }) {
               label="Use inspection"
             />
 
+            <FormControlLabel
+              control={(
+                <Checkbox
+                  checked={user.muteTimer}
+                  onChange={(e) => handleToggle(e, e.target.checked)}
+                  name="muteTimer"
+                />
+              )}
+              label="Mute notification"
+            />
+
             <FormControl>
               <InputLabel id="timer-type-label">Timer Type</InputLabel>
               <Select
@@ -125,6 +136,7 @@ UserToolbar.propTypes = {
   user: PropTypes.shape({
     id: PropTypes.number,
     useInspection: PropTypes.bool,
+    muteTimer: PropTypes.bool,
     timerType: PropTypes.string,
   }),
 };
@@ -136,6 +148,7 @@ UserToolbar.defaultProps = {
   user: {
     id: undefined,
     useInspection: false,
+    muteTimer: false,
     timerType: 'spacebar',
   },
 };

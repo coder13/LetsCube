@@ -41,6 +41,10 @@ const schema = new mongoose.Schema({
   avatar: {
     type: Object,
   },
+  muteTimer: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   _id: true,
   versionKey: false,
