@@ -12,6 +12,7 @@ const logger = require('./logger');
 const initSocket = require('./socket');
 const auth = require('./auth');
 const api = require('./api');
+const { Room } = require('./models');
 
 Error.stackTraceLimit = 100;
 
@@ -118,3 +119,22 @@ try {
 } catch (e) {
   logger.error(e);
 }
+
+/* eslint-disable no-await-in-loop */
+async function asyncForEach(array, callback) {
+  for (let index = 0; index < array.length; index += 1) {
+    await callback(array[index], index, array);
+  }
+}
+
+process.on('SIGINT', () => {
+  Room.find().then(async (rooms) => {
+    await asyncForEach(rooms, async (room) => {
+      await asyncForEach(room.users, async (user) => {
+        await room.dropUser(user);
+      });
+    });
+
+    process.exit(0);
+  });
+});
