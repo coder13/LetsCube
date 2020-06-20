@@ -36,7 +36,7 @@ export const StatsDialogProvider = ({ children }) => {
 };
 
 StatsDialogProvider.propTypes = {
-  children: PropTypes.arrayOf(PropTypes.element).isRequired,
+  children: PropTypes.element.isRequired,
 };
 
 export const useStatsDialog = () => useContext(StatsDialogContext);
