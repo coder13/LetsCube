@@ -75,7 +75,13 @@ function Chat({
   const classes = useStyles();
   const [message, setMessage] = useState('');
   const listRef = useRef();
-  const findUser = (id) => users.find((i) => i.id === id);
+  const findUser = (id) => users.find((i) => i.id === id) || {
+    id: -1,
+    displayName: 'Unknown User',
+    avatar: {
+      url: undefined,
+    },
+  };
 
   const submit = () => {
     dispatch(sendChat({
@@ -144,8 +150,7 @@ function Chat({
               })}
             >
               <ListItemAvatar>
-                {displayAvatar
-                  && <Avatar src={sender.avatar.url} />}
+                {displayAvatar ? <Avatar src={sender.avatar.url} /> : <> </>}
               </ListItemAvatar>
 
               <ListItemText
