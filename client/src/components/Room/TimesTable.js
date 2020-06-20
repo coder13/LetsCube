@@ -240,17 +240,25 @@ function TimesTable({
               />
             ))}
           </TableRow>
+
+          <TableRow className={classes.tr}>
+            <TableCell className={clsx(classes.td, classes.tableHeaderIndex)}>
+              <Typography variant="subtitle2">wins</Typography>
+            </TableCell>
+            {sortedUsers.map((u) => (
+              <TableCell
+                key={u.id}
+                className={clsx(classes.td, classes.tableHeaderTime)}
+              >
+                {stats[u.id] ? stats[u.id].wins : 0}
+              </TableCell>
+            ))}
+          </TableRow>
         </TableHead>
 
         <TableBody className={classes.tbody} ref={tableBodyRef}>
           {[...attempts].reverse().map((attempt, index) => {
-            const results = users
-              .map((u) => (attempt.results[u.id]
-                && (attempt.results[u.id].penalties
-                  && !attempt.results[u.id].penalties.DNF)
-                ? attempt.results[u.id].time : undefined))
-              .filter((r) => !!r && r > -1);
-            const best = Math.min(...results);
+            const reversedI = attempts.length - index - 1;
 
             return (
               <TableRow className={classes.tr} key={attempt.id}>
@@ -268,7 +276,9 @@ function TimesTable({
                     attemptId={attempt.id}
                     solveNum={attempts.length - index}
                     attempt={attempt.results[u.id]}
-                    highlight={attempt.results[u.id] && attempt.results[u.id].time === best}
+                    highlight={attempt.results[u.id]
+                      && Math.round(attempt.results[u.id].time)
+                        === Math.round(stats.bests[reversedI])}
                     isSelfUser={u.id === userId}
                   />
                 )))}

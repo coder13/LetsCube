@@ -62,6 +62,10 @@ export default function (_attempts, users) {
   const attempts = _attempts.map((i) => i.results);
 
   const stats = {};
+  const bests = attempts.map((attempt) => Math.min(...Object.keys(attempt)
+    .map((userId) => (attempt[userId].penalties && attempt[userId].penalties.DNF
+      ? -1 : attempt[userId].time)).filter((time) => time > 0)));
+
   users.forEach((user) => {
     let userAttempts = attempts.map((attempt) => attempt[user.id]);
 
@@ -76,7 +80,19 @@ export default function (_attempts, users) {
 
     userAttempts = userAttempts.map(getTimeOrDNF);
 
+    let wins = 0;
+    for (let i = 0; i < attempts.length; i += 1) {
+      if (attempts[i][user.id]
+          && Math.round(attempts[i][user.id].time) === Math.round(bests[i])) {
+        wins += 1;
+      }
+    }
+
+    // bests.map((time, index) => attempts[index][user.id]
+    //  attempts[index][user.id].time).reduce((a, b) => a + b)
+
     stats[user.id] = {
+      wins,
       mean: mean(userAttempts),
       current: {
         single: userAttempts[userAttempts.length - 1] || userAttempts[userAttempts.length - 2],
@@ -95,5 +111,6 @@ export default function (_attempts, users) {
     };
   });
 
+  stats.bests = bests;
   return stats;
 }
