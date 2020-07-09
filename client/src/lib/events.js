@@ -86,6 +86,11 @@ const Events = [{
 //   id: '333mbf',
 //   name: '3x3x3 Multi-Blind',
 }, {
+  id: 'fto',
+  scrambler: 'fto',
+  name: 'FTO',
+  group: 'Other',
+}, {
   id: 'pll',
   scrambler: 'pll',
   name: 'PLL',
