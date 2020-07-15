@@ -514,7 +514,10 @@ module.exports = ({ app, expressSession }) => {
       }
 
       if (socket.user) {
-        delete SocketUsers[socket.userId];
+        if (Object.keys(SocketUsers[socket.userId]).length === 0) {
+          delete SocketUsers[socket.userId];
+        }
+
         usersOnline = Object.keys(SocketUsers).length;
         logger.debug(`Users online: ${usersOnline}`);
 
