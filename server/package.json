@@ -22,7 +22,7 @@
     "passport-oauth2": "^1.5.0",
     "passport-wca": "^1.0.3",
     "rest-api-errors": "^1.2.1",
-    "scrambow": "^1.5.0",
+    "scrambow": "^1.6.0",
     "semver": "6.3.0",
     "socket.io": "^2.3.0",
     "socket.io-logger": "0.0.2",
