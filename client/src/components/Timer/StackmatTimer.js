@@ -36,7 +36,9 @@ class Timer extends React.Component {
     this.rootRef = React.createRef();
 
     this.state = {
+      focused: true,
       status: STATUS.RESTING,
+      started: undefined,
       time: 0,
       penalties: {
         /* inspection: false, */
@@ -45,6 +47,9 @@ class Timer extends React.Component {
         /* AUF: false, */
       },
     };
+
+    this._keyDown = this.keyDown.bind(this);
+    this._keyUp = this.keyUp.bind(this);
   }
 
   async componentDidMount() {
@@ -80,7 +85,7 @@ class Timer extends React.Component {
         return;
       }
 
-      if (event.data.state.id < 0) {
+      if (event.data.state.id < 0 && event.data.state.id !== 2) {
         return;
       }
 
@@ -88,10 +93,11 @@ class Timer extends React.Component {
       console.log(event.data.bothHands, event.data.isReset, event.data.isRunning, event.data.leftHand, event.data.rightHand, event.data.state.id, event.data.state.descriptor);
 
       if (lastEvent.data.isReset && !lastEvent.data.isRunning && event.data.isRunning) {
-        console.log(91);
         this.setStatus(STATUS.TIMING)
       } else if (lastEvent.data.isRunning && !event.data.isRunning) {
-        this.setStatus(STATUS.SUBMITTING);
+        this.setStatus(event.data.time ? STATUS.SUBMITTING : STATUS.RESTING);
+      } else if (lastEvent.data.time && !event.data.isRunning && !event.data.time) {
+        this.setStatus(STATUS.RESTING);
       }
 
       this.setState({
@@ -101,12 +107,132 @@ class Timer extends React.Component {
       lastEvent = event;
     }
 
+    window.addEventListener('keydown', this._keyDown, false);
+    window.addEventListener('keyup', this._keyUp, false);
+
     console.log(microphone);
     console.log(stackmatSignal);
   }
 
+  componentWillUnmount() {
+    if (this.timerObj) {
+      clearInterval(this.timerObj);
+    }
+
+    this.audioContext.close();
+
+    window.removeEventListener('keydown', this._keyDown, false);
+    window.removeEventListener('keyup', this._keyUp, false);
+  }
+
+  keyDown(event) {
+    const { useInspection, disabled } = this.props;
+    const { focused, status } = this.state;
+    console.log(focused, this.keyIsDown, disabled);
+
+    if (!focused || this.keyIsDown || disabled) {
+      return;
+    }
+
+    if (event.keyCode === 13) {
+      event.preventDefault();
+    }
+
+
+    if (!useInspection) {
+      return;
+    }
+
+    if (event.keyCode === 27 && status === STATUS.INSPECTING) { // escape
+      clearInterval(this.timerObj);
+      this.reset();
+    }
+
+    if (event.keyCode === 32) { // space
+      event.preventDefault();
+      switch (status) {
+        case STATUS.RESTING:
+          this.setStatus(STATUS.PRIMING);
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (status === STATUS.TIMING) {
+      this.setStatus(STATUS.SUBMITTING_DOWN);
+    }
+
+    this.keyIsDown = true;
+  }
+
+  keyUp(event) {
+    const { useInspection } = this.props;
+    const { focused, status } = this.state;
+
+    if (!useInspection) {
+      return;
+    }
+
+    this.keyIsDown = false;
+    if (!focused) {
+      return;
+    }
+
+    // Keydown and keyup for enter
+    if (event.keyCode === 13 && status === STATUS.SUBMITTING) {
+      event.preventDefault();
+      this.submitTime();
+    }
+
+    if (event.keyCode === 32) {
+      event.preventDefault();
+      switch (status) {
+        case STATUS.PRIMING:
+          this.setStatus(STATUS.INSPECTING);
+          this.setState({
+            started: now(),
+            time: 0,
+          });
+          if (this.timerObj) {
+            clearInterval(this.timerObj);
+          }
+          this.timerObj = setInterval(this.tick.bind(this), 10);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  tick() {
+    const {
+      status, time, started, penalties,
+    } = this.state;
+
+    if (this.inspecting()) {
+      if (time < -2000) {
+        // DNF + Inspection == ran out of time, just submit pure DNF
+        penalties.inspectionDNF = true;
+        // TODO: figure out why I need this hack.
+        // The interval did not want to clear inside the tick function
+        // So delay it by 1 millisecond to get it to work.
+        // hopefully this doesn't break anything.
+        setTimeout(() => {
+          clearInterval(this.timerObj);
+        }, 1);
+        this.setStatus(STATUS.SUBMITTING);
+      } else if (time < 0) {
+        penalties.inspection = true;
+      }
+
+      this.setState({
+        time: 15 * 1000 - (now() - started),
+      });
+    }
+  }
+
   setStatus (status) {
-    console.log(102, status);
     this.setState({ status });
 
     if (STATUSES.indexOf(status) > -1) {
@@ -114,13 +240,11 @@ class Timer extends React.Component {
     }
   }
 
-  componentWillUnmount() {
-    this.audioContext.close();
-  }
-
-  submitTime() {
+  submitTime(event) {
     const { onSubmitTime } = this.props;
     const { penalties } = this.state;
+
+    if (event) event.preventDefault();
 
     if (onSubmitTime) {
       onSubmitTime({
@@ -204,6 +328,10 @@ class Timer extends React.Component {
     }
 
     return adjustedTime;
+  }
+
+  onEnter(e) {
+    e.preventDefault();
   }
 
   renderSubmitting() {
@@ -291,8 +419,9 @@ class Timer extends React.Component {
 
 Timer.propTypes = {
   disabled: PropTypes.bool,
+  focused: PropTypes.bool,
   onSubmitTime: PropTypes.func.isRequired,
-  // useInspection: PropTypes.bool.isRequired,
+  useInspection: PropTypes.bool.isRequired,
   hideTime: PropTypes.bool,
   classes: PropTypes.shape().isRequired,
   onStatusChange: PropTypes.func,
@@ -302,6 +431,7 @@ Timer.propTypes = {
 Timer.defaultProps = {
   disabled: false,
   hideTime: false,
+  focused: true,
   onStatusChange: () => {},
   onPriming: () => {},
 };
