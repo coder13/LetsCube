@@ -89,9 +89,6 @@ class Timer extends React.Component {
         return;
       }
 
-      // handle(event.data)
-      console.log(event.data.bothHands, event.data.isReset, event.data.isRunning, event.data.leftHand, event.data.rightHand, event.data.state.id, event.data.state.descriptor);
-
       if (lastEvent.data.isReset && !lastEvent.data.isRunning && event.data.isRunning) {
         this.setStatus(STATUS.TIMING)
       } else if (lastEvent.data.isRunning && !event.data.isRunning) {
@@ -109,9 +106,6 @@ class Timer extends React.Component {
 
     window.addEventListener('keydown', this._keyDown, false);
     window.addEventListener('keyup', this._keyUp, false);
-
-    console.log(microphone);
-    console.log(stackmatSignal);
   }
 
   componentWillUnmount() {
@@ -386,7 +380,7 @@ class Timer extends React.Component {
 
     return (
       <>
-        <p>stackmat</p>
+        <p style={{paddingTop: '1em'}}>Stackmat (beta)</p>
         <Typography
           className={clsx(classes.timerText, {
             [classes.disabled]: disabled || !focused,
