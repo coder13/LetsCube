@@ -114,6 +114,7 @@ function UserToolbar({ dispatch, room, user }) {
               >
                 <MenuItem value="spacebar">Keyboard</MenuItem>
                 <MenuItem value="manual">Manual</MenuItem>
+                <MenuItem value="stackmat">Stackmat</MenuItem>
               </Select>
             </FormControl>
           </FormGroup>

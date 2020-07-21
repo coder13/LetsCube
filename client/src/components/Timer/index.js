@@ -3,10 +3,12 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import SpacebarTimer from './SpacebarTimer';
 import ManualTimer from './ManualTimer';
+import StackmatTimer from './StackmatTimer';
 
 const timers = {
   spacebar: SpacebarTimer,
   manual: ManualTimer,
+  stackmat: StackmatTimer,
 };
 
 function Timer({
@@ -25,7 +27,7 @@ function Timer({
 }
 
 Timer.propTypes = {
-  type: PropTypes.oneOf(['spacebar', 'manual']),
+  type: PropTypes.oneOf(['spacebar', 'manual', 'stackmat']),
   disabled: PropTypes.bool,
   focused: PropTypes.bool,
   onSubmitTime: PropTypes.func.isRequired,
