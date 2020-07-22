@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -95,6 +96,18 @@ const init = async () => {
 
   app.use('/auth', auth(app, passport));
   app.use('/api', api(app));
+
+  app.get('/api/announcements', (req, res) => {
+    fs.readFile('./announcements', (err, data) => {
+      if (err) {
+        res.status(500).end('');
+        logger.error(err);
+        return;
+      }
+
+      res.end(data);
+    });
+  });
 
   app.use('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/build/index.html'));

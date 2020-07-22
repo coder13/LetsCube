@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -56,6 +57,11 @@ const useStyles = makeStyles((theme) => ({
     padding: '1em',
     alignItems: 'center',
   },
+  announcements: {
+    padding: '1em',
+    marginTop: '1em',
+    marginBottom: '1em',
+  },
 }));
 
 function RoomList({
@@ -63,6 +69,7 @@ function RoomList({
 }) {
   const classes = useStyles();
   const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
+  const [announcements, setAnnouncements] = React.useState('');
   const publicRooms = rooms.filter((room) => !room.private);
   const privateRooms = rooms.filter((room) => !!room.private);
   const showAlert = !!user.id && !user.canJoinRoom;
@@ -71,10 +78,31 @@ function RoomList({
     dispatch(createRoom(options));
   };
 
+  React.useEffect(() => {
+    fetch('/api/announcements')
+      .then((data) => {
+        if (!data.ok) {
+          throw new Error();
+        }
+        return data.text();
+      })
+      .then((data) => {
+        setAnnouncements(data);
+      });
+  }, []);
+
   return (
     <div className={classes.root}>
       <div className={classes.roomList}>
         <Container maxWidth="md" disableGutters>
+          { announcements && (
+            <Paper className={classes.announcements}>
+              <ReactMarkdown
+                linkTarget="_blank"
+                source={announcements}
+              />
+            </Paper>
+          )}
           { showAlert && (
             <Alert
               className={classes.alert}
