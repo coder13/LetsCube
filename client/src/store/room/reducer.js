@@ -31,6 +31,7 @@ const INITIAL_STATE = {
   admin: {
     id: null,
   },
+  type: 'normal',
   timerFocused: true,
 };
 
