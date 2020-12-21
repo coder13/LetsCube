@@ -8,7 +8,7 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
-import { formatTime } from '../../lib/utils';
+import { formatTime } from '../../../lib/utils';
 
 const useStyles = makeStyles(() => ({
   scramble: {

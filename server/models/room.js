@@ -71,6 +71,11 @@ const Room = new mongoose.Schema({
   },
   admin: User,
   owner: User,
+  type: {
+    type: String,
+    enum: ['normal', 'grand_prix'],
+    default: 'normal',
+  },
   expireAt: {
     type: Date,
     default: undefined,
