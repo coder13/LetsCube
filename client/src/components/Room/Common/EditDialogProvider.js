@@ -6,8 +6,8 @@ import React, {
 } from 'react';
 import PropTypes from 'prop-types';
 import EditDialog from './EditDialog';
-import { sendEditResult } from '../../store/room/actions';
-import { parseTime } from '../../lib/utils';
+import { sendEditResult } from '../../../store/room/actions';
+import { parseTime } from '../../../lib/utils';
 
 const EditDialogContext = createContext();
 

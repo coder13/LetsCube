@@ -10,11 +10,11 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { formatTime } from '../../lib/utils';
+import { formatTime } from '../../../lib/utils';
 import { useStatsDialog } from './StatsDialogProvider';
 import { useEditDialog } from './EditDialogProvider';
-import TableCellButton from '../TableCellButton';
-import User from '../User';
+import TableCellButton from '../../TableCellButton';
+import User from '../../User';
 
 const useStyles = makeStyles((theme) => ({
   root: {

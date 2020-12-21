@@ -16,9 +16,9 @@ import {
   requestNewScramble,
   changeEvent,
   editRoom,
-} from '../../store/room/actions';
-import { Events } from '../../lib/events';
-import RoomConfigureDialog from '../RoomConfigureDialog';
+} from '../../../store/room/actions';
+import { Events } from '../../../lib/events';
+import RoomConfigureDialog from '../../RoomConfigureDialog';
 import ManageUsersDialog from './ManageUsersDialog';
 
 const useStyles = makeStyles(() => ({

@@ -12,18 +12,18 @@ import HelpIcon from '@material-ui/icons/Help';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import { Cube } from 'react-cube-svg';
 import UIfx from 'uifx';
-import notificationAsset from '../../assets/notification.mp3';
-import calcStats from '../../lib/stats';
+import notificationAsset from '../../../assets/notification.mp3';
+import calcStats from '../../../lib/stats';
 import {
   submitResult,
   sendStatus,
   timerFocused,
-} from '../../store/room/actions';
+} from '../../../store/room/actions';
 import { StatsDialogProvider } from './StatsDialogProvider';
 import { EditDialogProvider } from './EditDialogProvider';
 import TimesTable from './TimesTable';
-import Timer from '../Timer/index';
-import Scramble from '../Scramble';
+import Timer from '../../Timer/index';
+import Scramble from '../../Scramble';
 import UserStats from './UserStats';
 
 const useStyles = withStyles((theme) => ({

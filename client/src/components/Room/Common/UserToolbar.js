@@ -16,8 +16,8 @@ import InputLabel from '@material-ui/core/InputLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
-import { updateCompeting } from '../../store/room/actions';
-import { updateProfile } from '../../store/user/actions';
+import { updateCompeting } from '../../../store/room/actions';
+import { updateProfile } from '../../../store/user/actions';
 
 const useStyles = makeStyles(() => ({
   root: {

@@ -16,7 +16,7 @@ import ListItemAvatar from '@material-ui/core/ListItemAvatar';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import Avatar from '@material-ui/core/Avatar';
 import DeleteIcon from '@material-ui/icons/Delete';
-import { kickUser } from '../../store/room/actions';
+import { kickUser } from '../../../store/room/actions';
 
 const useStyles = makeStyles((theme) => ({
   admin: {

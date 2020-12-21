@@ -10,34 +10,17 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import BottomNavigation from '@material-ui/core/BottomNavigation';
 import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
 import Divider from '@material-ui/core/Divider';
-import ChatIcon from '@material-ui/icons/Chat';
-import TimerIcon from '@material-ui/icons/Timer';
-import Login from './Login';
-import Main from './Main';
-import Chat from './Chat';
-import AdminToolbar from './AdminToolbar';
-import UserToolbar from './UserToolbar';
+import Login from './Common/Login';
+import Chat from './Common/Chat';
+import AdminToolbar from './Common/AdminToolbar';
+import UserToolbar from './Common/UserToolbar';
 import {
   fetchRoom,
   joinRoom,
 } from '../../store/room/actions';
 
-/*
-  GET room
-  if there is no password, POS to the room to join it and start listening with socketio
-  if there is a password:
-    Present login screen, upon submission, send a POST to the room with the password
-    If we get an error, return to / with notifcation about not being able to join room
-    If no error, start listening with socketio
-*/
-
-const panels = [{
-  name: 'Timer',
-  icon: <TimerIcon />,
-}, {
-  name: 'Chat',
-  icon: <ChatIcon />,
-}];
+import Normal from './Normal';
+import GrandPrix from './GrandPrix';
 
 const useStyles = withStyles((theme) => ({
   root: {
@@ -85,7 +68,9 @@ const useStyles = withStyles((theme) => ({
   },
 }));
 
-class RoomNav extends React.Component {
+const panels = [];
+
+class Room extends React.Component {
   constructor(props) {
     super(props);
     const {
@@ -95,8 +80,6 @@ class RoomNav extends React.Component {
     this.state = {
       currentPanel: 0,
     };
-
-    this.tableBodyRef = React.createRef();
 
     if (!room._id) {
       dispatch(fetchRoom(match.params.roomId));
@@ -114,8 +97,9 @@ class RoomNav extends React.Component {
   componentDidUpdate() {
     const { dispatch, room, inRoom } = this.props;
 
-    // inRoom means we're not connected to a room
+    // inRoom means we're connected to a room
     if (!inRoom && room.accessCode) {
+      // request to join the room
       dispatch(joinRoom(room._id));
     }
 
@@ -135,12 +119,75 @@ class RoomNav extends React.Component {
     });
   }
 
+  renderRoom() {
+    const { room } = this.props;
+
+    if (room.type === 'grand_prix') {
+      return <GrandPrix room={room} />;
+    }
+
+    return <Normal room={room} />;
+  }
+
+  renderLoggedIn() {
+    const { classes } = this.props;
+
+    const { currentPanel } = this.state;
+
+    return (
+      <Paper className={classes.root}>
+        <Paper
+          className={classes.toolbarContainer}
+          square
+        >
+          <UserToolbar />
+          { this.isAdmin() && <AdminToolbar /> }
+        </Paper>
+        <Divider />
+        <Grid container direction="row" className={classes.container}>
+          <Grid
+            item
+            className={clsx(classes.panel, {
+              [classes.hiddenOnMobile]: currentPanel !== 0,
+            })}
+            md={8}
+          >
+            { this.renderRoom() }
+          </Grid>
+          <Grid
+            item
+            className={clsx(classes.panel, {
+              [classes.hiddenOnMobile]: currentPanel !== 1,
+            })}
+            md={4}
+          >
+            <Chat />
+          </Grid>
+        </Grid>
+        <BottomNavigation
+          value={currentPanel}
+          showLabels
+          onChange={(e, v) => this.handleChangePanel(e, v)}
+          className={classes.bottomNav}
+        >
+          {panels.map((panel, index) => (
+            <BottomNavigationAction
+              key={panel.name}
+              className={classes.bottomNavItem}
+              label={panel.name}
+              value={index}
+              icon={panel.icon}
+            />
+          ))}
+        </BottomNavigation>
+      </Paper>
+    );
+  }
+
   render() {
     const {
       classes, fetching, inRoom, room,
     } = this.props;
-
-    const { currentPanel } = this.state;
 
     const loggedIn = !room.private || inRoom;
 
@@ -152,69 +199,17 @@ class RoomNav extends React.Component {
       );
     }
 
-    return (
-      <Paper className={classes.root}>
-        { loggedIn && (
-          <Paper
-            className={classes.toolbarContainer}
-            square
-          >
-            <UserToolbar />
-            { this.isAdmin() && <AdminToolbar /> }
-          </Paper>
-        )}
-        <Divider />
-        <Grid container direction="row" className={classes.container}>
-          { !loggedIn ? <Login />
-            : (
-              <>
-                <Grid
-                  item
-                  className={clsx(classes.panel, {
-                    [classes.hiddenOnMobile]: currentPanel !== 0,
-                  })}
-                  md={8}
-                >
-                  <Main />
-                </Grid>
-                <Grid
-                  item
-                  className={clsx(classes.panel, {
-                    [classes.hiddenOnMobile]: currentPanel !== 1,
-                  })}
-                  md={4}
-                >
-                  <Chat />
-                </Grid>
-              </>
-            )}
-
-        </Grid>
-
-        { loggedIn && (
-          <BottomNavigation
-            value={currentPanel}
-            showLabels
-            onChange={(e, v) => this.handleChangePanel(e, v)}
-            className={classes.bottomNav}
-          >
-            {panels.map((panel, index) => (
-              <BottomNavigationAction
-                key={panel.name}
-                className={classes.bottomNavItem}
-                label={panel.name}
-                value={index}
-                icon={panel.icon}
-              />
-            ))}
-          </BottomNavigation>
-        )}
-      </Paper>
+    return (loggedIn ? this.renderLoggedIn()
+      : (
+        <Paper className={classes.root}>
+          <Login />
+        </Paper>
+      )
     );
   }
 }
 
-RoomNav.propTypes = {
+Room.propTypes = {
   fetching: PropTypes.bool,
   room: PropTypes.shape({
     _id: PropTypes.string,
@@ -222,6 +217,7 @@ RoomNav.propTypes = {
     accessCode: PropTypes.string,
     name: PropTypes.string,
     admin: PropTypes.shape(),
+    type: PropTypes.oneOf(['normal', 'grand_prix']),
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -232,13 +228,14 @@ RoomNav.propTypes = {
   classes: PropTypes.shape().isRequired,
 };
 
-RoomNav.defaultProps = {
+Room.defaultProps = {
   fetching: true,
   room: {
     _id: undefined,
     private: false,
     accessCode: undefined,
     name: undefined,
+    type: 'normal',
   },
   user: {
     id: undefined,
@@ -253,4 +250,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(RoomNav));
+export default connect(mapStateToProps)(useStyles(Room));
