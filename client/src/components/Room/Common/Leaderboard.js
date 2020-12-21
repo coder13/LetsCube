@@ -10,7 +10,7 @@ const useStyles = makeStyles(() => ({
 function Leaderboard() {
   const classes = useStyles();
   return (
-    <Paper className={classes.root} variant="outlined" square/>
+    <Paper className={classes.root} variant="outlined" square />
   );
 }
 
