@@ -7,6 +7,8 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import BottomNavigation from '@material-ui/core/BottomNavigation';
 import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
+import Tabs from '@material-ui/core/Tabs';
+import Tab from '@material-ui/core/Tab';
 import Divider from '@material-ui/core/Divider';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
@@ -14,6 +16,7 @@ import Main from '../Common/Main';
 import Chat from '../Common/Chat';
 import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
+import Leaderboard from '../Common/Leaderboard';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -49,8 +52,9 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
   },
   panel: {
+    display: 'flex',
+    flexDirection: 'column',
     flexGrow: 1,
-    transition: `display 5s ${theme.transitions.easing.easeInOut}`,
   },
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,
@@ -67,6 +71,9 @@ const panels = [{
 }, {
   name: 'Chat',
   icon: <ChatIcon />,
+}, {
+  name: 'Leaderboard',
+  icon: <ChatIcon />,
 }];
 
 export const GrandPrixRoom = ({ room, user }) => {
@@ -77,6 +84,18 @@ export const GrandPrixRoom = ({ room, user }) => {
 
   const handleChangePanel = (e, value) => {
     setCurrentPanel(value);
+  };
+
+  const renderCurrentPanel = () => {
+    switch (currentPanel) {
+      case 0:
+      case 1:
+        return <Chat />;
+      case 2:
+        return <Leaderboard />;
+      default:
+        return false;
+    }
   };
 
   return (
@@ -94,7 +113,7 @@ export const GrandPrixRoom = ({ room, user }) => {
         <Grid
           item
           className={clsx(classes.panel, {
-            [classes.hiddenOnMobile]: currentPanel !== 0,
+            [classes.hiddenOnMobile]: currentPanel > 0,
           })}
           md={8}
         >
@@ -103,11 +122,21 @@ export const GrandPrixRoom = ({ room, user }) => {
         <Grid
           item
           className={clsx(classes.panel, {
-            [classes.hiddenOnMobile]: currentPanel !== 1,
+            [classes.hiddenOnMobile]: currentPanel === 0,
           })}
           md={4}
         >
-          <Chat />
+          <Tabs
+            value={currentPanel}
+            centered
+            onChange={handleChangePanel}
+            className={classes.hiddenOnMobile}
+          >
+            <Tab value={0} fullWidth label="Chat" />
+            <Tab value={2} fullWidth label="Leaderboard" />
+          </Tabs>
+
+          { renderCurrentPanel() }
         </Grid>
       </Grid>
 
