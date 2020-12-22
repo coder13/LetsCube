@@ -14,6 +14,7 @@ import TableCellButton from '../../TableCellButton';
 import TableStatusCell from './TableStatusCell';
 import TableTimeCell from './TableTimeCell';
 import User from '../../User';
+import { getUsersInRoom } from '../../../store/room/selectors';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -90,9 +91,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function TimesTable({
-  room: {
-    users, statuses, attempts, competing, admin,
-  }, stats, userId,
+  room, stats, userId,
 }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
@@ -103,15 +102,23 @@ function TimesTable({
     tableBodyRef.current.scrollTop = 0;
   }
 
+  const {
+    statuses, attempts, competing, admin,
+  } = room;
+
+  const usersInRoom = getUsersInRoom(room);
+
   // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
-  const sortedUsers = users.sort((userA, userB) => +competing[userB.id] - +competing[userA.id]);
+  const sortedUsers = usersInRoom.sort((userA, userB) => (
+    +competing[userB.id] - +competing[userA.id]
+  ));
 
   const showScramble = (attempt) => {
     showStatsDialog({
       title: `Solve ${attempt.id + 1}`,
       stats: [{
         scramble: attempt.scrambles[0],
-        results: users.map((user) => ({
+        results: usersInRoom.map((user) => ({
           name: user.displayName,
           result: attempt.results[user.id],
         })).sort((a, b) => a.time - b.time),

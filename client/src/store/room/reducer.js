@@ -25,9 +25,11 @@ const INITIAL_STATE = {
   private: null,
   password: null, // for reconnecting
   users: [],
+  usersInRoom: [],
   statuses: {},
   attempts: [],
   competing: {},
+  inRoom: {},
   waitingFor: [],
   admin: {
     id: null,
@@ -64,10 +66,17 @@ const reducers = {
       ...state.competing,
       [action.user.id]: true,
     },
+    inRoom: {
+      ...state.inRoom,
+      [action.user.id]: true,
+    },
   }),
   [USER_LEFT]: (state, action) => ({
     ...state,
-    users: state.users.filter((user) => user.id !== action.user),
+    inRoom: {
+      ...state.inRoom,
+      [action.user]: false,
+    },
   }),
   [JOIN_ROOM]: (state, action) => ({ ...state, password: action.password }),
   [LEAVE_ROOM]: (state) => ({

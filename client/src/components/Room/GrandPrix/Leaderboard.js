@@ -2,6 +2,8 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect, useDispatch } from 'react-redux';
 import { makeStyles } from '@material-ui/core/styles';
+import Toolbar from '@material-ui/core/Toolbar';
+import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
 import TableContainer from '@material-ui/core/TableContainer';
 import Table from '@material-ui/core/Table';
@@ -42,7 +44,7 @@ function Leaderboard({ room, user }) {
 
   const currentAttemptIndex = room.attempts.length - 1;
   const currentAttempt = room.attempts[currentAttemptIndex];
-  const currentResults = room.attempts[currentAttemptIndex].results;
+  const currentResults = currentAttempt ? currentAttempt.results : [];
   const best = Object.keys(currentResults).map((userId) => (
     (!currentResults[userId]
       || (currentResults[userId].penalties
@@ -55,6 +57,14 @@ function Leaderboard({ room, user }) {
 
   return (
     <Paper className={classes.root} variant="outlined" square>
+      <Toolbar
+        className={classes.titlebar}
+        variant="dense"
+      >
+        <Typography variant="h6" className={classes.title}>
+          Leaderboard
+        </Typography>
+      </Toolbar>
       <StatsDialogProvider>
         <EditDialogProvider dispatch={dispatch}>
           <TableContainer className={classes.table}>
@@ -71,7 +81,7 @@ function Leaderboard({ room, user }) {
               <TableBody>
                 {sortedPoints.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell>{u.id}</TableCell>
+                    <TableCell>{room.users.find((i) => +i.id === +u.id).displayName}</TableCell>
                     <TableCell>{u.points}</TableCell>
 
                     {!currentResults[u.id]
@@ -99,6 +109,7 @@ function Leaderboard({ room, user }) {
 
 Leaderboard.propTypes = {
   room: PropTypes.shape({
+    users: PropTypes.arrayOf(PropTypes.shape()),
     points: PropTypes.shape(),
     statuses: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
@@ -113,6 +124,7 @@ Leaderboard.propTypes = {
 
 Leaderboard.defaultProps = {
   room: {
+    users: [],
     points: {},
     statuses: {},
     attempts: [],

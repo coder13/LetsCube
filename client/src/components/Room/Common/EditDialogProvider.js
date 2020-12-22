@@ -59,7 +59,7 @@ export const EditDialogProvider = ({ dispatch, children }) => {
 
 EditDialogProvider.propTypes = {
   dispatch: PropTypes.func.isRequired,
-  children: PropTypes.arrayOf(PropTypes.element).isRequired,
+  children: PropTypes.node.isRequired,
 };
 
 export const useEditDialog = () => useContext(EditDialogContext);
