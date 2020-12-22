@@ -170,6 +170,7 @@ const socketMiddleware = (store) => {
       },
       [Protocol.EDIT_RESULT]: (result) => {
         store.dispatch(editResult(result));
+        // calculate grand prix points
       },
       [Protocol.MESSAGE]: (message) => {
         store.dispatch(receiveChat(message));

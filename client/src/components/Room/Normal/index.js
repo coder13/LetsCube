@@ -11,7 +11,7 @@ import Divider from '@material-ui/core/Divider';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
 import Main from '../Common/Main';
-import Chat from '../Common/Chat';
+import Chat from '../Panels/Chat';
 import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
 
