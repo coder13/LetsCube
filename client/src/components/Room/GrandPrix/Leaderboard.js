@@ -15,6 +15,7 @@ import TableStatusCell from '../Common/TableStatusCell';
 import TableTimeCell from '../Common/TableTimeCell';
 import { StatsDialogProvider } from '../Common/StatsDialogProvider';
 import { EditDialogProvider } from '../Common/EditDialogProvider';
+import User from '../../User';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -30,6 +31,9 @@ const useStyles = makeStyles(() => ({
     overflowY: 'auto',
     height: 0,
     padding: 0,
+  },
+  user: {
+    alignItems: 'baseline',
   },
 }));
 
@@ -81,7 +85,14 @@ function Leaderboard({ room, user }) {
               <TableBody>
                 {sortedPoints.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell>{room.users.find((i) => +i.id === +u.id).displayName}</TableCell>
+                    <TableCell>
+                      <>
+                        <User
+                          className={classes.user}
+                          user={room.users.find((i) => +i.id === +u.id)}
+                        />
+                      </>
+                    </TableCell>
                     <TableCell>{u.points}</TableCell>
 
                     {!currentResults[u.id]

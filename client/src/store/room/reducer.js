@@ -61,7 +61,7 @@ const reducers = {
   }),
   [USER_JOIN]: (state, action) => ({
     ...state,
-    users: state.users.concat(action.user),
+    users: [...state.users.filter((i) => +i.id !== action.user.id), action.user],
     competing: {
       ...state.competing,
       [action.user.id]: true,

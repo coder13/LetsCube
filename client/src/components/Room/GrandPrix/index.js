@@ -10,7 +10,7 @@ import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
 import Divider from '@material-ui/core/Divider';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
-import Main from '../Common/Main';
+import Main from './GrandPrixMain';
 import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
 import Chat from '../Panels/Chat';

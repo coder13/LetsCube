@@ -7,6 +7,7 @@ import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
+import grey from '@material-ui/core/colors/grey';
 import { Cube } from 'react-cube-svg';
 import UIfx from 'uifx';
 import notificationAsset from '../../../assets/notification.mp3';
@@ -16,13 +17,13 @@ import {
   sendStatus,
   timerFocused,
 } from '../../../store/room/actions';
-import { StatsDialogProvider } from './StatsDialogProvider';
-import { EditDialogProvider } from './EditDialogProvider';
-import TimesTable from './TimesTable';
+import { StatsDialogProvider } from '../Common/StatsDialogProvider';
+import { EditDialogProvider } from '../Common/EditDialogProvider';
+import TimesTable from '../Common/TimesTable';
 import HelpPopover from '../../HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../Scramble';
-import UserStats from './UserStats';
+import UserStats from '../Common/UserStats';
 
 const useStyles = withStyles((theme) => ({
   root: {
@@ -169,22 +170,8 @@ class Main extends React.Component {
                 )
                 : <TimesTable room={room} stats={stats} userId={user.id} />}
               <Grid container>
-                <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
-                  <UserStats stats={stats[user.id]} />
-                  <Paper
-                    className={classes.waitingForBox}
-                    square
-                    variant="outlined"
-                  >
-                    <Typography variant="body2">
-                      Waiting For:
-                      {' '}
-                      {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
-                    </Typography>
-                  </Paper>
-                </Grid>
                 {showScramble && (
-                  <Grid item xs={2} sm={3}>
+                  <Grid item xs={12}>
                     <Paper
                       square
                       style={{
@@ -192,16 +179,20 @@ class Main extends React.Component {
                         justifyContent: 'center',
                         alignItems: 'center',
                         height: '100%',
+                        backgroundColor: grey[100],
                       }}
                       variant="outlined"
                     >
                       <Cube
-                        size={120}
+                        size={240}
                         scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                       />
                     </Paper>
                   </Grid>
                 )}
+                <Grid item xs={12}>
+                  <UserStats stats={stats[user.id]} />
+                </Grid>
               </Grid>
             </EditDialogProvider>
           </StatsDialogProvider>
