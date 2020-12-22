@@ -7,16 +7,14 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import BottomNavigation from '@material-ui/core/BottomNavigation';
 import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
-import Tabs from '@material-ui/core/Tabs';
-import Tab from '@material-ui/core/Tab';
 import Divider from '@material-ui/core/Divider';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
 import Main from '../Common/Main';
-import Chat from '../Common/Chat';
 import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
-import Leaderboard from '../Common/Leaderboard';
+import Chat from '../Panels/Chat';
+import Leaderboard from './Leaderboard';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -25,9 +23,6 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: 'column',
     margin: 'auto',
     width: '100%',
-    [theme.breakpoints.up('lg')]: {
-      width: '83.333333%',
-    },
   },
   bottomNav: {
     width: '100%',
@@ -44,6 +39,7 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: '100%',
   },
   hiddenOnMobile: {
+    display: 'flex',
     [theme.breakpoints.down('sm')]: {
       display: 'none',
     },
@@ -52,7 +48,6 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
   },
   panel: {
-    display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
   },
@@ -69,10 +64,10 @@ const panels = [{
   name: 'Timer',
   icon: <TimerIcon />,
 }, {
-  name: 'Chat',
+  name: 'Leaderboard',
   icon: <ChatIcon />,
 }, {
-  name: 'Leaderboard',
+  name: 'Chat',
   icon: <ChatIcon />,
 }];
 
@@ -83,19 +78,7 @@ export const GrandPrixRoom = ({ room, user }) => {
   const isAdmin = () => room.admin && room.admin.id === user.id;
 
   const handleChangePanel = (e, value) => {
-    setCurrentPanel(value);
-  };
-
-  const renderCurrentPanel = () => {
-    switch (currentPanel) {
-      case 0:
-      case 1:
-        return <Chat />;
-      case 2:
-        return <Leaderboard />;
-      default:
-        return false;
-    }
+    setCurrentPanel(+value);
   };
 
   return (
@@ -113,30 +96,29 @@ export const GrandPrixRoom = ({ room, user }) => {
         <Grid
           item
           className={clsx(classes.panel, {
-            [classes.hiddenOnMobile]: currentPanel > 0,
+            [classes.hiddenOnMobile]: currentPanel !== 0,
           })}
-          md={8}
+          md={4}
         >
           <Main />
         </Grid>
         <Grid
           item
           className={clsx(classes.panel, {
-            [classes.hiddenOnMobile]: currentPanel === 0,
+            [classes.hiddenOnMobile]: currentPanel !== 1,
           })}
           md={4}
         >
-          <Tabs
-            value={currentPanel}
-            centered
-            onChange={handleChangePanel}
-            className={classes.hiddenOnMobile}
-          >
-            <Tab value={0} fullWidth label="Chat" />
-            <Tab value={2} fullWidth label="Leaderboard" />
-          </Tabs>
-
-          { renderCurrentPanel() }
+          <Leaderboard />
+        </Grid>
+        <Grid
+          item
+          className={clsx(classes.panel, {
+            [classes.hiddenOnMobile]: currentPanel !== 2,
+          })}
+          md={4}
+        >
+          <Chat />
         </Grid>
       </Grid>
 
