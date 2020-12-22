@@ -91,7 +91,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function TimesTable({
-  room, stats, userId,
+  room, stats, userId, userFilter,
 }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
@@ -106,7 +106,7 @@ function TimesTable({
     statuses, attempts, competing, admin,
   } = room;
 
-  const usersInRoom = getUsersInRoom(room);
+  const usersInRoom = getUsersInRoom(room).filter(userFilter);
 
   // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
   const sortedUsers = usersInRoom.sort((userA, userB) => (
@@ -236,6 +236,7 @@ TimesTable.propTypes = {
   }),
   stats: PropTypes.shape(),
   userId: PropTypes.number,
+  userFilter: PropTypes.func,
 };
 
 TimesTable.defaultProps = {
@@ -248,6 +249,7 @@ TimesTable.defaultProps = {
   },
   stats: {},
   userId: 0,
+  userFilter: () => true,
 };
 
 export default TimesTable;

@@ -100,7 +100,7 @@ export const GrandPrixRoom = ({ room, user }) => {
           })}
           md={4}
         >
-          <Main />
+          <Main onlyShowSelf />
         </Grid>
         <Grid
           item

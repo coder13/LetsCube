@@ -114,7 +114,7 @@ class Main extends React.Component {
 
   render() {
     const {
-      classes, dispatch, room, user,
+      classes, dispatch, room, user, onlyShowSelf,
     } = this.props;
 
     const { helpAnchor } = this.state;
@@ -191,7 +191,16 @@ class Main extends React.Component {
                 )}
               </div>
               <Divider />
-              <TimesTable room={room} stats={stats} userId={user.id} />
+              { onlyShowSelf
+                ? (
+                  <TimesTable
+                    room={room}
+                    stats={stats}
+                    userId={user.id}
+                    userFilter={(u) => +u.id === +user.id}
+                  />
+                )
+                : <TimesTable room={room} stats={stats} userId={user.id} />}
               <Grid container>
                 <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
                   <UserStats stats={stats[user.id]} />
@@ -263,6 +272,7 @@ Main.propTypes = {
   }),
   dispatch: PropTypes.func.isRequired,
   classes: PropTypes.shape().isRequired,
+  onlyShowSelf: PropTypes.bool,
 };
 
 Main.defaultProps = {
@@ -287,6 +297,7 @@ Main.defaultProps = {
     muteTimer: false,
     timerType: 'spacebar',
   },
+  onlyShowSelf: false,
 };
 
 const mapStateToProps = (state) => ({
