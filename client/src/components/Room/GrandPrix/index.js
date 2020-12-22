@@ -4,12 +4,18 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import Grid from '@material-ui/core/Grid';
+import AppBar from '@material-ui/core/AppBar';
+import Toolbar from '@material-ui/core/Toolbar';
+import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
 import BottomNavigation from '@material-ui/core/BottomNavigation';
 import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
 import Divider from '@material-ui/core/Divider';
+import IconButton from '@material-ui/core/IconButton';
 import ChatIcon from '@material-ui/icons/Chat';
 import TimerIcon from '@material-ui/icons/Timer';
+import ArrowForwardIcon from '@material-ui/icons/ArrowForward';
+import ArrowBackIcon from '@material-ui/icons/ArrowBack';
 import Main from './GrandPrixMain';
 import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
@@ -46,6 +52,7 @@ const useStyles = makeStyles((theme) => ({
   },
   container: {
     flexGrow: 1,
+    justifyContent: 'center',
   },
   panel: {
     flexDirection: 'column',
@@ -57,6 +64,13 @@ const useStyles = makeStyles((theme) => ({
   toolbarContainer: {
     display: 'flex',
     flexDirection: 'row',
+  },
+  chatTitle: {
+    flexGrow: 1,
+  },
+  floatingPanel: {
+    position: 'fixed',
+    right: 0,
   },
 }));
 
@@ -74,6 +88,7 @@ const panels = [{
 export const GrandPrixRoom = ({ room, user }) => {
   const classes = useStyles();
   const [currentPanel, setCurrentPanel] = useState(0);
+  const [chatVisible, setChatVisible] = useState(true);
 
   const isAdmin = () => room.admin && room.admin.id === user.id;
 
@@ -95,30 +110,44 @@ export const GrandPrixRoom = ({ room, user }) => {
       <Grid container direction="row" className={classes.container}>
         <Grid
           item
-          className={clsx(classes.panel, {
+          className={clsx(classes.panel, classes.animateWidth, {
             [classes.hiddenOnMobile]: currentPanel !== 0,
           })}
-          md={4}
+          md={chatVisible ? 6 : 7}
         >
           <Main onlyShowSelf />
         </Grid>
         <Grid
           item
-          className={clsx(classes.panel, {
+          className={clsx(classes.panel, classes.animateWidth, {
             [classes.hiddenOnMobile]: currentPanel !== 1,
           })}
-          md={4}
+          md={3}
         >
           <Leaderboard />
         </Grid>
         <Grid
           item
-          className={clsx(classes.panel, {
+          className={clsx(classes.panel, classes.animateWidth, {
             [classes.hiddenOnMobile]: currentPanel !== 2,
+            [classes.floatingPanel]: !chatVisible,
           })}
-          md={4}
+          md={chatVisible ? 3 : 1}
         >
-          <Chat />
+          <AppBar position="static" color="transparent">
+            <Toolbar variant="dense">
+              <Typography className={classes.chatTitle}>
+                Chat
+              </Typography>
+              <IconButton
+                edge="end"
+                onClick={() => setChatVisible(!chatVisible)}
+              >
+                {chatVisible ? <ArrowForwardIcon /> : <ArrowBackIcon /> }
+              </IconButton>
+            </Toolbar>
+          </AppBar>
+          { chatVisible && <Chat /> }
         </Grid>
       </Grid>
 
