@@ -69,6 +69,11 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
+  inRoom: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
   admin: User,
   owner: User,
   type: {
@@ -94,8 +99,12 @@ Room.virtual('scrambler').get(function () {
   return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
+Room.virtual('usersInRoom').get(function () {
+  return this.users.filter(({ id }) => this.inRoom.get(id.toString()));
+});
+
 Room.virtual('usersLength').get(function () {
-  return this.users.length;
+  return this.usersInRoom.length;
 });
 
 Room.virtual('private').get(function () {
@@ -113,12 +122,16 @@ Room.methods.updateStale = function updateStale(stale) {
 };
 
 Room.methods.addUser = async function (user, updateAdmin) {
-  if (this.users.find((i) => i.id === user.id)) {
+  if (this.inRoom.get(user.id.toString())) {
     return false;
   }
 
-  this.users.push(user);
-  this.competing.set(user.id.toString(), true);
+  if (!this.users.find((i) => i.id === user.id)) {
+    this.users.push(user);
+    this.competing.set(user.id.toString(), true);
+  }
+
+  this.inRoom.set(user.id.toString(), true);
 
   if (this.waitingFor.length === 0) {
     this.waitingFor.push(user.id);
@@ -133,7 +146,8 @@ Room.methods.addUser = async function (user, updateAdmin) {
 };
 
 Room.methods.dropUser = async function (user, updateAdmin) {
-  this.users = this.users.filter((i) => i.id !== user.id);
+  // this.users = this.users.filter((i) => i.id !== user.id);
+  this.inRoom.set(user.id.toString(), false);
   this.waitingFor.splice(this.waitingFor.indexOf(user.id), 1);
 
   await this.save();
@@ -184,7 +198,8 @@ Room.methods.newAttempt = function () {
   this.attempts = this.attempts.concat([attempt]);
 
   this.waitingFor = this.users
-    .filter(({ id }) => this.competing.get(id.toString())).map(({ id }) => +id);
+    .filter(({ id }) => this.competing.get(id.toString()) && this.inRoom.get(id.toString()))
+    .map(({ id }) => +id);
 
   return this.save();
 };

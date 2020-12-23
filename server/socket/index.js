@@ -8,12 +8,14 @@ const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
+// Data for people not in room
 const roomMask = (room) => ({
-  ..._.partial(_.pick, _, ['_id', 'name', 'event', 'usersLength', 'private'])(room),
-  users: room.private ? undefined : room.users.map((user) => user.displayName),
+  ..._.partial(_.pick, _, ['_id', 'name', 'event', 'usersLength', 'private', 'type'])(room),
+  users: room.private ? undefined : room.usersInRoom.map((user) => user.displayName),
 });
 
-const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'attempts', 'admin', 'accessCode', 'usersLength', 'private']);
+// Data for people in room
+const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'attempts', 'admin', 'accessCode', 'inRoom', 'usersLength', 'private', 'type']);
 
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
@@ -305,6 +307,7 @@ module.exports = ({ app, expressSession }) => {
 
       const newRoom = new Room({
         name: options.name,
+        type: options.type,
       });
 
       if (options.password) {
