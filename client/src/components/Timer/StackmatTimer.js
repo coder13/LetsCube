@@ -122,16 +122,15 @@ class Timer extends React.Component {
   keyDown(event) {
     const { useInspection, disabled } = this.props;
     const { focused, status } = this.state;
-    console.log(focused, this.keyIsDown, disabled);
 
     if (!focused || this.keyIsDown || disabled) {
       return;
     }
 
-    if (event.keyCode === 13) {
+    if (event.keyCode === 13 && status === STATUS.SUBMITTING) {
       event.preventDefault();
+      this.submitTime();
     }
-
 
     if (!useInspection) {
       return;
@@ -338,7 +337,7 @@ class Timer extends React.Component {
     const editingTime = ((AUF || inspection || DNF) ? penaltyHalf : '') + finalTimeHalf;
 
     return (
-      <div>
+      <form onSubmit={(e) => this.submitTime(e)}>
         <Typography
           variant="h4"
         >
@@ -370,7 +369,7 @@ class Timer extends React.Component {
         >
           Or press Enter to submit time
         </Typography>
-      </div>
+      </form>
     );
   }
 
@@ -400,9 +399,7 @@ class Timer extends React.Component {
 
     return (
       <Box
-        className={clsx(classes.root, {
-          [classes.fullscreen]: status !== STATUS.RESTING,
-        })}
+        className={classes.root}
         ref={this.rootRef}
       >
         {status === STATUS.SUBMITTING ? this.renderSubmitting() : this.renderTiming()}
