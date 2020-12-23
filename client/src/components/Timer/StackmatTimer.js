@@ -98,9 +98,9 @@ class Timer extends React.Component {
       }
 
       this.setState({
-        time: event.data.time,
+        time: Math.floor(event.data.time / 10) * 10,
       });
-      
+
       lastEvent = event;
     }
 
