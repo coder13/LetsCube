@@ -44,12 +44,10 @@ async function attachUser(socket, next) {
     SocketUsers[socket.userId] = {};
   }
 
-  if (userId) {
-    try {
-      socket.user = await User.findOne({ id: socket.userId });
-    } catch (e) {
-      logger.error(e, { userId: socket.userId });
-    }
+  try {
+    socket.user = await User.findOne({ id: socket.userId });
+  } catch (e) {
+    logger.error(e, { userId: socket.userId });
   }
 
   next();
@@ -513,7 +511,7 @@ module.exports = ({ app, expressSession }) => {
         await leaveRoom();
       }
 
-      if (socket.user) {
+      if (socket.userId) {
         if (Object.keys(SocketUsers[socket.userId]).length === 0) {
           delete SocketUsers[socket.userId];
         }
