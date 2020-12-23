@@ -91,6 +91,8 @@ function RoomList({
       });
   }, []);
 
+  const canDeleteRoom = () => +user.id === 8184;
+
   return (
     <div className={classes.root}>
       <div className={classes.roomList}>
@@ -141,13 +143,23 @@ function RoomList({
           <Paper>
             <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
               {publicRooms.map((room) => (
-                <RoomListItem key={room._id} room={room} disabled={showAlert} />
+                <RoomListItem
+                  key={room._id}
+                  room={room}
+                  disabled={showAlert}
+                  canDelete={canDeleteRoom()}
+                />
               ))}
             </List>
             <Divider />
             <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
               {privateRooms.map((room) => (
-                <RoomListItem key={room._id} room={room} disabled={showAlert} />
+                <RoomListItem
+                  key={room._id}
+                  room={room}
+                  disabled={showAlert}
+                  canDelete={canDeleteRoom()}
+                />
               ))}
             </List>
           </Paper>
