@@ -13,6 +13,7 @@ import {
   RECEIVE_STATUS,
   UPDATE_COMPETING_FOR_USER,
   TIMER_FOCUSED,
+  UPDATE_USER_BANNED,
 } from './actions';
 import { calculatePointsForAttempt, calculatePointsForAllAttempts } from '../../lib/stats';
 
@@ -30,6 +31,7 @@ const INITIAL_STATE = {
   attempts: [],
   competing: {},
   inRoom: {},
+  banned: {},
   waitingFor: [],
   admin: {
     id: null,
@@ -40,10 +42,10 @@ const INITIAL_STATE = {
 
 const reducers = {
   [ROOM_UPDATED]: (state, { room }) => {
-    const attempts = room.attempts.map((attempt) => ({
+    const attempts = room.attempts ? room.attempts.map((attempt) => ({
       ...attempt,
       points: calculatePointsForAttempt(room.type, attempt.results),
-    }));
+    })) : [];
 
     const points = calculatePointsForAllAttempts(attempts);
 
@@ -168,6 +170,13 @@ const reducers = {
   [TIMER_FOCUSED]: (state, action) => ({
     ...state,
     timerFocused: action.focus,
+  }),
+  [UPDATE_USER_BANNED]: (state, action) => ({
+    ...state,
+    banned: {
+      ...state.banned,
+      [action.userId]: action.banned,
+    },
   }),
 };
 

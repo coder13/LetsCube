@@ -67,7 +67,7 @@ export const ThemeProvider = ({ children }) => {
 };
 
 ThemeProvider.propTypes = {
-  children: PropTypes.arrayOf(PropTypes.element).isRequired,
+  children: PropTypes.node.isRequired,
 };
 
 export const useToggleTheme = () => useContext(ToggleThemeContext);

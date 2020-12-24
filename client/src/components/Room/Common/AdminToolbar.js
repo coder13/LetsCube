@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
+import { connect, useDispatch } from 'react-redux';
 import Toolbar from '@material-ui/core/Toolbar';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -35,9 +35,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function AdminToolbar({ dispatch, room, user }) {
+function AdminToolbar({ room }) {
   const classes = useStyles();
   const confirm = useConfirm();
+  const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
   const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(false);
@@ -133,23 +134,19 @@ function AdminToolbar({ dispatch, room, user }) {
         onCancel={() => setShowEditRoomDialog(false)}
       />
       <ManageUsersDialog
-        room={room}
         open={showManageUsersDialog}
         onClose={() => setShowManageUsersDialog(false)}
-        self={user}
       />
     </>
   );
 }
 
 AdminToolbar.propTypes = {
-  dispatch: PropTypes.func.isRequired,
   room: PropTypes.shape({
     _id: PropTypes.string,
     attempts: PropTypes.array,
     event: PropTypes.string,
   }),
-  user: PropTypes.shape({}),
 };
 
 AdminToolbar.defaultProps = {
@@ -158,14 +155,10 @@ AdminToolbar.defaultProps = {
     attempts: [],
     event: undefined,
   },
-  user: {
-
-  },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
-  user: state.user,
 });
 
 export default connect(mapStateToProps)(AdminToolbar);

@@ -13,12 +13,12 @@ function App() {
     <AppContainer>
       <Provider store={store}>
         <ConnectedRouter history={history} noInitialPop>
-          <ConfirmProvider>
-            <ThemeProvider>
+          <ThemeProvider>
+            <ConfirmProvider>
               <CssBaseline />
               <Navigation />
-            </ThemeProvider>
-          </ConfirmProvider>
+            </ConfirmProvider>
+          </ThemeProvider>
         </ConnectedRouter>
       </Provider>
     </AppContainer>

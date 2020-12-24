@@ -50,7 +50,6 @@ function RoomListItem({ room, disabled, canDelete }) {
       )}
       />
       { canDelete && (
-
         <ListItemSecondaryAction>
           <IconButton edge="end" aria-label="delete" onClick={handleDeleteRoom}>
             <DeleteIcon />

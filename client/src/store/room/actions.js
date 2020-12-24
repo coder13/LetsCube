@@ -20,6 +20,7 @@ export const UPDATE_COMPETING_FOR_USER = 'room/update_competing_for_user';
 export const EDIT_ROOM = 'room/edit_room';
 export const TIMER_FOCUSED = 'room/timer_focused';
 export const KICK_USER = 'room/kick_user';
+export const UPDATE_USER_BANNED = 'room/update_user_banned';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -137,4 +138,10 @@ export const timerFocused = (focus) => ({
 export const kickUser = (userId) => ({
   type: KICK_USER,
   userId,
+});
+
+export const updateBanned = (userId, banned) => ({
+  type: UPDATE_USER_BANNED,
+  userId,
+  banned,
 });

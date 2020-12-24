@@ -15,7 +15,7 @@ const roomMask = (room) => ({
 });
 
 // Data for people in room
-const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'attempts', 'admin', 'accessCode', 'inRoom', 'usersLength', 'private', 'type']);
+const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'usersLength', 'private', 'type']);
 
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
@@ -54,6 +54,12 @@ async function attachUser(socket, next) {
 
   next();
 }
+
+const getRooms = (userId) => Room.find()
+  .then((rooms) => rooms.filter((room) => (
+    !room.banned.get(userId.toString())
+  )).map(roomMask));
+// give them the list of rooms
 
 module.exports = ({ app, expressSession }) => {
   const server = http.Server(app);
@@ -103,10 +109,10 @@ module.exports = ({ app, expressSession }) => {
   io.sockets.on('connection', (socket) => {
     logger.debug(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
-    // give them the list of rooms
-    Room.find().then((rooms) => {
-      socket.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
-    });
+    getRooms(socket.userId)
+      .then((rooms) => {
+        socket.emit(Protocol.UPDATE_ROOMS, rooms);
+      });
 
     function broadcast(...args) {
       socket.broadcast.to(socket.room.accessCode).emit(...args);
@@ -213,6 +219,17 @@ module.exports = ({ app, expressSession }) => {
     function joinRoom(room, cb) {
       if (socket.room) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
+        return;
+      }
+
+      if (room.banned.get(socket.userId.toString())) {
+        logger.debug(`Banned user ${socket.user.id} is trying to join room ${room._id}`);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.JOIN_ROOM,
+          message: 'Banned',
+        });
+        socket.emit(Protocol.FORCE_LEAVE);
         return;
       }
 
@@ -467,7 +484,7 @@ module.exports = ({ app, expressSession }) => {
         const room = await socket.room.dropUser({ id: userId });
 
         if (!room) {
-          logger.debug('User kick failed for some reason');
+          logger.debug('User ban failed for some reason');
         }
 
         broadcastToAllInRoom(socket.room.accessCode, Protocol.USER_LEFT, userId);
@@ -483,6 +500,81 @@ module.exports = ({ app, expressSession }) => {
         logger.error(e);
       }
     });
+
+    socket.on(Protocol.BAN_USER, async (userId) => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      if (!SocketUsers[userId]) {
+        logger.debug('Invalid user to ban', { userId });
+        return;
+      }
+
+      // If any sockets for this user and in the room, kick them
+      if (SocketUsers[userId][socket.roomId]) {
+        await Promise.all(
+          SocketUsers[userId][socket.roomId].map((s) => {
+            io.to(s.id).emit(Protocol.FORCE_LEAVE);
+            return new Promise((resolve) => {
+              s.leave(socket.room.accessCode, () => {
+                resolve();
+              });
+            });
+          }),
+        );
+      }
+
+      try {
+        const room = await socket.room.banUser(userId);
+
+        if (!room) {
+          logger.debug('User ban failed for some reason');
+        }
+
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
+        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
+
+        delete SocketUsers[userId][room._id];
+      } catch (e) {
+        logger.error(e);
+      }
+    });
+
+    socket.on(Protocol.UNBAN_USER, async (userId) => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      if (!SocketUsers[socket.userId]) {
+        logger.debug('Invalid user to unban', { userId });
+        return;
+      }
+
+      if (!SocketUsers[socket.userId][socket.roomId]) {
+        logger.debug('Invalid room to unban user from', { roomId: socket.roomId });
+        return;
+      }
+
+      try {
+        const room = await socket.room.unbanUser(userId);
+
+        if (!room) {
+          logger.debug('User unban failed for some reason');
+        }
+
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
+        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+      } catch (e) {
+        logger.error(e);
+      }
+    });
+
 
     // Simplest event here. Just echo the message to everyone else.
     socket.on(Protocol.MESSAGE, (message) => {

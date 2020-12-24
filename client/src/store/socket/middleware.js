@@ -24,6 +24,7 @@ import {
   UPDATE_COMPETING,
   EDIT_ROOM,
   KICK_USER,
+  UPDATE_USER_BANNED,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -257,6 +258,13 @@ const socketMiddleware = (store) => {
     },
     [KICK_USER]: ({ userId }) => {
       socket.emit(Protocol.KICK_USER, userId);
+    },
+    [UPDATE_USER_BANNED]: ({ userId, banned }) => {
+      if (banned) {
+        socket.emit(Protocol.BAN_USER, userId);
+      } else {
+        socket.emit(Protocol.UNBAN_USER, userId);
+      }
     },
   };
 

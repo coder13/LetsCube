@@ -69,6 +69,11 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
+  banned: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
   inRoom: {
     type: Map,
     of: Boolean,
@@ -160,6 +165,16 @@ Room.methods.dropUser = async function (user, updateAdmin) {
     await this.updateStale(true);
   }
 
+  return this.save();
+};
+
+Room.methods.banUser = async function (userId) {
+  this.banned.set(userId.toString(), true);
+  return this.dropUser({ id: userId });
+};
+
+Room.methods.unbanUser = async function (userId) {
+  this.banned.set(userId.toString(), false);
   return this.save();
 };
 
