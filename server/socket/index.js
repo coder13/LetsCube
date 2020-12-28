@@ -314,7 +314,7 @@ module.exports = ({ app, expressSession }) => {
       newRoom.owner = socket.user;
 
       const room = await newRoom.save();
-      io.emit(Protocol.ROOM_CREATED, room);
+      io.emit(Protocol.ROOM_CREATED, roomMask(room));
       await joinRoom(room, (r) => {
         sendNewScramble(r);
       });
