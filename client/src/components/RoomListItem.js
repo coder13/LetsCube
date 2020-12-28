@@ -14,11 +14,12 @@ import ListItemLink from './ListItemLink';
 import { getNameFromId } from '../lib/events';
 import { deleteRoom } from '../store/room/actions';
 
-function RoomListItem({ room, disabled, canDelete }) {
+function RoomListItem({ room, canDelete, canUserJoinRoom }) {
   const dispatch = useDispatch();
   const confirm = useConfirm();
   const userText = room.usersLength === 0 ? ' empty'
     : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
+  const [disabled, reason] = canUserJoinRoom();
 
   const handleDeleteRoom = () => {
     confirm({ title: 'Are you sure you want to delete this room? ' })
@@ -37,18 +38,27 @@ function RoomListItem({ room, disabled, canDelete }) {
           ? <PrivateIcon />
           : <PublicIcon />}
       </ListItemIcon>
-      <ListItemText
-        primary={(
-          <Typography variant="h6">
-            {`${room.name} (${getNameFromId(room.event)})`}
-          </Typography>
-      )}
-        secondary={(
-          <Typography>
-            {userText}
-          </Typography>
-      )}
-      />
+      <div
+        style={{ display: 'flex', flexDirection: 'column' }}
+      >
+        <ListItemText
+          primary={(
+            <Typography variant="h6">
+              {`${room.name} (${getNameFromId(room.event)})`}
+            </Typography>
+          )}
+          secondary={(
+            <Typography>
+              {userText}
+            </Typography>
+          )}
+        />
+        { reason && (
+          <ListItemText
+            secondary={reason}
+          />
+        )}
+      </div>
       { canDelete && (
         <ListItemSecondaryAction>
           <IconButton edge="end" aria-label="delete" onClick={handleDeleteRoom}>
@@ -69,8 +79,8 @@ RoomListItem.propTypes = {
     usersLength: PropTypes.number,
     users: PropTypes.array,
   }),
-  disabled: PropTypes.bool,
   canDelete: PropTypes.bool,
+  canUserJoinRoom: PropTypes.func,
 };
 
 RoomListItem.defaultProps = {
@@ -82,8 +92,8 @@ RoomListItem.defaultProps = {
     usersLength: 0,
     users: undefined,
   },
-  disabled: true,
   canDelete: false,
+  canUserJoinRoom: () => ([false, undefined]),
 };
 
 export default RoomListItem;

@@ -8,14 +8,17 @@ const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
+const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity'];
+const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom'];
+
 // Data for people not in room
 const roomMask = (room) => ({
-  ..._.partial(_.pick, _, ['_id', 'name', 'event', 'usersLength', 'private', 'type'])(room),
+  ..._.partial(_.pick, _, publicRoomKeys)(room),
   users: room.private ? undefined : room.usersInRoom.map((user) => user.displayName),
 });
 
 // Data for people in room
-const joinRoomMask = _.partial(_.pick, _, ['_id', 'name', 'event', 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'usersLength', 'private', 'type']);
+const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
 
 // Keep track of users using multiple sockets.
 // Map of user.id -> {room.id: [socket.id]}
@@ -233,6 +236,16 @@ module.exports = ({ app, expressSession }) => {
         return;
       }
 
+      if (room.requireRevealedIdentity && !socket.user.showWCAID) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.JOIN_ROOM,
+          message: 'Must be showing WCA Identity to join room.',
+        });
+        socket.emit(Protocol.FORCE_LEAVE);
+        return;
+      }
+
       socket.join(room.accessCode, async () => {
         socket.roomId = room._id;
 
@@ -325,6 +338,7 @@ module.exports = ({ app, expressSession }) => {
       const newRoom = new Room({
         name: options.name,
         type: options.type,
+        requireRevealedIdentity: options.requireRevealedIdentity,
       });
 
       if (options.password) {

@@ -86,6 +86,10 @@ const Room = new mongoose.Schema({
     enum: ['normal', 'grand_prix'],
     default: 'normal',
   },
+  requireRevealedIdentity: {
+    type: Boolean,
+    default: false,
+  },
   expireAt: {
     type: Date,
     default: undefined,

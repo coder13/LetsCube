@@ -37,6 +37,7 @@ const INITIAL_STATE = {
     id: null,
   },
   type: 'normal',
+  requireRevealedIdentity: false,
   timerFocused: true,
 };
 

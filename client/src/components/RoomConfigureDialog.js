@@ -8,6 +8,7 @@ import TextField from '@material-ui/core/TextField';
 import Switch from '@material-ui/core/Switch';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import FormControl from '@material-ui/core/FormControl';
+import FormHelperText from '@material-ui/core/FormHelperText';
 import InputLabel from '@material-ui/core/InputLabel';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -26,6 +27,16 @@ const useStyles = makeStyles((theme) => ({
     bottom: theme.spacing(2),
     right: theme.spacing(2),
   },
+  formControl: {
+    marginBottom: '1em',
+  },
+  formSwitch: {
+    alignItems: 'baseline',
+  },
+  accordionDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
 }));
 
 function RoomConfigureDialog({
@@ -35,12 +46,15 @@ function RoomConfigureDialog({
   const [stateName, setName] = React.useState(room.name);
   const [statePrivate, setPrivate] = React.useState(room.private);
   const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
-  const [stateType, setType] = React.useState('normal');
+  const [stateType, setType] = React.useState(room.type);
+  const [stateRequireRI, setRequireRI] = React.useState(room.requireRevealedIdentity);
 
   const handleCancel = () => {
     setName(room.name);
     setPrivate(room.private);
     setPassword(null);
+    setType('normal');
+    setRequireRI(false);
 
     onCancel();
   };
@@ -51,6 +65,7 @@ function RoomConfigureDialog({
       private: statePrivate,
       password: statePrivate ? statePassword : null,
       type: stateType,
+      requireRevealedIdentity: stateRequireRI,
     });
 
     setPassword(null);
@@ -80,8 +95,9 @@ function RoomConfigureDialog({
       <DialogTitle>
         {room._id ? 'Edit Room' : 'Create Room'}
       </DialogTitle>
-      <DialogContent className={classes.paper}>
+      <DialogContent>
         <TextField
+          className={classes.formControl}
           id="roomName"
           label="Room Name"
           onChange={handleNameChange}
@@ -91,12 +107,14 @@ function RoomConfigureDialog({
           fullWidth
         />
         <FormControlLabel
+          className={classes.formControl}
           label="Private Room?"
           control={
             <Switch checked={statePrivate} onChange={handlePrivate} />
         }
         />
         <TextField
+          className={classes.formControl}
           id="password"
           label={room._id ? 'New Password' : 'Password'}
           type="password"
@@ -111,8 +129,10 @@ function RoomConfigureDialog({
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Advanced Settings</Typography>
         </AccordionSummary>
-        <AccordionDetails>
-          <FormControl className={classes.formControl}>
+        <AccordionDetails className={classes.accordionDetails}>
+          <FormControl
+            className={classes.formControl}
+          >
             <InputLabel htmlFor="room-type">Type</InputLabel>
             <Select
               value={stateType}
@@ -125,6 +145,20 @@ function RoomConfigureDialog({
               <MenuItem value="normal">Normal</MenuItem>
               <MenuItem value="grand_prix">Grand Prix</MenuItem>
             </Select>
+          </FormControl>
+          <FormControl className={classes.formSwitch}>
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={stateRequireRI}
+                  onChange={() => setRequireRI(!stateRequireRI)}
+                />
+              )}
+              label="Force Revealed Identity"
+            />
+            <FormHelperText>
+              If enabled, requires all users to reveal their WCA identity.
+            </FormHelperText>
           </FormControl>
         </AccordionDetails>
       </Accordion>
@@ -145,6 +179,8 @@ RoomConfigureDialog.propTypes = {
     name: PropTypes.string,
     private: PropTypes.bool,
     accessCode: PropTypes.string,
+    type: PropTypes.string,
+    requireRevealedIdentity: PropTypes.bool,
   }),
   open: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
@@ -157,6 +193,8 @@ RoomConfigureDialog.defaultProps = {
     name: '',
     private: false,
     accessCode: null,
+    type: 'normal',
+    requireRevealedIdentity: false,
   },
   open: false,
 };
