@@ -8,7 +8,7 @@ const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
-const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity'];
+const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom'];
 
 // Data for people not in room
@@ -339,6 +339,7 @@ module.exports = ({ app, expressSession }) => {
         name: options.name,
         type: options.type,
         requireRevealedIdentity: options.requireRevealedIdentity,
+        startTime: options.startTime ? new Date(options.startTime) : null,
       });
 
       if (options.password) {
@@ -456,9 +457,10 @@ module.exports = ({ app, expressSession }) => {
       if (!checkAdmin()) {
         return;
       }
+
       try {
         const room = await socket.room.edit(options);
-        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
 
         Room.find().then((rooms) => {
           broadcastToEveryone(Protocol.UPDATE_ROOMS, rooms.map(roomMask));

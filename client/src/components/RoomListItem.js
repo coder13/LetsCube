@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
+import { formatDistanceToNow } from 'date-fns';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
@@ -20,6 +21,25 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
   const userText = room.usersLength === 0 ? ' empty'
     : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
   const [disabled, reason] = canUserJoinRoom();
+  const [duration, setDuration] = React.useState(null);
+  const [unixDuration, setUnixDuration] = React.useState(null);
+
+  React.useEffect(() => {
+    const startTime = room.startTime ? new Date(room.startTime) : null;
+    let timerObj = null;
+    if (startTime) {
+      timerObj = setInterval(() => {
+        setDuration(formatDistanceToNow(startTime, { addSuffix: true, includeSeconds: true }));
+        setUnixDuration((startTime.getTime() - Date.now()) / 1000);
+      }, 1000);
+      setDuration(formatDistanceToNow(startTime, { addSuffix: true, includeSeconds: true }));
+      setUnixDuration((startTime.getTime() - Date.now()) / 1000);
+    }
+
+    return () => {
+      clearInterval(timerObj);
+    };
+  }, [room]);
 
   const handleDeleteRoom = () => {
     confirm({ title: 'Are you sure you want to delete this room? ' })
@@ -53,6 +73,11 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
             </Typography>
           )}
         />
+        { room.startTime && (
+          <ListItemText
+            secondary={`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
+          />
+        )}
         { reason && (
           <ListItemText
             secondary={reason}
@@ -78,6 +103,7 @@ RoomListItem.propTypes = {
     private: PropTypes.bool,
     usersLength: PropTypes.number,
     users: PropTypes.array,
+    startTime: PropTypes.string,
   }),
   canDelete: PropTypes.bool,
   canUserJoinRoom: PropTypes.func,
@@ -91,6 +117,7 @@ RoomListItem.defaultProps = {
     private: false,
     usersLength: 0,
     users: undefined,
+    startTime: undefined,
   },
   canDelete: false,
   canUserJoinRoom: () => ([false, undefined]),

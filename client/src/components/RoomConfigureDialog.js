@@ -1,5 +1,7 @@
 import React from 'react';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
+import { format } from 'date-fns';
 import { makeStyles } from '@material-ui/core/styles';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
@@ -48,13 +50,19 @@ function RoomConfigureDialog({
   const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
   const [stateType, setType] = React.useState(room.type);
   const [stateRequireRI, setRequireRI] = React.useState(room.requireRevealedIdentity);
+  const [stateStartTime, setStartTime] = React.useState(room.startTime ? (
+    `${format(new Date(room.startTime), 'yyyy-MM-dd')}T${format(new Date(room.startTime), 'HH:mm')}`
+  ) : '');
 
   const handleCancel = () => {
     setName(room.name);
     setPrivate(room.private);
     setPassword(null);
-    setType('normal');
-    setRequireRI(false);
+    setType(room.type);
+    setRequireRI(room.requireRevealedIdentity);
+    setStartTime(room.startTime ? (
+      `${format(new Date(room.startTime), 'yyyy-MM-dd')}T${format(new Date(room.startTime), 'HH:mm')}`
+    ) : null);
 
     onCancel();
   };
@@ -66,6 +74,7 @@ function RoomConfigureDialog({
       password: statePrivate ? statePassword : null,
       type: stateType,
       requireRevealedIdentity: stateRequireRI,
+      startTime: stateStartTime ? new Date(stateStartTime) : null,
     });
 
     setPassword(null);
@@ -146,7 +155,7 @@ function RoomConfigureDialog({
               <MenuItem value="grand_prix">Grand Prix</MenuItem>
             </Select>
           </FormControl>
-          <FormControl className={classes.formSwitch}>
+          <FormControl className={clsx(classes.formSwitch, classes.formControl)}>
             <FormControlLabel
               control={(
                 <Switch
@@ -160,6 +169,20 @@ function RoomConfigureDialog({
               If enabled, requires all users to reveal their WCA identity.
             </FormHelperText>
           </FormControl>
+          <TextField
+            id="start-time"
+            label="Start Time"
+            type="datetime-local"
+            className={classes.textField}
+            value={stateStartTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            inputProps={{
+              step: 60, // 1 min
+            }}
+          />
         </AccordionDetails>
       </Accordion>
       <Divider />
@@ -181,6 +204,7 @@ RoomConfigureDialog.propTypes = {
     accessCode: PropTypes.string,
     type: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
+    startTime: PropTypes.string,
   }),
   open: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
@@ -195,6 +219,7 @@ RoomConfigureDialog.defaultProps = {
     accessCode: null,
     type: 'normal',
     requireRevealedIdentity: false,
+    startTime: undefined,
   },
   open: false,
 };

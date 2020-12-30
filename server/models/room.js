@@ -90,6 +90,9 @@ const Room = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  startTime: {
+    type: Date,
+  },
   expireAt: {
     type: Date,
     default: undefined,
@@ -236,6 +239,9 @@ Room.methods.edit = function (options) {
   } else {
     this.password = null;
   }
+  this.type = options.type;
+  this.requireRevealedIdentity = options.requireRevealedIdentity;
+  this.startTime = options.startTime;
   return this.save();
 };
 

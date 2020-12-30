@@ -38,6 +38,7 @@ const INITIAL_STATE = {
   },
   type: 'normal',
   requireRevealedIdentity: false,
+  startTime: null,
   timerFocused: true,
 };
 
@@ -56,6 +57,7 @@ const reducers = {
       ...room,
       attempts,
       points,
+      startTime: room.startTime,
     };
   },
   [FETCH_ROOM]: (state, action) => ({
