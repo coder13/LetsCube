@@ -37,17 +37,27 @@ const INITIAL_STATE = {
     id: null,
   },
   type: 'normal',
+<<<<<<< HEAD
   requireRevealedIdentity: false,
   startTime: null,
+=======
+>>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
   timerFocused: true,
 };
 
 const reducers = {
   [ROOM_UPDATED]: (state, { room }) => {
+<<<<<<< HEAD
     const attempts = room.attempts ? room.attempts.map((attempt) => ({
       ...attempt,
       points: calculatePointsForAttempt(room.type, attempt.results),
     })) : [];
+=======
+    const attempts = room.attempts.map((attempt) => ({
+      ...attempt,
+      points: calculatePointsForAttempt(room.type, attempt.results),
+    }));
+>>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
 
     const points = calculatePointsForAllAttempts(attempts);
 
@@ -57,7 +67,10 @@ const reducers = {
       ...room,
       attempts,
       points,
+<<<<<<< HEAD
       startTime: room.startTime,
+=======
+>>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
     };
   },
   [FETCH_ROOM]: (state, action) => ({
