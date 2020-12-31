@@ -10,10 +10,7 @@ import TextField from '@material-ui/core/TextField';
 import Switch from '@material-ui/core/Switch';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import FormControl from '@material-ui/core/FormControl';
-<<<<<<< HEAD
 import FormHelperText from '@material-ui/core/FormHelperText';
-=======
->>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
 import InputLabel from '@material-ui/core/InputLabel';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -51,15 +48,11 @@ function RoomConfigureDialog({
   const [stateName, setName] = React.useState(room.name);
   const [statePrivate, setPrivate] = React.useState(room.private);
   const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
-<<<<<<< HEAD
   const [stateType, setType] = React.useState(room.type);
   const [stateRequireRI, setRequireRI] = React.useState(room.requireRevealedIdentity);
   const [stateStartTime, setStartTime] = React.useState(room.startTime ? (
     `${format(new Date(room.startTime), 'yyyy-MM-dd')}T${format(new Date(room.startTime), 'HH:mm')}`
   ) : '');
-=======
-  const [stateType, setType] = React.useState('normal');
->>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
 
   const handleCancel = () => {
     setName(room.name);
@@ -80,11 +73,8 @@ function RoomConfigureDialog({
       private: statePrivate,
       password: statePrivate ? statePassword : null,
       type: stateType,
-<<<<<<< HEAD
       requireRevealedIdentity: stateRequireRI,
       startTime: stateStartTime ? new Date(stateStartTime) : null,
-=======
->>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
     });
 
     setPassword(null);
@@ -148,15 +138,10 @@ function RoomConfigureDialog({
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Advanced Settings</Typography>
         </AccordionSummary>
-<<<<<<< HEAD
         <AccordionDetails className={classes.accordionDetails}>
           <FormControl
             className={classes.formControl}
           >
-=======
-        <AccordionDetails>
-          <FormControl className={classes.formControl}>
->>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
             <InputLabel htmlFor="room-type">Type</InputLabel>
             <Select
               value={stateType}
@@ -170,7 +155,6 @@ function RoomConfigureDialog({
               <MenuItem value="grand_prix">Grand Prix</MenuItem>
             </Select>
           </FormControl>
-<<<<<<< HEAD
           <FormControl className={clsx(classes.formSwitch, classes.formControl)}>
             <FormControlLabel
               control={(
@@ -199,8 +183,6 @@ function RoomConfigureDialog({
               step: 60, // 1 min
             }}
           />
-=======
->>>>>>> 3256ce26e9422e30435f66ac6470dcbbe036d738
         </AccordionDetails>
       </Accordion>
       <Divider />
