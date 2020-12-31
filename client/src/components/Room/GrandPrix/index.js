@@ -21,6 +21,7 @@ import AdminToolbar from '../Common/AdminToolbar';
 import UserToolbar from '../Common/UserToolbar';
 import Chat from '../Panels/Chat';
 import Leaderboard from './Leaderboard';
+import RegisterPanel from './RegisterPanel';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -72,6 +73,9 @@ const useStyles = makeStyles((theme) => ({
     position: 'fixed',
     right: 0,
   },
+  registerPanel: {
+    display: 'flex',
+  },
 }));
 
 const panels = [{
@@ -89,6 +93,7 @@ export const GrandPrixRoom = ({ room, user }) => {
   const classes = useStyles();
   const [currentPanel, setCurrentPanel] = useState(0);
   const [chatVisible, setChatVisible] = useState(true);
+  const started = room.startTime ? Date.now() > new Date(room.startTime).getTime() : true;
 
   const isAdmin = () => room.admin && room.admin.id === user.id;
 
@@ -108,24 +113,38 @@ export const GrandPrixRoom = ({ room, user }) => {
       <Divider />
 
       <Grid container direction="row" className={classes.container}>
-        <Grid
-          item
-          className={clsx(classes.panel, classes.animateWidth, {
-            [classes.hiddenOnMobile]: currentPanel !== 0,
-          })}
-          md={chatVisible ? 6 : 7}
-        >
-          <Main onlyShowSelf />
-        </Grid>
-        <Grid
-          item
-          className={clsx(classes.panel, classes.animateWidth, {
-            [classes.hiddenOnMobile]: currentPanel !== 1,
-          })}
-          md={3}
-        >
-          <Leaderboard />
-        </Grid>
+        {started ? (
+          <>
+            <Grid
+              item
+              className={clsx(classes.panel, classes.animateWidth, {
+                [classes.hiddenOnMobile]: currentPanel !== 0,
+              })}
+              md={chatVisible ? 6 : 7}
+            >
+              <Main onlyShowSelf />
+            </Grid>
+            <Grid
+              item
+              className={clsx(classes.panel, classes.animateWidth, {
+                [classes.hiddenOnMobile]: currentPanel !== 1,
+              })}
+              md={3}
+            >
+              <Leaderboard />
+            </Grid>
+          </>
+        ) : (
+          <Grid
+            item
+            xs={chatVisible ? 9 : 10}
+            className={clsx(classes.panel, classes.animateWidth, classes.registerPanel, {
+              [classes.hiddenOnMobile]: currentPanel === 2,
+            })}
+          >
+            <RegisterPanel />
+          </Grid>
+        )}
         <Grid
           item
           className={clsx(classes.panel, classes.animateWidth, {
@@ -178,6 +197,7 @@ GrandPrixRoom.propTypes = {
     accessCode: PropTypes.string,
     name: PropTypes.string,
     admin: PropTypes.shape(),
+    startTime: PropTypes.string,
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -191,12 +211,12 @@ GrandPrixRoom.defaultProps = {
     accessCode: undefined,
     name: undefined,
     type: 'normal',
+    startTime: undefined,
   },
   user: {
     id: undefined,
   },
 };
-
 
 const mapStateToProps = (state) => ({
   room: state.room,

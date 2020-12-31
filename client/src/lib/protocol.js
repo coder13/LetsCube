@@ -38,4 +38,5 @@ module.exports = {
   KICK_USER: 'kick_user',
   BAN_USER: 'ban_user',
   UNBAN_USER: 'unban_user',
+  UPDATE_REGISTRATION: 'register',
 };

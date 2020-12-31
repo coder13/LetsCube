@@ -79,6 +79,11 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
+  registered: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
   admin: User,
   owner: User,
   type: {
@@ -182,6 +187,11 @@ Room.methods.banUser = async function (userId) {
 
 Room.methods.unbanUser = async function (userId) {
   this.banned.set(userId.toString(), false);
+  return this.save();
+};
+
+Room.methods.updateRegistration = async function (userId, registration) {
+  this.registered.set(userId.toString(), registration);
   return this.save();
 };
 

@@ -9,7 +9,7 @@ const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime'];
-const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom'];
+const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered'];
 
 // Data for people not in room
 const roomMask = (room) => ({
@@ -370,6 +370,21 @@ module.exports = ({ app, expressSession }) => {
           logger.error(168, 'big problemo');
         }
       });
+    });
+
+    // Register user for room they are currently in
+    socket.on(Protocol.UPDATE_REGISTRATION, async (registration) => {
+      if (!isLoggedIn() || !isInRoom()) {
+        return;
+      }
+
+      try {
+        const room = await socket.room.updateRegistration(socket.userId, registration);
+
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
+      } catch (e) {
+        logger.error(e);
+      }
     });
 
     socket.on(Protocol.SUBMIT_RESULT, async (result) => {

@@ -2,6 +2,7 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
+import Tooltip from '@material-ui/core/Tooltip';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
@@ -75,7 +76,13 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
         />
         { room.startTime && (
           <ListItemText
-            secondary={`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
+            secondary={(
+              <Tooltip title={room.startTime}>
+                <Typography variant="subtitle2">
+                  {`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
+                </Typography>
+              </Tooltip>
+            )}
           />
         )}
         { reason && (

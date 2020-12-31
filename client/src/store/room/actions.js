@@ -21,6 +21,7 @@ export const EDIT_ROOM = 'room/edit_room';
 export const TIMER_FOCUSED = 'room/timer_focused';
 export const KICK_USER = 'room/kick_user';
 export const UPDATE_USER_BANNED = 'room/update_user_banned';
+export const UPDATE_REGISTRATION = 'room/update_registration';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -144,4 +145,9 @@ export const updateBanned = (userId, banned) => ({
   type: UPDATE_USER_BANNED,
   userId,
   banned,
+});
+
+export const updateRegistration = (registration) => ({
+  type: UPDATE_REGISTRATION,
+  registration,
 });

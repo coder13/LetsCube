@@ -25,6 +25,7 @@ import {
   EDIT_ROOM,
   KICK_USER,
   UPDATE_USER_BANNED,
+  UPDATE_REGISTRATION,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -265,6 +266,9 @@ const socketMiddleware = (store) => {
       } else {
         socket.emit(Protocol.UNBAN_USER, userId);
       }
+    },
+    [UPDATE_REGISTRATION]: ({ registration }) => {
+      socket.emit(Protocol.UPDATE_REGISTRATION, registration);
     },
   };
 

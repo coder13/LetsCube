@@ -32,6 +32,7 @@ const INITIAL_STATE = {
   competing: {},
   inRoom: {},
   banned: {},
+  registered: {},
   waitingFor: [],
   admin: {
     id: null,
