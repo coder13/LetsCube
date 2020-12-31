@@ -78,7 +78,7 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
           <ListItemText
             secondary={(
               <Tooltip title={room.startTime}>
-                <Typography variant="subtitle2">
+                <Typography variant="subtitle2" component="span">
                   {`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
                 </Typography>
               </Tooltip>

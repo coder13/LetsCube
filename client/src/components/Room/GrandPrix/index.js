@@ -93,7 +93,24 @@ export const GrandPrixRoom = ({ room, user }) => {
   const classes = useStyles();
   const [currentPanel, setCurrentPanel] = useState(0);
   const [chatVisible, setChatVisible] = useState(true);
-  const started = room.startTime ? Date.now() > new Date(room.startTime).getTime() : true;
+  const startTimeUnix = room.startTime ? new Date(room.startTime).getTime() : 0;
+  const [started, setStarted] = useState(Date.now() > startTimeUnix);
+
+  React.useEffect(() => {
+    let timerObj = null;
+
+    setStarted(Date.now() > startTimeUnix);
+
+    if (startTimeUnix > Date.now()) {
+      timerObj = setTimeout(() => {
+        setStarted(true);
+      }, startTimeUnix - Date.now());
+    }
+
+    return () => {
+      clearTimeout(timerObj);
+    };
+  }, [startTimeUnix]);
 
   const isAdmin = () => room.admin && room.admin.id === user.id;
 
