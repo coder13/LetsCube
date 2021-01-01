@@ -127,4 +127,8 @@ MangeUsersDialog.defaultProps = {
   onClose: () => {},
 };
 
-export default connect()(MangeUsersDialog);
+const mapStateToProps = (state) => ({
+  room: state.room,
+});
+
+export default connect(mapStateToProps)(MangeUsersDialog);
