@@ -157,6 +157,8 @@ Header.defaultProps = {
 };
 
 const mapStateToProps = (state) => ({
+  room: state.room,
+  user: state.user,
   roomName: state.room.name,
 });
 

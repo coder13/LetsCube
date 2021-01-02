@@ -167,16 +167,18 @@ Room.methods.updateStale = function updateStale(stale) {
   return this.save();
 };
 
-Room.methods.addUser = async function (user, updateAdmin) {
+Room.methods.addUser = async function (user, spectating, updateAdmin) {
   if (this.inRoom.get(user.id.toString())) {
     return false;
   }
 
   if (!this.users.find((i) => i.id === user.id)) {
     this.users.push(user);
-    if (!this.started || this.type === 'normal') {
+    if ((!this.started || this.type === 'normal') && !spectating) {
       this.competing.set(user.id.toString(), true);
     }
+  } else if (spectating) {
+    this.competing.set(user.id.toString(), false);
   }
 
   this.inRoom.set(user.id.toString(), true);

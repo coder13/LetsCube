@@ -278,7 +278,7 @@ module.exports = ({ app, expressSession }) => {
       }
     }
 
-    function joinRoom(room, cb) {
+    function joinRoom(room, cb, spectating) {
       if (socket.room) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
         return;
@@ -320,7 +320,7 @@ module.exports = ({ app, expressSession }) => {
 
         SocketUsers[socket.user.id][room._id].push(socket);
 
-        const r = await room.addUser(socket.user, (_room) => {
+        const r = await room.addUser(socket.user, spectating, (_room) => {
           broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
         });
 
@@ -373,7 +373,7 @@ module.exports = ({ app, expressSession }) => {
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, async (id) => {
+    socket.on(Protocol.FETCH_ROOM, async (id, spectating) => {
       const room = await Room.findById(id);
 
       if (!room) {
@@ -385,7 +385,7 @@ module.exports = ({ app, expressSession }) => {
       } else if (room.private) {
         socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
       } else {
-        joinRoom(room);
+        joinRoom(room, () => {}, spectating);
       }
     });
 

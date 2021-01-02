@@ -198,7 +198,6 @@ const socketMiddleware = (store) => {
         store.dispatch(userCountUpdated(userCount));
       },
       [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
-        console.log(dateTime);
         store.dispatch(nextSolveAt(dateTime));
       },
     },
@@ -220,8 +219,8 @@ const socketMiddleware = (store) => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({ id }) => {
-      socket.emit(Protocol.FETCH_ROOM, id);
+    [FETCH_ROOM]: ({ id, spectating }) => {
+      socket.emit(Protocol.FETCH_ROOM, id, spectating);
     },
     [DELETE_ROOM]: ({ id }) => {
       socket.emit(Protocol.DELETE_ROOM, id);
