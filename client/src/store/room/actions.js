@@ -22,6 +22,9 @@ export const TIMER_FOCUSED = 'room/timer_focused';
 export const KICK_USER = 'room/kick_user';
 export const UPDATE_USER_BANNED = 'room/update_user_banned';
 export const UPDATE_REGISTRATION = 'room/update_registration';
+export const NEXT_SOLVE_AT = 'room/next_solve_at';
+export const START_ROOM = 'room/start_room';
+export const PAUSE_ROOM = 'room/pause_room';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -150,4 +153,17 @@ export const updateBanned = (userId, banned) => ({
 export const updateRegistration = (registration) => ({
   type: UPDATE_REGISTRATION,
   registration,
+});
+
+export const nextSolveAt = (dateTime) => ({
+  type: NEXT_SOLVE_AT,
+  dateTime,
+});
+
+export const startRoom = () => ({
+  type: START_ROOM,
+});
+
+export const pauseRoom = () => ({
+  type: PAUSE_ROOM,
 });

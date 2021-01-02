@@ -98,6 +98,13 @@ const Room = new mongoose.Schema({
   startTime: {
     type: Date,
   },
+  started: {
+    type: Boolean,
+    default: false,
+  },
+  nextSolveAt: {
+    type: Date,
+  },
   expireAt: {
     type: Date,
     default: undefined,
@@ -128,6 +135,28 @@ Room.virtual('private').get(function () {
   return !!this.password;
 });
 
+Room.methods.start = function () {
+  if (this.started) {
+    return;
+  }
+
+  this.started = true;
+
+  this.users.forEach((user) => {
+    if (this.registered[user.id.toString()]) {
+      this.competing.set(user.id.toString(), true);
+    }
+  });
+
+  return this.save();
+};
+
+Room.methods.pause = function () {
+  this.started = false;
+  this.nextSolveAt = null;
+  return this.save();
+};
+
 Room.methods.updateStale = function updateStale(stale) {
   if (stale) {
     this.expireAt = moment().add(10, 'minutes');
@@ -145,12 +174,18 @@ Room.methods.addUser = async function (user, updateAdmin) {
 
   if (!this.users.find((i) => i.id === user.id)) {
     this.users.push(user);
-    this.competing.set(user.id.toString(), true);
+    if (!this.started || this.type === 'normal') {
+      this.competing.set(user.id.toString(), true);
+    }
   }
 
   this.inRoom.set(user.id.toString(), true);
 
   if (this.waitingFor.length === 0) {
+    this.waitingFor.push(user.id);
+  }
+
+  if (this.type === 'grand_prix' && !this.attempts[this.attempts.length - 1].results[user.id.toString()]) {
     this.waitingFor.push(user.id);
   }
 

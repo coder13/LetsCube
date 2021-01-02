@@ -39,4 +39,7 @@ module.exports = {
   BAN_USER: 'ban_user',
   UNBAN_USER: 'unban_user',
   UPDATE_REGISTRATION: 'register',
+  NEXT_SOLVE_AT: 'next_solve_at', // transmits an approx time to expect the new scramble
+  START_ROOM: 'start',
+  PAUSE_ROOM: 'pause',
 };

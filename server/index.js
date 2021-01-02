@@ -142,11 +142,15 @@ async function asyncForEach(array, callback) {
 
 process.on('SIGINT', () => {
   Room.find().then(async (rooms) => {
-    await asyncForEach(rooms, async (room) => {
-      await asyncForEach(room.users, async (user) => {
-        await room.dropUser(user);
+    try {
+      await asyncForEach(rooms, async (room) => {
+        await asyncForEach(room.users, async (user) => {
+          await room.dropUser(user);
+        });
       });
-    });
+    } catch (e) {
+      logger.error(e);
+    }
 
     process.exit(0);
   });
