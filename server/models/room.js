@@ -187,7 +187,9 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
     this.waitingFor.push(user.id);
   }
 
-  if (this.type === 'grand_prix' && !this.attempts[this.attempts.length - 1].results[user.id.toString()]) {
+  if (this.type !== 'grand_prix'
+    && (this.attempts.length === 0
+      || !this.attempts[this.attempts.length - 1].results[user.id.toString()])) {
     this.waitingFor.push(user.id);
   }
 

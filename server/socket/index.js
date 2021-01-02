@@ -338,7 +338,7 @@ module.exports = ({ app, expressSession }) => {
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
-        if (room.doneWithScramble()) {
+        if (room.type === 'normal' && room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
           sendNewScramble(room);
         }
