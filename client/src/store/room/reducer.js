@@ -14,6 +14,7 @@ import {
   UPDATE_COMPETING_FOR_USER,
   TIMER_FOCUSED,
   UPDATE_USER_BANNED,
+  NEXT_SOLVE_AT,
 } from './actions';
 import { calculatePointsForAttempt, calculatePointsForAllAttempts } from '../../lib/stats';
 
@@ -40,6 +41,8 @@ const INITIAL_STATE = {
   type: 'normal',
   requireRevealedIdentity: false,
   startTime: null,
+  started: null,
+  nextSolveAt: null,
   timerFocused: true,
 };
 
@@ -181,6 +184,10 @@ const reducers = {
       ...state.banned,
       [action.userId]: action.banned,
     },
+  }),
+  [NEXT_SOLVE_AT]: (state, action) => ({
+    ...state,
+    nextSolveAt: action.dateTime,
   }),
 };
 

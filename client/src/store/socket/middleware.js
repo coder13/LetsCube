@@ -26,6 +26,8 @@ import {
   KICK_USER,
   UPDATE_USER_BANNED,
   UPDATE_REGISTRATION,
+  START_ROOM,
+  PAUSE_ROOM,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -37,6 +39,7 @@ import {
   receiveStatus,
   updateAdmin,
   updateCompetingForUser,
+  nextSolveAt,
 } from '../room/actions';
 import {
   CREATE_ROOM,
@@ -194,6 +197,9 @@ const socketMiddleware = (store) => {
       [Protocol.UPDATE_USER_COUNT]: (userCount) => {
         store.dispatch(userCountUpdated(userCount));
       },
+      [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
+        store.dispatch(nextSolveAt(dateTime));
+      },
     },
   });
 
@@ -213,8 +219,8 @@ const socketMiddleware = (store) => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({ id }) => {
-      socket.emit(Protocol.FETCH_ROOM, id);
+    [FETCH_ROOM]: ({ id, spectating }) => {
+      socket.emit(Protocol.FETCH_ROOM, id, spectating);
     },
     [DELETE_ROOM]: ({ id }) => {
       socket.emit(Protocol.DELETE_ROOM, id);
@@ -269,6 +275,12 @@ const socketMiddleware = (store) => {
     },
     [UPDATE_REGISTRATION]: ({ registration }) => {
       socket.emit(Protocol.UPDATE_REGISTRATION, registration);
+    },
+    [START_ROOM]: () => {
+      socket.emit(Protocol.START_ROOM);
+    },
+    [PAUSE_ROOM]: () => {
+      socket.emit(Protocol.PAUSE_ROOM);
     },
   };
 

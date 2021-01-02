@@ -8,8 +8,8 @@ const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
-const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime'];
-const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered'];
+const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime', 'started'];
+const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
 
 // Data for people not in room
 const roomMask = (room) => ({
@@ -60,9 +60,11 @@ async function attachUser(socket, next) {
 
 const getRooms = (userId) => Room.find()
   .then((rooms) => rooms.filter((room) => (
-    !room.banned.get(userId.toString())
+    userId ? !room.banned.get(userId.toString()) : true
   )).map(roomMask));
 // give them the list of rooms
+
+const roomTimerObj = {};
 
 module.exports = ({ app, expressSession }) => {
   const server = http.Server(app);
@@ -109,6 +111,80 @@ module.exports = ({ app, expressSession }) => {
     next();
   });
 
+  function broadcastToEveryone(...args) {
+    io.emit(...args);
+  }
+
+  function broadcastToAllInRoom(accessCode, event, data) {
+    io.in(accessCode).emit(event, data);
+  }
+
+  function sendNewScramble(room) {
+    return room.newAttempt().then((r) => {
+      logger.debug('Sending new scramble to room', { roomId: room.id });
+      broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, {
+        waitingFor: r.waitingFor,
+        attempt: r.attempts[r.attempts.length - 1],
+      });
+
+      return r;
+    });
+  }
+
+  const interval = 60 * 1000; // 30 seconds
+
+  function startTimer(room) {
+    if (!room) {
+      logger.error('Attempting to start undefined room');
+      return;
+    }
+
+    const newSolve = () => {
+      Room.findById(room.id).then(async (r) => {
+        try {
+          const nextSolveAt = new Date(Date.now() + interval);
+          logger.debug('nextSolveAt', { nextSolveAt });
+          sendNewScramble(r);
+          r.nextSolveAt = nextSolveAt;
+          r.update({ id: room.id }, {
+            nextSolveAt,
+          });
+          broadcastToAllInRoom(room.accessCode, Protocol.NEXT_SOLVE_AT, nextSolveAt);
+        } catch (e) {
+          logger.error(e);
+        }
+      });
+    };
+
+    logger.debug('Starting timer for room', { roomId: room.id });
+    newSolve();
+    roomTimerObj[room.id] = setInterval(newSolve, interval);
+  }
+
+  function pauseTimer(room) {
+    clearInterval(roomTimerObj[room.id]);
+  }
+
+  Room.find({ type: 'grand_prix' })
+    .then((rooms) => {
+      rooms.forEach(async (room) => {
+        if (Date.now() < new Date(room.startTime).getTime()) {
+          logger.debug('Starting countdown for room', {
+            roomId: room.id,
+            milliseconds: new Date(room.startTime).getTime() - Date.now(),
+          });
+          setTimeout(async () => {
+            const r = await room.start();
+            if (r) {
+              startTimer(r);
+            }
+          }, new Date(room.startTime).getTime() - Date.now());
+        } else {
+          startTimer(room);
+        }
+      });
+    });
+
   io.sockets.on('connection', (socket) => {
     logger.debug(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
@@ -119,14 +195,6 @@ module.exports = ({ app, expressSession }) => {
 
     function broadcast(...args) {
       socket.broadcast.to(socket.room.accessCode).emit(...args);
-    }
-
-    function broadcastToAllInRoom(accessCode, event, data) {
-      io.in(accessCode).emit(event, data);
-    }
-
-    function broadcastToEveryone(...args) {
-      io.emit(...args);
     }
 
     // New user online
@@ -167,15 +235,6 @@ module.exports = ({ app, expressSession }) => {
         return false;
       }
       return true;
-    }
-
-    function sendNewScramble(room) {
-      room.newAttempt().then(({ waitingFor, attempts }) => {
-        broadcastToAllInRoom(room.accessCode, Protocol.NEW_ATTEMPT, {
-          waitingFor,
-          attempt: attempts[attempts.length - 1],
-        });
-      });
     }
 
     // Only deals with removing authenticated users from a room
@@ -219,7 +278,7 @@ module.exports = ({ app, expressSession }) => {
       }
     }
 
-    function joinRoom(room, cb) {
+    function joinRoom(room, cb, spectating) {
       if (socket.room) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
         return;
@@ -261,7 +320,7 @@ module.exports = ({ app, expressSession }) => {
 
         SocketUsers[socket.user.id][room._id].push(socket);
 
-        const r = await room.addUser(socket.user, (_room) => {
+        const r = await room.addUser(socket.user, spectating, (_room) => {
           broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
         });
 
@@ -314,7 +373,7 @@ module.exports = ({ app, expressSession }) => {
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, async (id) => {
+    socket.on(Protocol.FETCH_ROOM, async (id, spectating) => {
       const room = await Room.findById(id);
 
       if (!room) {
@@ -326,7 +385,7 @@ module.exports = ({ app, expressSession }) => {
       } else if (room.private) {
         socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
       } else {
-        joinRoom(room);
+        joinRoom(room, () => {}, spectating);
       }
     });
 
@@ -351,9 +410,20 @@ module.exports = ({ app, expressSession }) => {
       const room = await newRoom.save();
       io.emit(Protocol.ROOM_CREATED, roomMask(room));
       await joinRoom(room, (r) => {
+        if (r.type === 'grand_prix' && !r.started) {
+          return;
+        }
+
         sendNewScramble(r);
       });
+
       socket.emit(Protocol.FORCE_JOIN, room);
+
+      if (room.type === 'grand_prix' && room.startTime) {
+        setTimeout(async () => {
+          startTimer(room);
+        }, new Date(room.startTime).getTime() - Date.now());
+      }
     });
 
     /* Admin Actions */
@@ -413,7 +483,7 @@ module.exports = ({ app, expressSession }) => {
           userId: socket.user.id,
         });
 
-        if (r.doneWithScramble()) {
+        if (r.type === 'normal' && r.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
           sendNewScramble(r);
         }
@@ -483,6 +553,30 @@ module.exports = ({ app, expressSession }) => {
       } catch (e) {
         (logger.error(e));
       }
+    });
+
+    socket.on(Protocol.START_ROOM, async () => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      const room = await socket.room.start();
+      try {
+        startTimer(room);
+        broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
+      } catch (e) {
+        logger.error(e);
+      }
+    });
+
+    socket.on(Protocol.PAUSE_ROOM, async () => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      pauseTimer(await socket.room.pause());
+
+      broadcastToAllInRoom(socket.room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
     });
 
     socket.on(Protocol.KICK_USER, async (userId) => {

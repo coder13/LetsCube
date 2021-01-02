@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import Grid from '@material-ui/core/Grid';
+import Box from '@material-ui/core/Box';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
@@ -10,6 +11,7 @@ import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import grey from '@material-ui/core/colors/grey';
 import { Cube } from 'react-cube-svg';
 import UIfx from 'uifx';
+import { formatISO9075 } from 'date-fns';
 import notificationAsset from '../../../assets/notification.mp3';
 import calcStats from '../../../lib/stats';
 import {
@@ -50,7 +52,19 @@ class Main extends React.Component {
 
     this.state = {
       currentAttemptId: undefined,
+      coutdownToNextSolve: 0,
     };
+  }
+
+  componentDidMount() {
+    this.timerObj = setInterval(() => {
+      const { room } = this.props;
+      const { nextSolveAt } = room;
+
+      this.setState({
+        coutdownToNextSolve: Math.round((new Date(nextSolveAt).getTime() - Date.now()) / 1000),
+      });
+    }, 1000);
   }
 
   componentDidUpdate(prevProps) {
@@ -62,6 +76,12 @@ class Main extends React.Component {
         { volume: 0.2 },
       );
       notification.play();
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.timerObj) {
+      clearInterval(this.timerObj);
     }
   }
 
@@ -115,6 +135,8 @@ class Main extends React.Component {
       classes, dispatch, room, user, onlyShowSelf,
     } = this.props;
 
+    const { coutdownToNextSolve } = this.state;
+
     const {
       users, attempts, waitingFor,
     } = room;
@@ -134,7 +156,7 @@ class Main extends React.Component {
               <div className={classes.scrambleBox}>
                 { hidden ? (
                   <Typography variant="h6" style={{ fontWeight: 400 }}>
-                    Waiting for other solvers...
+                    { room.nextSolveAt ? `Next solve in ${coutdownToNextSolve} seconds` : 'Waiting...' }
                   </Typography>
                 ) : (
                   <Scramble
@@ -193,6 +215,16 @@ class Main extends React.Component {
                 <Grid item xs={12}>
                   <UserStats stats={stats[user.id]} />
                 </Grid>
+                {process.env.NODE_ENV === 'development' && (
+                  <Grid item xs={12}>
+                    <Box p={1}>
+                      {[
+                        `Started: ${room.started}`,
+                        room.nextSolveAt ? `Next Solve At: ${formatISO9075(new Date(room.nextSolveAt))}` : '',
+                      ].join(' | ')}
+                    </Box>
+                  </Grid>
+                )}
               </Grid>
             </EditDialogProvider>
           </StatsDialogProvider>
@@ -221,6 +253,8 @@ Main.propTypes = {
       id: PropTypes.number,
     }),
     timerFocused: PropTypes.bool,
+    nextSolveAt: PropTypes.string,
+    started: PropTypes.bool,
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -248,6 +282,8 @@ Main.defaultProps = {
       id: undefined,
     },
     timerFocused: true,
+    nextSolveAt: undefined,
+    started: false,
   },
   user: {
     id: undefined,

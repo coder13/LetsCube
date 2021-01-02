@@ -1,24 +1,31 @@
 import React from 'react';
+import { useHistory } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
 import Tooltip from '@material-ui/core/Tooltip';
+import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import Typography from '@material-ui/core/Typography';
+import Menu from '@material-ui/core/Menu';
+import MenuItem from '@material-ui/core/MenuItem';
 import IconButton from '@material-ui/core/IconButton';
 import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
-import DeleteIcon from '@material-ui/icons/Delete';
+import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { useConfirm } from 'material-ui-confirm';
-import ListItemLink from './ListItemLink';
+// import ListItem from './ListItemLink';
 import { getNameFromId } from '../lib/events';
 import { deleteRoom } from '../store/room/actions';
 
 function RoomListItem({ room, canDelete, canUserJoinRoom }) {
   const dispatch = useDispatch();
   const confirm = useConfirm();
+  const history = useHistory();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const anchorRef = React.useRef(null);
   const userText = room.usersLength === 0 ? ' empty'
     : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
   const [disabled, reason] = canUserJoinRoom();
@@ -42,16 +49,27 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
     };
   }, [room]);
 
-  const handleDeleteRoom = () => {
+  const handleDeleteRoom = (event) => {
+    event.preventDefault();
     confirm({ title: 'Are you sure you want to delete this room? ' })
       .then(() => {
         dispatch(deleteRoom(room._id));
-      });
+      })
+      .catch(() => {});
+  };
+
+  const handleSpectateRoom = () => {
+    history.push(`/rooms/${room._id}?spectating=true`);
   };
 
   return (
-    <ListItemLink
-      to={`/rooms/${room._id}`}
+    <ListItem
+      button
+      onClick={() => {
+        if (!menuOpen) {
+          history.push(`/rooms/${room._id}`);
+        }
+      }}
       disabled={disabled}
     >
       <ListItemIcon>
@@ -91,14 +109,24 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
           />
         )}
       </div>
-      { canDelete && (
-        <ListItemSecondaryAction>
-          <IconButton edge="end" aria-label="delete" onClick={handleDeleteRoom}>
-            <DeleteIcon />
-          </IconButton>
-        </ListItemSecondaryAction>
-      )}
-    </ListItemLink>
+      <Menu
+        id={`${room._id}-menu`}
+        anchorEl={anchorRef.current}
+        keepMounted
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+      >
+        <MenuItem onClick={handleSpectateRoom}>Spectate</MenuItem>
+        { canDelete && (
+          <MenuItem onClick={handleDeleteRoom}>Delete</MenuItem>
+        )}
+      </Menu>
+      <ListItemSecondaryAction>
+        <IconButton edge="end" ref={anchorRef} onClick={() => setMenuOpen(true)}>
+          <MoreVertIcon />
+        </IconButton>
+      </ListItemSecondaryAction>
+    </ListItem>
   );
 }
 

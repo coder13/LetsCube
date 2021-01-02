@@ -16,6 +16,8 @@ import {
   requestNewScramble,
   changeEvent,
   editRoom,
+  startRoom,
+  pauseRoom,
 } from '../../../store/room/actions';
 import { Events } from '../../../lib/events';
 import RoomConfigureDialog from '../../RoomConfigureDialog';
@@ -74,10 +76,19 @@ function AdminToolbar({ room }) {
     dispatch(editRoom(options));
   };
 
+  const toggleRoomStart = () => {
+    dispatch(room.started ? pauseRoom() : startRoom());
+  };
+
   return (
     <>
       <Toolbar className={classes.adminToolbar}>
         <FormGroup row variant="text">
+          { room.type === 'grand_prix' && (
+            <Button onClick={toggleRoomStart}>
+              { room.started ? 'Pause' : 'Start'}
+            </Button>
+          )}
           <Button
             onClick={handleNewScramble}
           >
@@ -146,6 +157,8 @@ AdminToolbar.propTypes = {
     _id: PropTypes.string,
     attempts: PropTypes.array,
     event: PropTypes.string,
+    started: PropTypes.bool,
+    type: PropTypes.oneOf(['normal', 'grand_prix']),
   }),
 };
 
@@ -154,6 +167,8 @@ AdminToolbar.defaultProps = {
     _id: undefined,
     attempts: [],
     event: undefined,
+    started: undefined,
+    type: 'normal',
   },
 };
 

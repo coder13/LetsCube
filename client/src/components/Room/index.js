@@ -1,20 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
+import { makeStyles } from '@material-ui/core/styles';
+import { connect, useDispatch } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
+import qs from 'qs';
 import Login from './Common/Login';
 import {
   fetchRoom,
   joinRoom,
 } from '../../store/room/actions';
-
 import Normal from './Normal';
 import GrandPrix from './GrandPrix';
 
-const useStyles = withStyles((theme) => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -27,43 +28,41 @@ const useStyles = withStyles((theme) => ({
   },
 }));
 
-class Room extends React.Component {
-  constructor(props) {
-    super(props);
-    const {
-      dispatch, match, room, inRoom,
-    } = this.props;
+const useQuery = () => qs.parse(useLocation().search, { ignoreQueryPrefix: true });
 
-    if (!room._id) {
-      dispatch(fetchRoom(match.params.roomId));
-    }
+const Room = ({
+  fetching, room, inRoom,
+}) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const query = useQuery();
+  const { roomId } = useParams();
 
-    if (!inRoom && room.accessCode) {
-      dispatch(joinRoom(room._id));
-    }
+  const { accessCode, _id } = room;
 
-    if (room.name) {
-      document.title = `${room.name} - Let's Cube`;
+  useEffect(() => {
+    if (!fetching && !_id) {
+      dispatch(fetchRoom(roomId, query.spectating));
     }
+  }, [dispatch, fetching, query, roomId, _id]);
+
+  useEffect(() => {
+    if (!inRoom && accessCode) {
+      dispatch(joinRoom(_id));
+    }
+  }, [dispatch, accessCode, _id, inRoom]);
+
+  const loggedIn = !room.private || inRoom;
+
+  if (fetching) {
+    return (
+      <Backdrop open>
+        <CircularProgress color="inherit" />
+      </Backdrop>
+    );
   }
 
-  componentDidUpdate() {
-    const { dispatch, room, inRoom } = this.props;
-
-    // inRoom means we're connected to a room
-    if (!inRoom && room.accessCode) {
-      // request to join the room
-      dispatch(joinRoom(room._id));
-    }
-
-    if (room.name) {
-      document.title = `${room.name} - Let's Cube`;
-    }
-  }
-
-  renderRoom() {
-    const { room } = this.props;
-
+  if (loggedIn) {
     if (room.type === 'grand_prix') {
       return <GrandPrix room={room} />;
     }
@@ -71,32 +70,12 @@ class Room extends React.Component {
     return <Normal room={room} />;
   }
 
-  render() {
-    const {
-      classes, fetching, inRoom, room,
-    } = this.props;
-
-    const loggedIn = !room.private || inRoom;
-
-    if (fetching) {
-      return (
-        <Backdrop open>
-          <CircularProgress color="inherit" />
-        </Backdrop>
-      );
-    }
-
-    if (loggedIn) {
-      return this.renderRoom();
-    }
-
-    return (
-      <Paper className={classes.root}>
-        <Login />
-      </Paper>
-    );
-  }
-}
+  return (
+    <Paper className={classes.root}>
+      <Login />
+    </Paper>
+  );
+};
 
 Room.propTypes = {
   fetching: PropTypes.bool,
@@ -112,9 +91,6 @@ Room.propTypes = {
     id: PropTypes.number,
   }),
   inRoom: PropTypes.bool,
-  dispatch: PropTypes.func.isRequired,
-  match: PropTypes.shape().isRequired,
-  classes: PropTypes.shape().isRequired,
 };
 
 Room.defaultProps = {
@@ -139,4 +115,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(Room));
+export default connect(mapStateToProps)(Room);

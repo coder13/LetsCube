@@ -89,7 +89,7 @@ function Leaderboard({ room, user }) {
                       <>
                         <User
                           className={classes.user}
-                          user={room.users.find((i) => +i.id === +u.id)}
+                          user={room.users.find((i) => +i.id === +u.id) || {}}
                         />
                       </>
                     </TableCell>
