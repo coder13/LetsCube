@@ -60,7 +60,7 @@ async function attachUser(socket, next) {
 
 const getRooms = (userId) => Room.find()
   .then((rooms) => rooms.filter((room) => (
-    !room.banned.get(userId.toString())
+    userId ? !room.banned.get(userId.toString()) : true
   )).map(roomMask));
 // give them the list of rooms
 
