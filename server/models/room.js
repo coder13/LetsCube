@@ -173,7 +173,7 @@ Room.methods.dropUser = async function (user, updateAdmin) {
     await this.updateAdminIfNeeded(updateAdmin);
   }
 
-  if (this.users.length === 0) {
+  if (this.usersInRoom.length === 0) {
     await this.updateStale(true);
   }
 
