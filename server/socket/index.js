@@ -469,6 +469,29 @@ module.exports = ({ app, expressSession }) => {
       }
     });
 
+    // Register user for room they are currently in
+    socket.on(Protocol.UPDATE_USER, async ({ userId, competing, registered }) => {
+      if (!checkAdmin()) {
+        return;
+      }
+
+      try {
+        if (competing !== undefined) {
+          socket.room.competing.set(userId.toString(), competing);
+        }
+
+        if (registered !== undefined) {
+          socket.room.registered.set(userId.toString(), registered);
+        }
+
+        const room = await socket.room.save();
+
+        broadcastToAllInRoom(room.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(room));
+      } catch (e) {
+        logger.error(e);
+      }
+    });
+
     socket.on(Protocol.SUBMIT_RESULT, async (result) => {
       if (!socket.user || !socket.roomId) {
         return;

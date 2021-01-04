@@ -42,4 +42,5 @@ module.exports = {
   NEXT_SOLVE_AT: 'next_solve_at', // transmits an approx time to expect the new scramble
   START_ROOM: 'start',
   PAUSE_ROOM: 'pause',
+  UPDATE_USER: 'update_user',
 };

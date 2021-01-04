@@ -30,6 +30,7 @@ import {
   UPDATE_REGISTRATION,
   START_ROOM,
   PAUSE_ROOM,
+  UPDATE_USER,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -285,6 +286,9 @@ const socketMiddleware = (store) => {
     },
     [UPDATE_REGISTRATION]: ({ registration }) => {
       socket.emit(Protocol.UPDATE_REGISTRATION, registration);
+    },
+    [UPDATE_USER]: ({ userId, competing, registered }) => {
+      socket.emit(Protocol.UPDATE_USER, { userId, competing, registered });
     },
     [START_ROOM]: () => {
       socket.emit(Protocol.START_ROOM);
