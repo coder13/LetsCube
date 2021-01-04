@@ -73,6 +73,7 @@ function Leaderboard({ room, user }) {
         <EditDialogProvider dispatch={dispatch}>
           <TableContainer className={classes.table}>
             <Table
+              className="leaderboard-table"
               stickyHeader
             >
               <TableHead>
