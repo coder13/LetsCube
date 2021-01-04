@@ -140,45 +140,57 @@ module.exports = ({ app, expressSession }) => {
     }
 
     const newSolve = () => {
-      Room.findById(room.id).then(async (r) => {
-        try {
-          const nextSolveAt = new Date(Date.now() + interval);
-          logger.debug('nextSolveAt', { nextSolveAt });
-          sendNewScramble(r);
-          r.nextSolveAt = nextSolveAt;
-          r.update({ id: room.id }, {
-            nextSolveAt,
-          });
-          broadcastToAllInRoom(room.accessCode, Protocol.NEXT_SOLVE_AT, nextSolveAt);
-        } catch (e) {
-          logger.error(e);
+      Room.findById(room._id).then(async (r) => {
+        if (!r) {
+          return;
         }
+
+        const nextSolveAt = new Date(Date.now() + interval);
+        logger.debug('nextSolveAt', { nextSolveAt });
+        await sendNewScramble(r);
+        r.nextSolveAt = nextSolveAt;
+        await r.save();
+        broadcastToAllInRoom(room.accessCode, Protocol.NEXT_SOLVE_AT, nextSolveAt);
       });
     };
 
-    logger.debug('Starting timer for room', { roomId: room.id });
-    newSolve();
-    roomTimerObj[room.id] = setInterval(newSolve, interval);
+    roomTimerObj[room._id] = setInterval(() => {
+      newSolve();
+    }, interval);
+
+    const nextSolveAt = new Date(Date.now() + interval);
+    logger.info('Starting timer for room; first solve at: ', { roomId: room._id, nextSolveAt });
+    broadcastToAllInRoom(room.accessCode, Protocol.NEXT_SOLVE_AT, nextSolveAt);
+    room.nextSolveAt = nextSolveAt;
+    room.save();
+  }
+
+  function awaitRoomStart(room) {
+    const time = new Date(room.startTime).getTime() - Date.now();
+    logger.debug('Starting countdown for room', {
+      roomId: room._id,
+      milliseconds: time,
+    });
+
+    setTimeout(() => {
+      Room.findById(room._id).then((r) => {
+        r.start().then((rr) => {
+          broadcastToAllInRoom(rr.accessCode, Protocol.UPDATE_ROOM, joinRoomMask(rr));
+          startTimer(rr);
+        });
+      });
+    }, time);
   }
 
   function pauseTimer(room) {
-    clearInterval(roomTimerObj[room.id]);
+    clearInterval(roomTimerObj[room._id]);
   }
 
   Room.find({ type: 'grand_prix' })
     .then((rooms) => {
       rooms.forEach(async (room) => {
-        if (Date.now() < new Date(room.startTime).getTime()) {
-          logger.debug('Starting countdown for room', {
-            roomId: room.id,
-            milliseconds: new Date(room.startTime).getTime() - Date.now(),
-          });
-          setTimeout(async () => {
-            const r = await room.start();
-            if (r) {
-              startTimer(r);
-            }
-          }, new Date(room.startTime).getTime() - Date.now());
+        if (room.startTime && Date.now() < new Date(room.startTime).getTime()) {
+          awaitRoomStart(room);
         } else {
           startTimer(room);
         }
@@ -338,7 +350,7 @@ module.exports = ({ app, expressSession }) => {
         broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
         broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
-        if (room.type === 'normal' && room.doneWithScramble()) {
+        if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
           sendNewScramble(room);
         }
@@ -420,9 +432,7 @@ module.exports = ({ app, expressSession }) => {
       socket.emit(Protocol.FORCE_JOIN, room);
 
       if (room.type === 'grand_prix' && room.startTime) {
-        setTimeout(async () => {
-          startTimer(room);
-        }, new Date(room.startTime).getTime() - Date.now());
+        awaitRoomStart(room);
       }
     });
 
@@ -483,7 +493,7 @@ module.exports = ({ app, expressSession }) => {
           userId: socket.user.id,
         });
 
-        if (r.type === 'normal' && r.doneWithScramble()) {
+        if (r.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
           sendNewScramble(r);
         }

@@ -136,14 +136,10 @@ Room.virtual('private').get(function () {
 });
 
 Room.methods.start = function () {
-  if (this.started) {
-    return;
-  }
-
   this.started = true;
 
   this.users.forEach((user) => {
-    if (this.registered[user.id.toString()]) {
+    if (this.registered.get(user.id.toString())) {
       this.competing.set(user.id.toString(), true);
     }
   });
@@ -174,9 +170,7 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 
   if (!this.users.find((i) => i.id === user.id)) {
     this.users.push(user);
-    if ((!this.started || this.type === 'normal') && !spectating) {
-      this.competing.set(user.id.toString(), true);
-    }
+    this.competing.set(user.id.toString(), this.type === 'normal');
   } else if (spectating) {
     this.competing.set(user.id.toString(), false);
   }
@@ -247,6 +241,10 @@ Room.methods.authenticate = function (password) {
 };
 
 Room.methods.doneWithScramble = function () {
+  if (this.type === 'grand_prix') {
+    return false;
+  }
+
   if (this.users.filter((user) => this.attempts[this.attempts.length - 1].results
     .get(user.id.toString())).length === 0) {
     return false;

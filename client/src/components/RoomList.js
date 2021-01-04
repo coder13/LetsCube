@@ -73,17 +73,6 @@ function RoomList({
   const publicRooms = rooms.filter((room) => !room.private);
   const privateRooms = rooms.filter((room) => !!room.private);
   const showAlert = !!user.id && !user.canJoinRoom;
-  const canUserJoinRoom = (room) => {
-    if (!!user.id && !user.canJoinRoom) {
-      return [true, 'Must set a username or reveal WCA identity to join'];
-    }
-
-    if (room.requireRevealedIdentity && !user.showWCAID) {
-      return [true, 'Must reveal WCA identity to join'];
-    }
-
-    return [false];
-  };
 
   const onCreateRoom = (options) => {
     dispatch(createRoom(options));
@@ -157,7 +146,6 @@ function RoomList({
                 <RoomListItem
                   key={room._id}
                   room={room}
-                  canUserJoinRoom={() => canUserJoinRoom(room)}
                   canDelete={canDeleteRoom()}
                 />
               ))}
@@ -168,7 +156,6 @@ function RoomList({
                 <RoomListItem
                   key={room._id}
                   room={room}
-                  canUserJoinRoom={() => canUserJoinRoom(room)}
                   canDelete={canDeleteRoom()}
                 />
               ))}

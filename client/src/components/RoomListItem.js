@@ -19,9 +19,22 @@ import { useConfirm } from 'material-ui-confirm';
 // import ListItem from './ListItemLink';
 import { getNameFromId } from '../lib/events';
 import { deleteRoom } from '../store/room/actions';
+import { updateProfile } from '../store/user/actions';
+
+const canUserJoinRoom = (user, room) => {
+  if (!!user.id && !user.canJoinRoom) {
+    return [true, 'Must set a username or reveal WCA identity to join'];
+  }
+
+  if (room.requireRevealedIdentity && !user.showWCAID) {
+    return [false, 'You must reveal identity to join room'];
+  }
+
+  return [false];
+};
 
 function RoomListItem({
-  room, user, canDelete, canUserJoinRoom,
+  room, user, canDelete,
 }) {
   const dispatch = useDispatch();
   const confirm = useConfirm();
@@ -30,7 +43,7 @@ function RoomListItem({
   const anchorRef = React.useRef(null);
   const userText = room.usersLength === 0 ? ' empty'
     : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
-  const [disabled, reason] = canUserJoinRoom();
+  const [disabled, reason] = canUserJoinRoom(user, room);
   const [duration, setDuration] = React.useState(null);
   const [unixDuration, setUnixDuration] = React.useState(null);
 
@@ -65,7 +78,22 @@ function RoomListItem({
       if (room.requireRevealedIdentity && !user.showWCAID) {
         confirm({ title: 'You must reveal identity to join room. Are you sure you want to?' })
           .then(() => {
-            history.push(`/rooms/${room._id}`);
+            fetch('/api/updatePreference', {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              method: 'PUT',
+              body: JSON.stringify({
+                showWCAID: true,
+              }),
+            }).then((res) => res.json()).then((res) => {
+              dispatch(updateProfile({
+                showWCAID: res.showWCAID,
+                displayName: res.displayName,
+                canJoinRoom: res.canJoinRoom,
+              }));
+              history.push(`/rooms/${room._id}`);
+            });
           })
           .catch(() => {});
       } else {
@@ -157,7 +185,6 @@ RoomListItem.propTypes = {
     showWCAID: PropTypes.bool,
   }),
   canDelete: PropTypes.bool,
-  canUserJoinRoom: PropTypes.func,
 };
 
 RoomListItem.defaultProps = {
@@ -175,7 +202,6 @@ RoomListItem.defaultProps = {
     showWCAID: false,
   },
   canDelete: false,
-  canUserJoinRoom: () => ([false, undefined]),
 };
 
 const mapStateToProps = (state) => ({
