@@ -1,5 +1,7 @@
 import { push } from 'connected-react-router';
 import { v4 as uuid } from 'uuid';
+import UIfx from 'uifx';
+import notificationAsset from '../../assets/notification.mp3';
 import * as Protocol from '../../lib/protocol';
 import Socket from './Socket';
 import {
@@ -169,6 +171,14 @@ const socketMiddleware = (store) => {
           icon: 'SCRAMBLE',
           event: store.getState().room.event,
         }));
+
+        if (!store.getState().user.muteTimer) {
+          const notification = new UIfx(
+            notificationAsset,
+            { volume: 0.2 },
+          );
+          notification.play();
+        }
       },
       [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
+import { withStyles, makeStyles } from '@material-ui/core/styles';
+import { connect, useDispatch } from 'react-redux';
 import Grid from '@material-ui/core/Grid';
 import Box from '@material-ui/core/Box';
 import Paper from '@material-ui/core/Paper';
@@ -10,9 +10,7 @@ import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import grey from '@material-ui/core/colors/grey';
 import { Cube } from 'react-cube-svg';
-import UIfx from 'uifx';
 import { formatISO9075 } from 'date-fns';
-import notificationAsset from '../../../assets/notification.mp3';
 import calcStats from '../../../lib/stats';
 import {
   submitResult,
@@ -27,7 +25,65 @@ import Timer from '../../Timer/index';
 import Scramble from '../../Scramble';
 import UserStats from '../Common/UserStats';
 
-const useStyles = withStyles((theme) => ({
+const getCountdownColor = (theme) => ({ countdown }) => {
+  if (countdown < 0) {
+    return theme.palette.background.paper;
+  }
+
+  if (countdown < 5) {
+    return theme.palette.error.dark;
+  }
+
+  if (countdown < 10) {
+    return theme.palette.error.light;
+  }
+
+  if (countdown < 15) {
+    return theme.palette.warning.dark;
+  }
+
+  if (countdown < 25) {
+    return theme.palette.warning.main;
+  }
+
+  if (countdown < 30) {
+    return theme.palette.warning.light;
+  }
+
+  if (countdown < 35) {
+    return theme.palette.grey[300];
+  }
+
+  if (countdown < 40) {
+    return theme.palette.grey[200];
+  }
+
+  if (countdown < 45) {
+    return theme.palette.grey[100];
+  }
+
+  if (countdown < 50) {
+    return theme.palette.grey[50];
+  }
+
+  return theme.palette.background.paper;
+};
+
+const CountdownBox = withStyles((theme) => ({
+  root: (countdown) => ({
+    textAlign: 'center',
+    transition: 'background-color 5s',
+    backgroundColor: getCountdownColor(theme)(countdown),
+  }),
+}))(({ countdown, classes }) => (
+  <div className={classes.root}>
+    <Typography variant="h6" style={{ fontWeight: 400 }}>
+      {`Next solve in ${countdown} seconds`}
+    </Typography>
+  </div>
+));
+
+const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -46,49 +102,35 @@ const useStyles = withStyles((theme) => ({
   },
 }));
 
-class Main extends React.Component {
-  constructor(props) {
-    super(props);
+function Main({ room, user, onlyShowSelf }) {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
+  const [coutdownToNextSolve, setCoutdownToNextSolve] = useState(null);
 
-    this.state = {
-      currentAttemptId: undefined,
-      coutdownToNextSolve: 0,
-    };
-  }
+  const { users, attempts, nextSolveAt } = room;
 
-  componentDidMount() {
-    this.timerObj = setInterval(() => {
-      const { room } = this.props;
-      const { nextSolveAt } = room;
-
-      this.setState({
-        coutdownToNextSolve: Math.round((new Date(nextSolveAt).getTime() - Date.now()) / 1000),
-      });
-    }, 1000);
-  }
-
-  componentDidUpdate(prevProps) {
-    const { room, user } = this.props;
-    const attemptsUpdated = room.attempts.length > prevProps.room.attempts.length;
-    if (!user.muteTimer && attemptsUpdated) {
-      const notification = new UIfx(
-        notificationAsset,
-        { volume: 0.2 },
-      );
-      notification.play();
+  useEffect(() => {
+    let timerObj;
+    if (nextSolveAt) {
+      clearInterval(timerObj);
+      timerObj = setInterval(() => {
+        setCoutdownToNextSolve(Math.round(
+          (new Date(nextSolveAt).getTime() - Date.now()) / 1000,
+        ));
+      }, 1000);
+    } else if (!nextSolveAt && timerObj) {
+      clearInterval(timerObj);
     }
-  }
 
-  componentWillUnmount() {
-    if (this.timerObj) {
-      clearInterval(this.timerObj);
+    return () => {
+      if (timerObj) {
+        clearInterval(timerObj)
+      }
     }
-  }
+  }, [nextSolveAt]);
 
-  onSubmitTime(event) {
-    const { dispatch, room, user } = this.props;
-    const { currentAttemptId } = this.state;
-
+  const onSubmitTime = (event) => {
     if (!room.attempts.length) {
       return;
     }
@@ -106,132 +148,132 @@ class Main extends React.Component {
         penalties: event.penalties,
       },
     }));
-    this.setState({ currentAttemptId: null });
+    setCurrentAttemptId(null);
   }
 
-  onTimerFocused = () => {
-    const { dispatch } = this.props;
+  const onTimerFocused = () => {
     dispatch(timerFocused(true));
   };
 
-  onTimerDefocused = () => {
-    const { dispatch } = this.props;
+  const onTimerDefocused = () => {
     dispatch(timerFocused(false));
   };
 
-  handleStatusChange(status) {
-    const { dispatch } = this.props;
+  const handleStatusChange = (status) => {
     dispatch(sendStatus(status));
   }
 
-  handlePriming() {
-    const { room } = this.props;
+  const handlePriming = () => {
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
-    this.setState({ currentAttemptId: latestAttempt.id });
+    setCurrentAttemptId(latestAttempt.id);
   }
 
-  render() {
-    const {
-      classes, dispatch, room, user, onlyShowSelf,
-    } = this.props;
+  const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
+  const timerDisabled = !room.timerFocused || !room.competing[user.id]
+    || room.waitingFor.indexOf(user.id) === -1;
+  const hidden = room.registered[user.id] && room.competing[user.id] && latestAttempt
+    && latestAttempt.results[user.id];
 
-    const { coutdownToNextSolve } = this.state;
+  const stats = calcStats(attempts, users);
+  const showScramble = latestAttempt.scrambles && room.event === '333';
 
-    const {
-      users, attempts, waitingFor,
-    } = room;
-    const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
-    const timerDisabled = !room.timerFocused || !room.competing[user.id]
-      || room.waitingFor.indexOf(user.id) === -1;
-    const hidden = room.competing[user.id] && waitingFor.indexOf(user.id) === -1;
-
-    const stats = calcStats(attempts, users);
-    const showScramble = latestAttempt.scrambles && room.event === '333';
-
-    return (
-      <ClickAwayListener onClickAway={() => { this.onTimerDefocused(); }}>
-        <Paper className={classes.root} variant="outlined" square onClick={() => { this.onTimerFocused(); }}>
-          <StatsDialogProvider>
-            <EditDialogProvider dispatch={dispatch}>
-              <div className={classes.scrambleBox}>
-                { hidden ? (
-                  <Typography variant="h6" style={{ fontWeight: 400 }}>
-                    { room.nextSolveAt ? `Next solve in ${coutdownToNextSolve} seconds` : 'Waiting...' }
-                  </Typography>
-                ) : (
-                  <Scramble
-                    event={room.event}
-                    disabled={timerDisabled}
-                    scrambles={latestAttempt.scrambles}
-                  />
-                )}
-              </div>
-              <Divider />
-              <div>
-                <HelpPopover />
-                {room.competing[user.id] && (
-                  <Timer
-                    disabled={timerDisabled}
-                    onSubmitTime={(e) => this.onSubmitTime(e)}
-                    onStatusChange={(status) => { this.handleStatusChange(status); }}
-                    useInspection={user.useInspection}
-                    onPriming={() => { this.handlePriming(); }}
-                    type={user.timerType}
-                  />
-                )}
-              </div>
-              <Divider />
-              { onlyShowSelf
-                ? (
-                  <TimesTable
-                    room={room}
-                    stats={stats}
-                    userId={user.id}
-                    userFilter={(u) => +u.id === +user.id}
-                  />
-                )
-                : <TimesTable room={room} stats={stats} userId={user.id} />}
-              <Grid container>
-                {showScramble && (
-                  <Grid item xs={12}>
-                    <Paper
-                      square
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        height: '100%',
-                        backgroundColor: grey[100],
-                      }}
-                      variant="outlined"
-                    >
-                      <Cube
-                        size={240}
-                        scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
-                      />
-                    </Paper>
-                  </Grid>
-                )}
+  return (
+    <ClickAwayListener onClickAway={() => { onTimerDefocused(); }}>
+      <Paper
+        className={classes.root}
+        style={{
+          backgroundColor: getCountdownColor(coutdownToNextSolve),
+        }}
+        variant="outlined"
+        square
+        onClick={() => { onTimerFocused(); }}
+      >
+        <StatsDialogProvider>
+          <EditDialogProvider dispatch={dispatch}>
+            { room.started && coutdownToNextSolve && (
+              <>
+                <CountdownBox countdown={coutdownToNextSolve} />
+                <Divider />
+              </>
+            )}
+            <div className={classes.scrambleBox}>
+              { hidden ? (
+                <Typography variant="h6" style={{ fontWeight: 400 }}>
+                  Waiting...
+                </Typography>
+              ) : (
+                <Scramble
+                  event={room.event}
+                  disabled={timerDisabled}
+                  scrambles={latestAttempt.scrambles}
+                />
+              )}
+            </div>
+            <Divider />
+            <div>
+              <HelpPopover />
+              {room.competing[user.id] && (
+                <Timer
+                  disabled={timerDisabled}
+                  onSubmitTime={(e) => onSubmitTime(e)}
+                  onStatusChange={(status) => { handleStatusChange(status); }}
+                  useInspection={user.useInspection}
+                  onPriming={() => { handlePriming(); }}
+                  type={user.timerType}
+                />
+              )}
+            </div>
+            <Divider />
+            { onlyShowSelf
+              ? (
+                <TimesTable
+                  room={room}
+                  stats={stats}
+                  userId={user.id}
+                  userFilter={(u) => +u.id === +user.id}
+                />
+              )
+              : <TimesTable room={room} stats={stats} userId={user.id} />}
+            <Grid container>
+              {showScramble && (
                 <Grid item xs={12}>
-                  <UserStats stats={stats[user.id]} />
+                  <Paper
+                    square
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                      backgroundColor: grey[100],
+                    }}
+                    variant="outlined"
+                  >
+                    <Cube
+                      size={240}
+                      scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
+                    />
+                  </Paper>
                 </Grid>
-                {process.env.NODE_ENV === 'development' && (
-                  <Grid item xs={12}>
-                    <Box p={1}>
-                      {[
-                        `Started: ${room.started}`,
-                        room.nextSolveAt ? `Next Solve At: ${formatISO9075(new Date(room.nextSolveAt))}` : '',
-                      ].join(' | ')}
-                    </Box>
-                  </Grid>
-                )}
+              )}
+              <Grid item xs={12}>
+                <UserStats stats={stats[user.id]} />
               </Grid>
-            </EditDialogProvider>
-          </StatsDialogProvider>
-        </Paper>
-      </ClickAwayListener>
-    );
-  }
+              {process.env.NODE_ENV === 'development' && (
+                <Grid item xs={12}>
+                  <Box p={1}>
+                    {[
+                      `Started: ${room.started}`,
+                      room.nextSolveAt ? `Next Solve At: ${formatISO9075(new Date(room.nextSolveAt))}` : '',
+                    ].join(' | ')}
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </EditDialogProvider>
+        </StatsDialogProvider>
+      </Paper>
+    </ClickAwayListener>
+  );
 }
 
 Main.propTypes = {
@@ -246,6 +288,7 @@ Main.propTypes = {
     competing: PropTypes.shape(),
     waitingFor: PropTypes.array,
     statuses: PropTypes.shape(),
+    registered: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
     })),
@@ -262,8 +305,6 @@ Main.propTypes = {
     muteTimer: PropTypes.bool,
     timerType: PropTypes.string,
   }),
-  dispatch: PropTypes.func.isRequired,
-  classes: PropTypes.shape().isRequired,
   onlyShowSelf: PropTypes.bool,
 };
 
@@ -277,6 +318,7 @@ Main.defaultProps = {
     competing: {},
     waitingFor: [],
     statues: {},
+    registered: {},
     attempts: [],
     admin: {
       id: undefined,
@@ -299,4 +341,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(Main));
+export default connect(mapStateToProps)(Main);

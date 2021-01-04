@@ -1,6 +1,6 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { connect, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
 import Tooltip from '@material-ui/core/Tooltip';
@@ -20,7 +20,9 @@ import { useConfirm } from 'material-ui-confirm';
 import { getNameFromId } from '../lib/events';
 import { deleteRoom } from '../store/room/actions';
 
-function RoomListItem({ room, canDelete, canUserJoinRoom }) {
+function RoomListItem({
+  room, user, canDelete, canUserJoinRoom,
+}) {
   const dispatch = useDispatch();
   const confirm = useConfirm();
   const history = useHistory();
@@ -58,6 +60,20 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
       .catch(() => {});
   };
 
+  const handleJoinRoom = () => {
+    if (!menuOpen) {
+      if (room.requireRevealedIdentity && !user.showWCAID) {
+        confirm({ title: 'You must reveal identity to join room. Are you sure you want to?' })
+          .then(() => {
+            history.push(`/rooms/${room._id}`);
+          })
+          .catch(() => {});
+      } else {
+        history.push(`/rooms/${room._id}`);
+      }
+    }
+  };
+
   const handleSpectateRoom = () => {
     history.push(`/rooms/${room._id}?spectating=true`);
   };
@@ -65,11 +81,7 @@ function RoomListItem({ room, canDelete, canUserJoinRoom }) {
   return (
     <ListItem
       button
-      onClick={() => {
-        if (!menuOpen) {
-          history.push(`/rooms/${room._id}`);
-        }
-      }}
+      onClick={handleJoinRoom}
       disabled={disabled}
     >
       <ListItemIcon>
@@ -139,6 +151,10 @@ RoomListItem.propTypes = {
     usersLength: PropTypes.number,
     users: PropTypes.array,
     startTime: PropTypes.string,
+    requireRevealedIdentity: PropTypes.bool,
+  }),
+  user: PropTypes.shape({
+    showWCAID: PropTypes.bool,
   }),
   canDelete: PropTypes.bool,
   canUserJoinRoom: PropTypes.func,
@@ -153,9 +169,17 @@ RoomListItem.defaultProps = {
     usersLength: 0,
     users: undefined,
     startTime: undefined,
+    requireRevealedIdentity: false,
+  },
+  user: {
+    showWCAID: false,
   },
   canDelete: false,
   canUserJoinRoom: () => ([false, undefined]),
 };
 
-export default RoomListItem;
+const mapStateToProps = (state) => ({
+  user: state.user,
+});
+
+export default connect(mapStateToProps)(RoomListItem);

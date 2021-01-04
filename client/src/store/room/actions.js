@@ -32,10 +32,11 @@ export const roomUpdated = (room) => ({
   room,
 });
 
-export const fetchRoom = (id) => ({
+export const fetchRoom = (id, spectating) => ({
   type: FETCH_ROOM,
   fetching: true,
   id,
+  spectating,
 });
 
 export const deleteRoom = (id) => ({

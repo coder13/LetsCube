@@ -157,7 +157,6 @@ NormalRoom.defaultProps = {
   },
 };
 
-
 const mapStateToProps = (state) => ({
   room: state.room,
   user: state.user,

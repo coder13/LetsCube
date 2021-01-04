@@ -127,9 +127,11 @@ Leaderboard.propTypes = {
       id: PropTypes.number,
       results: PropTypes.shape(),
     })),
+    requireRevealedIdentity: PropTypes.bool,
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
+    showWCAID: PropTypes.bool,
   }),
 };
 
@@ -139,9 +141,11 @@ Leaderboard.defaultProps = {
     points: {},
     statuses: {},
     attempts: [],
+    requireRevealedIdentity: false,
   },
   user: {
     id: undefined,
+    showWCAID: undefined,
   },
 };
 
