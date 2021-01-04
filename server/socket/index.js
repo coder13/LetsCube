@@ -385,8 +385,11 @@ module.exports = ({ app, expressSession }) => {
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, async (id, spectating) => {
+    socket.on(Protocol.FETCH_ROOM, async (id, spectating, ack) => {
       const room = await Room.findById(id);
+
+      console.log(391, ack);
+      if (ack) ack('foo');
 
       if (!room) {
         socket.emit(Protocol.ERROR, {
