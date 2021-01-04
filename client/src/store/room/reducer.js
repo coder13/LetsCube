@@ -88,19 +88,8 @@ const reducers = {
     },
   }),
   [JOIN_ROOM]: (state, action) => ({ ...state, password: action.password }),
-  [LEAVE_ROOM]: (state) => ({
-    ...state,
-    name: undefined,
-    _id: undefined,
-    accessCode: undefined,
-    users: [],
-    statuses: {},
-    attempts: [],
-    competing: {},
-    waitingFor: [],
-    admin: {
-      id: null,
-    },
+  [LEAVE_ROOM]: () => ({
+    ...INITIAL_STATE,
   }),
   [NEW_ATTEMPT]: (state, action) => ({
     ...state,

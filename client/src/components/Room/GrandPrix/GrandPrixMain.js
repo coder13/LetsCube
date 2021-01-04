@@ -118,6 +118,10 @@ function Main({ room, user, onlyShowSelf }) {
         setCoutdownToNextSolve(Math.round(
           (new Date(nextSolveAt).getTime() - Date.now()) / 1000,
         ));
+
+        if (new Date(nextSolveAt).getTime() < Date.now()) {
+          clearInterval(timerObj);
+        }
       }, 1000);
     } else if (!nextSolveAt && timerObj) {
       clearInterval(timerObj);
@@ -168,11 +172,11 @@ function Main({ room, user, onlyShowSelf }) {
     setCurrentAttemptId(latestAttempt.id);
   }
 
-  const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
+  const latestAttempt = attempts && attempts.length && attempts[attempts.length - 1];
   const timerDisabled = !room.timerFocused || !room.competing[user.id]
     || room.waitingFor.indexOf(user.id) === -1;
-  const hidden = room.registered[user.id] && room.competing[user.id] && latestAttempt
-    && latestAttempt.results[user.id];
+  const showScrambleBox = latestAttempt
+    && !latestAttempt.results[user.id];
 
   const stats = calcStats(attempts, users);
   const showScramble = latestAttempt.scrambles && room.event === '333';
@@ -190,14 +194,14 @@ function Main({ room, user, onlyShowSelf }) {
       >
         <StatsDialogProvider>
           <EditDialogProvider dispatch={dispatch}>
-            { room.started && coutdownToNextSolve && (
+            { coutdownToNextSolve && (
               <>
                 <CountdownBox countdown={coutdownToNextSolve} />
                 <Divider />
               </>
             )}
             <div className={classes.scrambleBox}>
-              { hidden ? (
+              { !showScrambleBox ? (
                 <Typography variant="h6" style={{ fontWeight: 400 }}>
                   Waiting...
                 </Typography>
@@ -230,7 +234,7 @@ function Main({ room, user, onlyShowSelf }) {
                   room={room}
                   stats={stats}
                   userId={user.id}
-                  userFilter={(u) => +u.id === +user.id}
+                  userFilter={(u) => +u.id === +user.id && room.competing[u.id]}
                 />
               )
               : <TimesTable room={room} stats={stats} userId={user.id} />}
