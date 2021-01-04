@@ -37,7 +37,10 @@ function Login({ dispatch, roomId, loginFailed }) {
   const login = (event) => {
     event.preventDefault();
     setResetPassword(false);
-    dispatch(joinRoom(roomId, password));
+    dispatch(joinRoom({
+      id: roomId,
+      password,
+    }));
   };
 
   const updatePassword = (event) => {

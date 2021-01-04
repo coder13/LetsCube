@@ -385,7 +385,7 @@ module.exports = ({ app, expressSession }) => {
     });
 
     // Given ID, fetches room, authenticates, and returns room data.
-    socket.on(Protocol.FETCH_ROOM, async (id, spectating) => {
+    socket.on(Protocol.FETCH_ROOM, async (id, spectating, password) => {
       const room = await Room.findById(id);
 
       if (!room) {
@@ -394,6 +394,8 @@ module.exports = ({ app, expressSession }) => {
           event: Protocol.FETCH_ROOM,
           message: `Could not find room with id ${id}`,
         });
+      } else if (room.private && password && room.authenticate(password)) {
+        joinRoom(room, () => {}, spectating);
       } else if (room.private) {
         socket.emit(Protocol.UPDATE_ROOM, roomMask(room));
       } else {

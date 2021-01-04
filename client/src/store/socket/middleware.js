@@ -229,8 +229,8 @@ const socketMiddleware = (store) => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({ id, spectating }) => {
-      socket.emit(Protocol.FETCH_ROOM, id, spectating);
+    [FETCH_ROOM]: ({ id, password, spectating }) => {
+      socket.emit(Protocol.FETCH_ROOM, id, spectating, password);
     },
     [DELETE_ROOM]: ({ id }) => {
       socket.emit(Protocol.DELETE_ROOM, id);

@@ -32,10 +32,11 @@ export const roomUpdated = (room) => ({
   room,
 });
 
-export const fetchRoom = (id, spectating) => ({
+export const fetchRoom = ({ id, password, spectating }) => ({
   type: FETCH_ROOM,
   fetching: true,
   id,
+  password,
   spectating,
 });
 
@@ -44,7 +45,7 @@ export const deleteRoom = (id) => ({
   id,
 });
 
-export const joinRoom = (id, password) => ({
+export const joinRoom = ({ id, password }) => ({
   type: JOIN_ROOM,
   id,
   password,

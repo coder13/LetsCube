@@ -42,15 +42,22 @@ const Room = ({
 
   useEffect(() => {
     if (!fetching && !_id) {
-      dispatch(fetchRoom(roomId, query.spectating));
+      dispatch(fetchRoom({
+        id: roomId,
+        password: query.password,
+        spectating: query.spectating,
+      }));
     }
   }, [dispatch, fetching, query, roomId, _id]);
 
   useEffect(() => {
-    if (!inRoom && accessCode) {
-      dispatch(joinRoom(_id));
+    if (!fetching && !inRoom && accessCode) {
+      dispatch(joinRoom({
+        id: _id,
+        password: query.password,
+      }));
     }
-  }, [dispatch, accessCode, _id, inRoom]);
+  }, [dispatch, fetching, accessCode, _id, inRoom]);
 
   const loggedIn = !room.private || inRoom;
 
