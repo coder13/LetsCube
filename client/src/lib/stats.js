@@ -154,6 +154,11 @@ export const calculatePointsForAllAttempts = (attempts) => {
   const points = {};
 
   attempts.forEach((attempt) => {
+    if (!attempt.points) {
+      console.error('attempt.points doesn\'t exist', attempt);
+      return;
+    }
+
     Object.keys(attempt.points).forEach((key) => {
       const result = attempt.points[key];
       if (points[key]) {

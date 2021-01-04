@@ -173,10 +173,8 @@ function Main({ room, user, onlyShowSelf }) {
   }
 
   const latestAttempt = attempts && attempts.length && attempts[attempts.length - 1];
-  const timerDisabled = !room.timerFocused || !room.competing[user.id]
-    || room.waitingFor.indexOf(user.id) === -1;
-  const showScrambleBox = latestAttempt
-    && !latestAttempt.results[user.id];
+  const showScrambleBox = latestAttempt && !latestAttempt.results[user.id];
+  const timerDisabled = !room.timerFocused || !room.competing[user.id] || !showScrambleBox;
 
   const stats = calcStats(attempts, users);
   const showScramble = latestAttempt.scrambles && room.event === '333';
