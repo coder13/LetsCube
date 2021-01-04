@@ -73,7 +73,7 @@ export default class Socket {
     console.log('[SOCKET.IO]', 'error', message);
   };
 
-  emit = (type, message) => {
-    this.socket.emit(type, message);
+  emit = (event, ...args) => {
+    this.socket.emit(event, ...args)
   };
 }
