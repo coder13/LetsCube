@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { withStyles, makeStyles } from '@material-ui/core/styles';
+import { withStyles, makeStyles, useTheme } from '@material-ui/core/styles';
 import { connect, useDispatch } from 'react-redux';
 import Grid from '@material-ui/core/Grid';
 import Box from '@material-ui/core/Box';
@@ -29,7 +29,7 @@ import Scramble from '../../Scramble';
 import UserStats from '../Common/UserStats';
 import UserSelectorDialog from '../Common/UserSelectorDialog';
 
-const getCountdownColor = (theme) => ({ countdown }) => {
+const getCountdownColor = (theme, countdown) => {
   if (countdown < 0) {
     return theme.palette.background.paper;
   }
@@ -73,51 +73,14 @@ const getCountdownColor = (theme) => ({ countdown }) => {
   return theme.palette.background.paper;
 };
 
-const CountdownBox = withStyles((theme) => ({
-  root: (countdown) => ({
+const CountdownBox = withStyles({
+  root: {
     textAlign: 'center',
     transition: 'background-color 5s',
-    backgroundColor: getCountdownColor(theme)(countdown),
-  }),
-}))(({ countdown, classes }) => (
-  <div className={classes.root}>
-    <Typography variant="h6" style={{ fontWeight: 400 }}>
-      {`Next solve in ${countdown} seconds`}
-    </Typography>
-  </div>
-));
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    display: 'flex',
-    flexGrow: 1,
-    flexDirection: 'column',
-    padding: theme.spacing(0),
-    borderRadius: 0,
-    height: '100%',
   },
-  waitingForBox: {
-    padding: '.5em',
-  },
-  scrambleBox: {
-    padding: '.5em',
-    textAlign: 'center',
-    justifyContent: 'center',
-  },
-}));
-
-function Main({ room, user }) {
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
+})(({ nextSolveAt, classes }) => {
   const [coutdownToNextSolve, setCoutdownToNextSolve] = useState(null);
-  const [followUserDialogOpen, setFollowUserDialogOpen] = useState(false);
-
-  const {
-    users, attempts, nextSolveAt, following,
-  } = room;
-
-  const registeredUsers = getRegisteredUsers(room);
+  const theme = useTheme();
 
   useEffect(() => {
     let timerObj;
@@ -142,6 +105,51 @@ function Main({ room, user }) {
       }
     }
   }, [nextSolveAt]);
+
+  return (
+    <div
+      className={classes.root}
+      style={{
+        backgroundColor: getCountdownColor(theme, coutdownToNextSolve),
+      }}
+    >
+      <Typography variant="h6" style={{ fontWeight: 400 }}>
+        {`Next solve in ${coutdownToNextSolve} seconds`}
+      </Typography>
+    </div>
+  );
+});
+
+const useStyles = makeStyles((theme) => ({
+  root: {
+    display: 'flex',
+    flexGrow: 1,
+    flexDirection: 'column',
+    padding: theme.spacing(0),
+    borderRadius: 0,
+    height: '100%',
+  },
+  waitingForBox: {
+    padding: '.5em',
+  },
+  scrambleBox: {
+    padding: '.5em',
+    textAlign: 'center',
+    justifyContent: 'center',
+  },
+}));
+
+function Main({ room, user }) {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
+  const [followUserDialogOpen, setFollowUserDialogOpen] = useState(false);
+
+  const {
+    users, attempts, nextSolveAt, following,
+  } = room;
+
+  const registeredUsers = getRegisteredUsers(room);
 
   const onSubmitTime = (event) => {
     if (!room.attempts.length) {
@@ -196,18 +204,15 @@ function Main({ room, user }) {
     <ClickAwayListener onClickAway={() => { onTimerDefocused(); }}>
       <Paper
         className={classes.root}
-        style={{
-          backgroundColor: getCountdownColor(coutdownToNextSolve),
-        }}
         variant="outlined"
         square
         onClick={() => { onTimerFocused(); }}
       >
         <StatsDialogProvider>
           <EditDialogProvider dispatch={dispatch}>
-            { coutdownToNextSolve && (
+            { nextSolveAt && (
               <>
-                <CountdownBox countdown={coutdownToNextSolve} />
+                <CountdownBox nextSolveAt={nextSolveAt} />
                 <Divider />
               </>
             )}
