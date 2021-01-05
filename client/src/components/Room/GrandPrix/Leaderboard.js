@@ -16,6 +16,7 @@ import TableTimeCell from '../Common/TableTimeCell';
 import { StatsDialogProvider } from '../Common/StatsDialogProvider';
 import { EditDialogProvider } from '../Common/EditDialogProvider';
 import User from '../../User';
+import { getLeaderboard } from '../../../store/room/selectors';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -40,11 +41,16 @@ const useStyles = makeStyles(() => ({
 function Leaderboard({ room, user }) {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const points = getLeaderboard(room);
 
-  const sortedPoints = Object.keys(room.points).map((key) => ({
-    id: key,
-    points: room.points[key],
-  })).sort((a, b) => b.points - a.points);
+  const getPoints = (userId) => points[userId] || 0;
+  const sortedUsers = room.users
+    .filter((i) => room.registered[i.id])
+    .map((u) => ({
+      ...u,
+      points: getPoints(u.id),
+    }))
+    .sort((a, b) => a.points - b.points);
 
   const currentAttemptIndex = room.attempts.length - 1;
   const currentAttempt = room.attempts[currentAttemptIndex];
@@ -84,7 +90,7 @@ function Leaderboard({ room, user }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedPoints.map((u) => (
+                {sortedUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>
                       <>
@@ -129,6 +135,7 @@ Leaderboard.propTypes = {
       results: PropTypes.shape(),
     })),
     requireRevealedIdentity: PropTypes.bool,
+    registered: PropTypes.shape(),
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -143,6 +150,7 @@ Leaderboard.defaultProps = {
     statuses: {},
     attempts: [],
     requireRevealedIdentity: false,
+    registered: false,
   },
   user: {
     id: undefined,

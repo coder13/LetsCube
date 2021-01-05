@@ -517,7 +517,8 @@ module.exports = ({ app, expressSession }) => {
         const r = await socket.room.save();
 
         broadcastToAllInRoom(r.accessCode, Protocol.NEW_RESULT, {
-          ...result,
+          id,
+          result,
           userId: socket.user.id,
         });
 

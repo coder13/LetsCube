@@ -16,7 +16,6 @@ import {
   UPDATE_USER_BANNED,
   NEXT_SOLVE_AT,
 } from './actions';
-import { calculatePointsForAttempt, calculatePointsForAllAttempts } from '../../lib/stats';
 
 const INITIAL_STATE = {
   fetching: null,
@@ -46,24 +45,23 @@ const INITIAL_STATE = {
   timerFocused: true,
 };
 
-const reducers = {
-  [ROOM_UPDATED]: (state, { room }) => {
-    const attempts = room.attempts ? room.attempts.map((attempt) => ({
+const editResult = (state, action) => ({
+  ...state,
+  attempts: state.attempts.map((attempt) => (
+    attempt.id === action.result.id ? ({
       ...attempt,
-      points: calculatePointsForAttempt(room.type, attempt.results),
-    })) : [];
+      results: { ...attempt.results, [action.result.userId]: action.result.result },
+    }) : attempt
+  )),
+  waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
+});
 
-    const points = calculatePointsForAllAttempts(attempts);
-
-    return {
-      ...state,
-      fetching: false,
-      ...room,
-      attempts,
-      points,
-      startTime: room.startTime,
-    };
-  },
+const reducers = {
+  [ROOM_UPDATED]: (state, { room }) => ({
+    ...state,
+    fetching: false,
+    ...room,
+  }),
   [FETCH_ROOM]: (state, action) => ({
     ...state,
     fetching: action.fetching,
@@ -97,55 +95,8 @@ const reducers = {
     waitingFor: action.waitingFor,
     new_scramble: true,
   }),
-  [NEW_RESULT]: (state, action) => {
-    const attempts = state.attempts.map((attempt) => {
-      if (attempt.id === action.result.id) {
-        const newAttempt = {
-          ...attempt,
-          results: { ...attempt.results, [action.result.userId]: action.result.result },
-        };
-
-        newAttempt.points = calculatePointsForAttempt(state.type, newAttempt.results);
-
-        return newAttempt;
-      }
-
-      return attempt;
-    });
-
-    const points = calculatePointsForAllAttempts(attempts);
-
-    return {
-      ...state,
-      attempts,
-      points,
-      waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
-    };
-  },
-  [EDIT_RESULT]: (state, action) => {
-    const attempts = state.attempts.map((attempt) => {
-      if (attempt.id === action.result.id) {
-        const newAttempt = {
-          ...attempt,
-          results: { ...attempt.results, [action.result.userId]: action.result.result },
-        };
-
-        newAttempt.points = calculatePointsForAttempt(state.type, newAttempt.results);
-
-        return newAttempt;
-      }
-
-      return attempt;
-    });
-
-    const points = calculatePointsForAllAttempts(attempts);
-
-    return {
-      ...state,
-      attempts,
-      points,
-    };
-  },
+  [NEW_RESULT]: editResult,
+  [EDIT_RESULT]: editResult,
   [SEND_EDIT_RESULT]: (state) => state,
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
   [RECEIVE_STATUS]: (state, action) => ({

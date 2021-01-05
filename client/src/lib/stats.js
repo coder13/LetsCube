@@ -150,17 +150,17 @@ export const calculatePointsForAttempt = (type, results) => {
   return points;
 };
 
-export const calculatePointsForAllAttempts = (attempts) => {
+export const calculatePointsForAllAttempts = (allPoints) => {
   const points = {};
 
-  attempts.forEach((attempt) => {
-    if (!attempt.points) {
-      console.error('attempt.points doesn\'t exist', attempt);
-      return;
-    }
+  allPoints.forEach((attempt) => {
+    // if (!attempt) {
+    //   console.error('attempt.points doesn\'t exist', attempt);
+    //   return;
+    // }
 
-    Object.keys(attempt.points).forEach((key) => {
-      const result = attempt.points[key];
+    Object.keys(attempt).forEach((key) => {
+      const result = attempt[key];
       if (points[key]) {
         points[key] += result;
       } else {
