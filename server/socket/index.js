@@ -492,13 +492,13 @@ module.exports = ({ app, expressSession }) => {
       }
     });
 
-    socket.on(Protocol.SUBMIT_RESULT, async (result) => {
+    socket.on(Protocol.SUBMIT_RESULT, async ({ id, result }) => {
       if (!socket.user || !socket.roomId) {
         return;
       }
 
       try {
-        if (!socket.room.attempts[result.id]) {
+        if (!socket.room.attempts[id]) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
             event: Protocol.SUBMIT_RESULT,
@@ -507,8 +507,11 @@ module.exports = ({ app, expressSession }) => {
           return;
         }
 
-        // NOTE: when setting a map in mongoose that the keys are strings
-        socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+        if (socket.room.type === 'grand_prix') {
+          result.penalties.DNF = result.penalties.DNF
+            || id < socket.room.attempts.length - 1;
+        }
+        socket.room.attempts[id].results.set(socket.user.id.toString(), result);
         socket.room.waitingFor.splice(socket.room.waitingFor.indexOf(socket.userId), 1);
 
         const r = await socket.room.save();
