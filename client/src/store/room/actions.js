@@ -26,6 +26,7 @@ export const UPDATE_USER = 'room/update_user';
 export const NEXT_SOLVE_AT = 'room/next_solve_at';
 export const START_ROOM = 'room/start_room';
 export const PAUSE_ROOM = 'room/pause_room';
+export const TOGGLE_FOLLOW_USER = 'room/toggle_follow_user';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -176,4 +177,9 @@ export const startRoom = () => ({
 
 export const pauseRoom = () => ({
   type: PAUSE_ROOM,
+});
+
+export const toggleFollowUser = (userId) => ({
+  type: TOGGLE_FOLLOW_USER,
+  userId,
 });

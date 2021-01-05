@@ -8,6 +8,7 @@ import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
+import Button from '@material-ui/core/Button';
 import grey from '@material-ui/core/colors/grey';
 import { Cube } from 'react-cube-svg';
 import { formatISO9075 } from 'date-fns';
@@ -16,7 +17,9 @@ import {
   submitResult,
   sendStatus,
   timerFocused,
+  toggleFollowUser,
 } from '../../../store/room/actions';
+import { getRegisteredUsers } from '../../../store/room/selectors';
 import { StatsDialogProvider } from '../Common/StatsDialogProvider';
 import { EditDialogProvider } from '../Common/EditDialogProvider';
 import TimesTable from '../Common/TimesTable';
@@ -24,6 +27,7 @@ import HelpPopover from '../../HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../Scramble';
 import UserStats from '../Common/UserStats';
+import UserSelectorDialog from '../Common/UserSelectorDialog';
 
 const getCountdownColor = (theme) => ({ countdown }) => {
   if (countdown < 0) {
@@ -102,13 +106,18 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Main({ room, user, onlyShowSelf }) {
+function Main({ room, user }) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
   const [coutdownToNextSolve, setCoutdownToNextSolve] = useState(null);
+  const [followUserDialogOpen, setFollowUserDialogOpen] = useState(false);
 
-  const { users, attempts, nextSolveAt } = room;
+  const {
+    users, attempts, nextSolveAt, following,
+  } = room;
+
+  const registeredUsers = getRegisteredUsers(room);
 
   useEffect(() => {
     let timerObj;
@@ -172,6 +181,10 @@ function Main({ room, user, onlyShowSelf }) {
     setCurrentAttemptId(latestAttempt.id);
   }
 
+  const handleToggleUserFollow = (userId) => {
+    dispatch(toggleFollowUser(userId));
+  }
+
   const latestAttempt = attempts && attempts.length && attempts[attempts.length - 1];
   const showScrambleBox = latestAttempt && !latestAttempt.results[user.id];
   const timerDisabled = !room.timerFocused || !room.competing[user.id] || !showScrambleBox;
@@ -213,29 +226,37 @@ function Main({ room, user, onlyShowSelf }) {
             </div>
             <Divider />
             <div>
-              <HelpPopover />
-              {room.competing[user.id] && (
-                <Timer
-                  disabled={timerDisabled}
-                  onSubmitTime={(e) => onSubmitTime(e)}
-                  onStatusChange={(status) => { handleStatusChange(status); }}
-                  useInspection={user.useInspection}
-                  onPriming={() => { handlePriming(); }}
-                  type={user.timerType}
-                />
+              {room.competing[user.id] ? (
+                <>
+                  <HelpPopover />
+                  <Timer
+                    disabled={timerDisabled}
+                    onSubmitTime={(e) => onSubmitTime(e)}
+                    onStatusChange={(status) => { handleStatusChange(status); }}
+                    useInspection={user.useInspection}
+                    onPriming={() => { handlePriming(); }}
+                    type={user.timerType}
+                  />
+                </>
+              ) : (
+                <Button
+                  fullWidth
+                  onClick={() => setFollowUserDialogOpen(true)}
+                >
+                  Choose competitors to follow
+                </Button>
               )}
             </div>
             <Divider />
-            { onlyShowSelf
-              ? (
-                <TimesTable
-                  room={room}
-                  stats={stats}
-                  userId={user.id}
-                  userFilter={(u) => +u.id === +user.id && room.competing[u.id]}
-                />
-              )
-              : <TimesTable room={room} stats={stats} userId={user.id} />}
+            <TimesTable
+              room={room}
+              stats={stats}
+              userId={user.id}
+              userFilter={(u) => (
+                (+u.id === +user.id && room.competing[u.id])
+                || following[u.id]
+              )}
+            />
             <Grid container>
               {showScramble && (
                 <Grid item xs={12}>
@@ -271,6 +292,14 @@ function Main({ room, user, onlyShowSelf }) {
                 </Grid>
               )}
             </Grid>
+            <UserSelectorDialog
+              open={followUserDialogOpen}
+              title="Select users to follow"
+              onToggleUser={handleToggleUserFollow}
+              users={registeredUsers}
+              values={following}
+              onClose={() => setFollowUserDialogOpen(false)}
+            />
           </EditDialogProvider>
         </StatsDialogProvider>
       </Paper>
@@ -300,6 +329,7 @@ Main.propTypes = {
     timerFocused: PropTypes.bool,
     nextSolveAt: PropTypes.string,
     started: PropTypes.bool,
+    following: PropTypes.shape(),
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -307,7 +337,6 @@ Main.propTypes = {
     muteTimer: PropTypes.bool,
     timerType: PropTypes.string,
   }),
-  onlyShowSelf: PropTypes.bool,
 };
 
 Main.defaultProps = {
@@ -328,6 +357,7 @@ Main.defaultProps = {
     timerFocused: true,
     nextSolveAt: undefined,
     started: false,
+    following: {},
   },
   user: {
     id: undefined,
@@ -335,7 +365,6 @@ Main.defaultProps = {
     muteTimer: false,
     timerType: 'spacebar',
   },
-  onlyShowSelf: false,
 };
 
 const mapStateToProps = (state) => ({

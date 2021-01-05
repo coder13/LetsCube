@@ -15,6 +15,7 @@ import {
   TIMER_FOCUSED,
   UPDATE_USER_BANNED,
   NEXT_SOLVE_AT,
+  TOGGLE_FOLLOW_USER,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -43,6 +44,7 @@ const INITIAL_STATE = {
   started: null,
   nextSolveAt: null,
   timerFocused: true,
+  following: {},
 };
 
 const editResult = (state, action) => ({
@@ -128,6 +130,13 @@ const reducers = {
   [NEXT_SOLVE_AT]: (state, action) => ({
     ...state,
     nextSolveAt: action.dateTime,
+  }),
+  [TOGGLE_FOLLOW_USER]: (state, action) => ({
+    ...state,
+    following: {
+      ...state.following,
+      [action.userId]: !state.following[action.userId],
+    },
   }),
 };
 
