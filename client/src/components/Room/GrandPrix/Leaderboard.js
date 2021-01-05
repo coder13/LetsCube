@@ -38,7 +38,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function Leaderboard({ room, user }) {
+function Leaderboard({ room }) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const points = getLeaderboard(room);
@@ -50,7 +50,7 @@ function Leaderboard({ room, user }) {
       ...u,
       points: getPoints(u.id),
     }))
-    .sort((a, b) => a.points - b.points);
+    .sort((a, b) => b.points - a.points);
 
   const currentAttemptIndex = room.attempts.length - 1;
   const currentAttempt = room.attempts[currentAttemptIndex];
@@ -110,8 +110,7 @@ function Leaderboard({ room, user }) {
                           solveNum={room.attempts.length}
                           attempt={currentAttempt.results[u.id]}
                           highlight={currentAttempt.results[u.id]
-                          && Math.round(currentAttempt.results[u.id].time) === Math.round(best)}
-                          isSelfUser={+u.id === +user.id}
+                            && Math.round(currentAttempt.results[u.id].time) === Math.round(best)}
                         />
                       )}
                   </TableRow>
