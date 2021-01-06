@@ -144,9 +144,9 @@ const CountdownBox = withStyles({
 
     return () => {
       if (timerObj) {
-        clearInterval(timerObj)
+        clearInterval(timerObj);
       }
-    }
+    };
   }, [nextSolveAt]);
 
   return (
@@ -213,7 +213,7 @@ function Main({ room, user }) {
       },
     }));
     setCurrentAttemptId(null);
-  }
+  };
 
   const onTimerFocused = () => {
     dispatch(timerFocused(true));
@@ -225,16 +225,16 @@ function Main({ room, user }) {
 
   const handleStatusChange = (status) => {
     dispatch(sendStatus(status));
-  }
+  };
 
   const handlePriming = () => {
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
     setCurrentAttemptId(latestAttempt.id);
-  }
+  };
 
   const handleToggleUserFollow = (userId) => {
     dispatch(toggleFollowUser(userId));
-  }
+  };
 
   const latestAttempt = attempts && attempts.length && attempts[attempts.length - 1];
   const showScrambleBox = latestAttempt && !latestAttempt.results[user.id];

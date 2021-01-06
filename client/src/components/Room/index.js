@@ -48,7 +48,7 @@ const Room = ({
         spectating: query.spectating,
       }));
     }
-  }, [dispatch, fetching, query, roomId, _id]);
+  }, [dispatch, fetching, query.password, query.spectating, roomId, _id]);
 
   useEffect(() => {
     if (!fetching && !inRoom && accessCode) {
@@ -57,7 +57,7 @@ const Room = ({
         password: query.password,
       }));
     }
-  }, [dispatch, fetching, accessCode, _id, inRoom]);
+  }, [dispatch, fetching, query.password, accessCode, _id, inRoom]);
 
   const loggedIn = !room.private || inRoom;
 

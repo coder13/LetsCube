@@ -40,7 +40,7 @@ function UserListItem({
     dispatch(updateUser(user.id, {
       [option]: !status[option],
     }));
-  }
+  };
 
   return (
     <ListItem>

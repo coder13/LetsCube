@@ -74,6 +74,6 @@ export default class Socket {
   };
 
   emit = (event, ...args) => {
-    this.socket.emit(event, ...args)
+    this.socket.emit(event, ...args);
   };
 }
