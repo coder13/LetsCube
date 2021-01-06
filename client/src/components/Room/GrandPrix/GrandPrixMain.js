@@ -10,6 +10,7 @@ import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Button from '@material-ui/core/Button';
 import grey from '@material-ui/core/colors/grey';
+// import red from '@material-ui/core/colors/red';
 import { Cube } from 'react-cube-svg';
 import { formatISO9075 } from 'date-fns';
 import calcStats from '../../../lib/stats';
@@ -30,44 +31,86 @@ import UserStats from '../Common/UserStats';
 import UserSelectorDialog from '../Common/UserSelectorDialog';
 
 const getCountdownColor = (theme, countdown) => {
-  if (countdown < 0) {
-    return theme.palette.background.paper;
-  }
+  if (theme.palette.type === 'light') {
+    if (countdown < 0) {
+      return theme.palette.background.paper;
+    }
 
-  if (countdown < 5) {
-    return theme.palette.error.dark;
-  }
+    if (countdown < 5) {
+      return theme.palette.error.dark;
+    }
 
-  if (countdown < 10) {
-    return theme.palette.error.light;
-  }
+    if (countdown < 10) {
+      return theme.palette.error.light;
+    }
 
-  if (countdown < 15) {
-    return theme.palette.warning.dark;
-  }
+    if (countdown < 15) {
+      return theme.palette.warning.dark;
+    }
 
-  if (countdown < 25) {
-    return theme.palette.warning.main;
-  }
+    if (countdown < 25) {
+      return theme.palette.warning.main;
+    }
 
-  if (countdown < 30) {
-    return theme.palette.warning.light;
-  }
+    if (countdown < 30) {
+      return theme.palette.warning.light;
+    }
 
-  if (countdown < 35) {
-    return theme.palette.grey[300];
-  }
+    if (countdown < 35) {
+      return theme.palette.grey[300];
+    }
 
-  if (countdown < 40) {
-    return theme.palette.grey[200];
-  }
+    if (countdown < 40) {
+      return theme.palette.grey[200];
+    }
 
-  if (countdown < 45) {
-    return theme.palette.grey[100];
-  }
+    if (countdown < 45) {
+      return theme.palette.grey[100];
+    }
 
-  if (countdown < 50) {
-    return theme.palette.grey[50];
+    if (countdown < 50) {
+      return theme.palette.grey[50];
+    }
+  } else {
+    if (countdown < 0) {
+      return theme.palette.background.paper;
+    }
+
+    if (countdown < 5) {
+      return theme.palette.error.dark;
+    }
+
+    if (countdown < 10) {
+      return theme.palette.error.light;
+    }
+
+    if (countdown < 15) {
+      return theme.palette.warning.dark;
+    }
+
+    if (countdown < 25) {
+      return theme.palette.warning.main;
+    }
+
+    if (countdown < 30) {
+      return theme.palette.warning.light;
+    }
+
+    if (countdown < 35) {
+      return theme.palette.grey[600];
+    }
+
+    if (countdown < 40) {
+      return theme.palette.grey[700];
+    }
+
+    if (countdown < 45) {
+      return theme.palette.grey[800];
+    }
+
+    if (countdown < 50) {
+      return theme.palette.grey[800];
+    }
   }
 
   return theme.palette.background.paper;
