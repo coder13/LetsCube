@@ -20,7 +20,7 @@ const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
     display: 'flex',
-    overflowY: 'auto',
+    overflowY: 'hidden',
   },
   table: {
     display: 'flex',
@@ -28,12 +28,25 @@ const useStyles = makeStyles((theme) => ({
   },
   thead: {
     boxShadow: theme.shadows[1],
+    position: 'sticky',
   },
   tbody: {
     flexGrow: 1,
+    overflowY: 'scroll',
     height: '0px',
-    '&:scollbar': {
+    '&:scrollbar': {
       width: 200,
+    },
+    '&::-webkit-scrollbar': {
+      width: '0.2em',
+    },
+    '&::-webkit-scrollbar-track': {
+      boxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
+      webkitBoxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
+    },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(0,0,0,.1)',
+      outline: `1px solid ${theme.palette.divider}`,
     },
   },
   tr: {
@@ -210,7 +223,7 @@ function TimesTable({
                     highlight={attempt.results[u.id]
                       && Math.round(attempt.results[u.id].time)
                         === Math.round(stats.bests[reversedI])}
-                    isSelfUser={u.id === userId}
+                    editable={u.id === userId || userId === room.admin.id}
                   />
                 )))}
               </TableRow>

@@ -21,7 +21,7 @@ function TableTimeCell({
   solveNum,
   attempt: { time, penalties },
   highlight,
-  isSelfUser,
+  editable,
   className,
 }) {
   const classes = useStyles();
@@ -49,7 +49,7 @@ function TableTimeCell({
 
   return (
     <TableCell className={clsx(classes.root, className)}>
-      {isSelfUser ? (
+      { editable ? (
         <Button onClick={() => editTime(attemptId, solveNum, { time, penalties })}>
           {timeText}
         </Button>
@@ -66,7 +66,7 @@ TableTimeCell.propTypes = {
     penalties: PropTypes.shape(),
   }),
   highlight: PropTypes.bool,
-  isSelfUser: PropTypes.bool,
+  editable: PropTypes.bool,
   className: PropTypes.string,
 };
 
@@ -78,7 +78,7 @@ TableTimeCell.defaultProps = {
     penalties: {},
   },
   highlight: false,
-  isSelfUser: false,
+  editable: false,
   className: '',
 };
 
