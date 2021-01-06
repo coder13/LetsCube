@@ -9,8 +9,6 @@ import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Button from '@material-ui/core/Button';
-import grey from '@material-ui/core/colors/grey';
-// import red from '@material-ui/core/colors/red';
 import { Cube } from 'react-cube-svg';
 import { formatISO9075 } from 'date-fns';
 import calcStats from '../../../lib/stats';
@@ -185,6 +183,7 @@ const useStyles = makeStyles((theme) => ({
 function Main({ room, user }) {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const theme = useTheme();
   const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
   const [followUserDialogOpen, setFollowUserDialogOpen] = useState(false);
 
@@ -315,7 +314,8 @@ function Main({ room, user }) {
                       justifyContent: 'center',
                       alignItems: 'center',
                       height: '100%',
-                      backgroundColor: grey[100],
+                      backgroundColor: theme.palette.background.paper,
+                      padding: theme.spacing(1),
                     }}
                     variant="outlined"
                   >
