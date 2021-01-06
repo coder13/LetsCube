@@ -546,13 +546,23 @@ module.exports = ({ app, expressSession }) => {
           return;
         }
 
-        socket.room.attempts[result.id].results.set(socket.user.id.toString(), result.result);
+        const { userId } = result;
+        if (userId !== socket.user.id && socket.user.id !== socket.room.admin.id) {
+          socket.emit(Protocol.ERROR, {
+            statusCode: 400,
+            event: Protocol.SEND_EDIT_RESULT,
+            message: 'Invalid permissions to edit result',
+          });
+          return;
+        }
+
+        socket.room.attempts[result.id].results.set(userId.toString(), result.result);
 
         const r = await socket.room.save();
 
         broadcastToAllInRoom(r.accessCode, Protocol.EDIT_RESULT, {
           ...result,
-          userId: socket.user.id,
+          userId,
         });
       } catch (e) {
         logger.error(e);
