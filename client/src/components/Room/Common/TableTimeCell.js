@@ -19,6 +19,7 @@ const useStyles = makeStyles((theme) => ({
 function TableTimeCell({
   attemptId,
   solveNum,
+  userId,
   attempt: { time, penalties },
   highlight,
   editable,
@@ -28,11 +29,12 @@ function TableTimeCell({
   const displayTime = formatTime(time, penalties);
   const showEditDialog = useEditDialog();
 
-  const editTime = (id, solve, result) => {
+  const editTime = () => {
     showEditDialog({
-      id,
-      solve,
-      result,
+      userId,
+      id: attemptId,
+      solve: solveNum,
+      result: { time, penalties },
     });
   };
 
@@ -50,7 +52,7 @@ function TableTimeCell({
   return (
     <TableCell className={clsx(classes.root, className)}>
       { editable ? (
-        <Button onClick={() => editTime(attemptId, solveNum, { time, penalties })}>
+        <Button onClick={editTime}>
           {timeText}
         </Button>
       ) : timeText}
@@ -65,6 +67,7 @@ TableTimeCell.propTypes = {
     time: PropTypes.number,
     penalties: PropTypes.shape(),
   }),
+  userId: PropTypes.number,
   highlight: PropTypes.bool,
   editable: PropTypes.bool,
   className: PropTypes.string,
@@ -77,6 +80,7 @@ TableTimeCell.defaultProps = {
     time: null,
     penalties: {},
   },
+  userId: undefined,
   highlight: false,
   editable: false,
   className: '',

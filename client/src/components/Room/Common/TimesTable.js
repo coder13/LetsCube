@@ -223,6 +223,7 @@ function TimesTable({
                     highlight={attempt.results[u.id]
                       && Math.round(attempt.results[u.id].time)
                         === Math.round(stats.bests[reversedI])}
+                    userId={u.id}
                     editable={u.id === userId || userId === room.admin.id}
                   />
                 )))}

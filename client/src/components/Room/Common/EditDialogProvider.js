@@ -12,9 +12,10 @@ import { parseTime } from '../../../lib/utils';
 const EditDialogContext = createContext();
 
 // Function that dispatches an edit action to server
-const editTime = (dispatch, attemptId, onClose) => (timeInput, penalties, auf, dnf) => {
+const editTime = (dispatch, attemptId, onClose) => (userId, timeInput, penalties, auf, dnf) => {
   const t = parseTime(timeInput) + (auf ? 2000 : 0);
   dispatch(sendEditResult({
+    userId,
     id: attemptId,
     result: {
       time: t,
@@ -49,6 +50,7 @@ export const EditDialogProvider = ({ dispatch, children }) => {
       <EditDialog
         open={open}
         solveNum={result.solve}
+        userId={result.userId}
         result={result.result}
         onClose={handleClose}
         editTime={editTime(dispatch, result.id, handleClose)}
