@@ -17,6 +17,7 @@ import AddIcon from '@material-ui/icons/Add';
 // import AddRoomDialog from './AddRoomDialog';
 import RoomConfigureDialog from './RoomConfigureDialog';
 import RoomListItem from './RoomListItem';
+import EventListItem from './EventListItem';
 import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
@@ -70,8 +71,9 @@ function RoomList({
   const classes = useStyles();
   const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
   const [announcements, setAnnouncements] = React.useState('');
-  const publicRooms = rooms.filter((room) => !room.private);
-  const privateRooms = rooms.filter((room) => !!room.private);
+  const events = rooms.filter((room) => room.type !== 'normal');
+  const publicRooms = rooms.filter((room) => !room.private && room.type === 'normal');
+  const privateRooms = rooms.filter((room) => !!room.private && room.type === 'normal');
   const showAlert = !!user.id && !user.canJoinRoom;
 
   const onCreateRoom = (options) => {
@@ -90,8 +92,6 @@ function RoomList({
         setAnnouncements(data);
       });
   }, []);
-
-  const canDeleteRoom = () => +user.id === 8184;
 
   return (
     <div className={classes.root}>
@@ -140,13 +140,21 @@ function RoomList({
               <br />
             </>
           )}
+
+          <div
+            style={{
+              marginBottom: '1em',
+            }}
+          >
+            { events.map((room) => <EventListItem key={room._id} room={room} />)}
+          </div>
+
           <Paper>
             <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
               {publicRooms.map((room) => (
                 <RoomListItem
                   key={room._id}
                   room={room}
-                  canDelete={canDeleteRoom()}
                 />
               ))}
             </List>
@@ -156,7 +164,6 @@ function RoomList({
                 <RoomListItem
                   key={room._id}
                   room={room}
-                  canDelete={canDeleteRoom()}
                 />
               ))}
             </List>

@@ -132,6 +132,7 @@ App.defaultProps = {
 const mapStateToProps = (state) => ({
   connected: state.socket.connected,
   user: state.user,
+  messages: state.messages.messages,
 });
 
 export default connect(mapStateToProps)(App);

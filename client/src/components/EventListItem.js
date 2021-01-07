@@ -4,22 +4,34 @@ import { connect, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
 import Tooltip from '@material-ui/core/Tooltip';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
+import { makeStyles, useTheme } from '@material-ui/core/styles';
+import Card from '@material-ui/core/Card';
+import CardHeader from '@material-ui/core/CardHeader';
+import CardContent from '@material-ui/core/CardContent';
+import CardActions from '@material-ui/core/CardActions';
+import CardMedia from '@material-ui/core/CardMedia';
+import Alert from '@material-ui/lab/Alert';
 import Typography from '@material-ui/core/Typography';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import IconButton from '@material-ui/core/IconButton';
+import Button from '@material-ui/core/Button';
 import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
+import ShareIcon from '@material-ui/icons/Share';
 import { useConfirm } from 'material-ui-confirm';
-// import ListItem from './ListItemLink';
+import { TwitchEmbed } from 'react-twitch-embed';
 import { getNameFromId } from '../lib/events';
+import { createMessage } from '../store/messages/actions';
 import { deleteRoom } from '../store/room/actions';
 import { updateProfile } from '../store/user/actions';
+
+const useStyles = makeStyles((theme) => ({
+  root: {
+    marginBottom: theme.spacing(1),
+  },
+}));
 
 const canUserJoinRoom = (user, room) => {
   if (!!user.id && !user.canJoinRoom) {
@@ -36,13 +48,15 @@ const canUserJoinRoom = (user, room) => {
 function RoomListItem({
   room, user,
 }) {
+  const classes = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
   const confirm = useConfirm();
   const history = useHistory();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const anchorRef = React.useRef(null);
-  const userText = room.usersLength === 0 ? ' empty'
-    : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
+  const registeredUsersText = room.registeredUsers === 0 ? 'No registered users'
+    : ` ${room.registeredUsers} registered user${room.registeredUsers > 1 ? 's' : ''}`;
   const [disabled, reason] = canUserJoinRoom(user, room);
   const [duration, setDuration] = React.useState(null);
   const [unixDuration, setUnixDuration] = React.useState(null);
@@ -104,53 +118,78 @@ function RoomListItem({
     }
   };
 
+  const copyLinkText = () => {
+    navigator.clipboard.writeText(`${window.location.href}rooms/${room._id}`);
+    dispatch(createMessage({
+      severity: 'success',
+      text: 'Link copied',
+    }));
+  };
+
   const handleSpectateRoom = () => {
     history.push(`/rooms/${room._id}?spectating=true`);
   };
 
   return (
-    <ListItem
-      button
-      onClick={handleJoinRoom}
+    <Card
       disabled={disabled}
+      className={classes.root}
     >
-      <ListItemIcon>
-        { room.private
-          ? <PrivateIcon />
-          : <PublicIcon />}
-      </ListItemIcon>
-      <div
-        style={{ display: 'flex', flexDirection: 'column' }}
-      >
-        <ListItemText
-          primary={(
-            <Typography variant="h6">
-              {`${room.name} (${getNameFromId(room.event)})`}
-            </Typography>
-          )}
-          secondary={(
-            <Typography>
-              {userText}
-            </Typography>
-          )}
-        />
-        { room.startTime && (
-          <ListItemText
-            secondary={(
-              <Tooltip title={room.startTime}>
-                <Typography variant="subtitle2" component="span">
-                  {`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
-                </Typography>
-              </Tooltip>
-            )}
-          />
+      <CardHeader
+        avatar={room.private ? <PrivateIcon /> : <PublicIcon />}
+        title={(
+          <Typography variant="h6">
+            {`${room.name} (${getNameFromId(room.event)})`}
+          </Typography>
         )}
-        { reason && (
-          <ListItemText
-            secondary={reason}
-          />
+        subheader={room.startTime && (
+          <Typography>
+            <Tooltip title={room.startTime}>
+              <Typography variant="subtitle2" component="span">
+                {`${unixDuration < 0 ? 'Started' : 'Starts'} ${duration}`}
+              </Typography>
+            </Tooltip>
+          </Typography>
         )}
-      </div>
+        action={(
+          <IconButton edge="end" ref={anchorRef} onClick={() => setMenuOpen(true)}>
+            <MoreVertIcon />
+          </IconButton>
+        )}
+      />
+      { (room.twitchChannel && new Date(room.startTime) < new Date()) && (
+        <CardMedia
+          className={classes.media}
+        >
+          <TwitchEmbed
+            channel={room.twitchChannel}
+            id={`channel-${room.twitchChannel}-${room._id}`}
+            muted
+            withChat={false}
+            theme={theme.palette.type}
+            width="100%"
+          />
+        </CardMedia>
+      )}
+      <CardContent>
+        <Typography gutterBottom>
+          {registeredUsersText}
+        </Typography>
+        { new Date(room.startTime) > new Date() && (
+          <Typography gutterBottom>
+            Join to register!
+          </Typography>
+        )}
+      </CardContent>
+      {reason && <Alert>{reason}</Alert>}
+      <CardActions disableSpacing>
+        <Button aria-label="join event" onClick={handleJoinRoom}>
+          JOIN
+        </Button>
+        <IconButton aria-label="share" onClick={copyLinkText}>
+          <ShareIcon />
+        </IconButton>
+      </CardActions>
       <Menu
         id={`${room._id}-menu`}
         anchorEl={anchorRef.current}
@@ -163,12 +202,7 @@ function RoomListItem({
           <MenuItem onClick={handleDeleteRoom}>Delete</MenuItem>
         )}
       </Menu>
-      <ListItemSecondaryAction>
-        <IconButton edge="end" ref={anchorRef} onClick={() => setMenuOpen(true)}>
-          <MoreVertIcon />
-        </IconButton>
-      </ListItemSecondaryAction>
-    </ListItem>
+    </Card>
   );
 }
 
@@ -182,9 +216,11 @@ RoomListItem.propTypes = {
     users: PropTypes.array,
     startTime: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
+    registeredUsers: PropTypes.number,
     admin: PropTypes.shape({
       id: PropTypes.number,
     }),
+    twitchChannel: PropTypes.string,
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -202,9 +238,10 @@ RoomListItem.defaultProps = {
     users: undefined,
     startTime: undefined,
     requireRevealedIdentity: false,
+    registeredUsers: 0,
+    twitchChannel: undefined,
   },
   user: {
-    id: undefined,
     showWCAID: false,
   },
 };

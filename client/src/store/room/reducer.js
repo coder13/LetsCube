@@ -45,6 +45,8 @@ const INITIAL_STATE = {
   nextSolveAt: null,
   timerFocused: true,
   following: {},
+  registeredUsers: 0,
+  twitchChannel: '',
 };
 
 const editResult = (state, action) => ({

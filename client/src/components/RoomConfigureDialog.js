@@ -53,6 +53,7 @@ function RoomConfigureDialog({
   const [stateStartTime, setStartTime] = React.useState(room.startTime ? (
     `${format(new Date(room.startTime), 'yyyy-MM-dd')}T${format(new Date(room.startTime), 'HH:mm')}`
   ) : '');
+  const [stateTwitchChannel, setTwitchChannel] = React.useState(room.twitchChannel);
 
   const handleCancel = () => {
     setName(room.name);
@@ -63,6 +64,7 @@ function RoomConfigureDialog({
     setStartTime(room.startTime ? (
       `${format(new Date(room.startTime), 'yyyy-MM-dd')}T${format(new Date(room.startTime), 'HH:mm')}`
     ) : null);
+    setTwitchChannel(room.twitchChannel);
 
     onCancel();
   };
@@ -75,6 +77,7 @@ function RoomConfigureDialog({
       type: stateType,
       requireRevealedIdentity: stateRequireRI,
       startTime: stateStartTime ? new Date(stateStartTime) : null,
+      twitchChannel: stateTwitchChannel,
     });
 
     setPassword(null);
@@ -173,7 +176,7 @@ function RoomConfigureDialog({
             id="start-time"
             label="Start Time"
             type="datetime-local"
-            className={classes.textField}
+            className={clsx(classes.textField, classes.formControl)}
             value={stateStartTime}
             onChange={(e) => setStartTime(e.target.value)}
             InputLabelProps={{
@@ -183,6 +186,18 @@ function RoomConfigureDialog({
               step: 60, // 1 min
             }}
           />
+          { stateType === 'grand_prix' && (
+            <TextField
+              id="twitch-channel"
+              label="Twitch Channel"
+              className={classes.textField}
+              value={stateTwitchChannel}
+              onChange={(e) => setTwitchChannel(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          )}
         </AccordionDetails>
       </Accordion>
       <Divider />
@@ -205,6 +220,7 @@ RoomConfigureDialog.propTypes = {
     type: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
     startTime: PropTypes.string,
+    twitchChannel: PropTypes.string,
   }),
   open: PropTypes.bool,
   onSave: PropTypes.func.isRequired,
@@ -219,7 +235,8 @@ RoomConfigureDialog.defaultProps = {
     accessCode: null,
     type: 'normal',
     requireRevealedIdentity: false,
-    startTime: undefined,
+    startTime: '',
+    twitchChannel: '',
   },
   open: false,
 };
