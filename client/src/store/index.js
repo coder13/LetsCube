@@ -4,7 +4,7 @@ import {
 import thunkMiddleware from 'redux-thunk';
 import ReactGA from 'react-ga';
 import { connectRouter, routerMiddleware } from 'connected-react-router';
-import { createBrowserHistory } from 'history';
+import history from '../lib/history';
 
 import roomsReducer from './rooms/reducer';
 import roomReducer from './room/reducer';
@@ -17,8 +17,6 @@ import serverReducer from './server/reducers';
 import socketMiddleware from './socket/middleware';
 
 const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
-
-export const history = createBrowserHistory();
 
 if (process.env.NODE_ENV === 'production') {
   ReactGA.initialize('UA-143761187-3', {
@@ -63,4 +61,4 @@ if (process.env.NODE_ENV === 'production') {
 const middleware = applyMiddleware(...middlewares);
 
 // Store
-export const store = createStore(rootReducer, composeEnhancer(middleware));
+export default createStore(rootReducer, composeEnhancer(middleware));

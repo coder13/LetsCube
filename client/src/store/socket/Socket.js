@@ -2,7 +2,11 @@ import io from 'socket.io-client';
 import * as Protocol from '../../lib/protocol';
 
 const dev = process.env.NODE_ENV === 'development';
-const makeURI = () => (dev ? `http://${document.location.hostname}:9000/` : '/');
+const protocol = () => (dev ? 'http' : 'https');
+const origin = () => `${protocol()}://${process.env.REACT_APP_SOCKETIO_HOSTNAME || window.location.hostname}`;
+const makeURI = (port) => (
+  `${origin()}:${port || process.env.REACT_APP_SOCKETIO_PORT || 9000}`
+);
 
 Error.stackTraceLimit = Infinity;
 
@@ -17,12 +21,14 @@ export default class Socket {
 
     this.events = props.events;
     this.socket = null;
+    this.port = props.port;
   }
 
   // attempt to connect to server
   connect = () => {
     // Connect
-    this.socket = io(makeURI(), {
+    this.URI = makeURI(this.port);
+    this.socket = io(this.URI, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -31,8 +37,6 @@ export default class Socket {
       autoConnect: true,
       'force new connection': false,
     });
-
-    // this.socket.connect();
 
     this.socket.on(Protocol.CONNECT, this._onConnected);
     this.socket.on(Protocol.DISCONNECT, this.onDisconnected);

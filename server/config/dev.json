@@ -1,7 +1,10 @@
 {
   "server": {
     "host": "localhost",
-    "port": 8080
+    "port": 8081
+  },
+  "socketio": {
+    "port": 9001
   },
   "mongodb": "mongodb://127.0.0.1/letscube",
   "wcaSource": "https://staging.worldcubeassociation.org",

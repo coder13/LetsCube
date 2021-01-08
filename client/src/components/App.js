@@ -5,7 +5,8 @@ import { ConnectedRouter } from 'connected-react-router';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import { ConfirmProvider } from 'material-ui-confirm';
 import { ThemeProvider } from '../theme';
-import { store, history } from '../store';
+import store from '../store';
+import history from '../lib/history';
 import Navigation from './Navigation';
 
 function App() {

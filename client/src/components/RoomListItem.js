@@ -16,6 +16,7 @@ import PublicIcon from '@material-ui/icons/Public';
 import PrivateIcon from '@material-ui/icons/Lock';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { useConfirm } from 'material-ui-confirm';
+import lcFetch from '../lib/fetch';
 // import ListItem from './ListItemLink';
 import { getNameFromId } from '../lib/events';
 import { deleteRoom } from '../store/room/actions';
@@ -80,7 +81,7 @@ function RoomListItem({
       if (room.requireRevealedIdentity && !user.showWCAID) {
         confirm({ title: 'You must reveal identity to join room. Are you sure you want to?' })
           .then(() => {
-            fetch('/api/updatePreference', {
+            lcFetch('/api/updatePreference', {
               headers: {
                 'Content-Type': 'application/json',
               },
@@ -202,6 +203,9 @@ RoomListItem.defaultProps = {
     users: undefined,
     startTime: undefined,
     requireRevealedIdentity: false,
+    admin: {
+      id: undefined,
+    },
   },
   user: {
     id: undefined,

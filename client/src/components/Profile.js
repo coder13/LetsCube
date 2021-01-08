@@ -11,6 +11,7 @@ import Checkbox from '@material-ui/core/Checkbox';
 import Divider from '@material-ui/core/Divider';
 import Alert from '@material-ui/lab/Alert';
 import EditableTextField from './EditableTextField';
+import lcFetch from '../lib/fetch';
 import { updateProfile } from '../store/user/actions';
 
 const validate = (username) => {
@@ -70,7 +71,7 @@ function Profile({ user, dispatch }) {
   const classes = useStyles();
 
   const changeUsername = (username, cb) => {
-    fetch('/api/updateUsername', {
+    lcFetch('/api/updateUsername', {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -100,7 +101,7 @@ function Profile({ user, dispatch }) {
 
   const handleToggle = (event) => {
     const { name, checked } = event.target;
-    fetch('/api/updatePreference', {
+    lcFetch('/api/updatePreference', {
       headers: {
         'Content-Type': 'application/json',
       },

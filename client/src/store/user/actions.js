@@ -1,3 +1,5 @@
+import lcFetch from '../../lib/fetch';
+
 export const USER_CHANGED = 'user/changed';
 export const USER_FETCHING = 'user/fetching';
 export const UPDATE_PROFILE = 'user/update_profile';
@@ -21,7 +23,7 @@ export const updateProfile = (profile) => ({
 
 export const fetchUser = () => (dispatch) => {
   dispatch(fetchingUser());
-  return fetch('/api/me')
+  return lcFetch('/api/me')
     .then((res) => {
       if (!res.ok) {
         throw new Error(res.statusCode);

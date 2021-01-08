@@ -18,6 +18,7 @@ import AddIcon from '@material-ui/icons/Add';
 import RoomConfigureDialog from './RoomConfigureDialog';
 import RoomListItem from './RoomListItem';
 import EventListItem from './EventListItem';
+import lcFetch from '../lib/fetch';
 import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
@@ -81,7 +82,7 @@ function RoomList({
   };
 
   React.useEffect(() => {
-    fetch('/api/announcements')
+    lcFetch('/api/announcements')
       .then((data) => {
         if (!data.ok) {
           throw new Error();

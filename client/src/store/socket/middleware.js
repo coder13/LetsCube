@@ -61,10 +61,13 @@ const socketMiddleware = (store) => {
     store.dispatch(connectionChanged(isConnected));
   };
 
+  const { port } = store.getState().router.location.query;
+
   const socket = new Socket({
+    port,
     onChange,
     onConnected: () => {
-      store.dispatch(connected());
+      store.dispatch(connected(socket.URI));
     },
     onDisconnected: () => {
       store.dispatch(disconnected());

@@ -11,11 +11,12 @@ const INITIAL_STATE = {
   connected: false,
   room: null,
   loginFailed: null,
+  URI: null,
 };
 
 const reducers = {
-  [CONNECTED]: (state) => ({ ...state, connected: true }),
-  [DISCONNECTED]: (state) => ({ ...state, connected: false }),
+  [CONNECTED]: (state, action) => ({ ...state, connected: true, URI: action.URI }),
+  [DISCONNECTED]: (state) => ({ ...state, connected: false, URI: null }),
   [CONNECTION_CHANGED]: (state, action) => ({
     ...state,
     connected: action.connected,
