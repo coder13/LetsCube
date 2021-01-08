@@ -91,6 +91,9 @@ function RoomList({
       })
       .then((data) => {
         setAnnouncements(data);
+      })
+      .catch((err) => {
+        console.error(err);
       });
   }, []);
 
