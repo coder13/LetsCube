@@ -46,7 +46,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function App({
-  dispatch, connected, user, room, messages,
+  dispatch, connected, user, messages,
 }) {
   const classes = useStyles();
 
@@ -82,7 +82,7 @@ function App({
         </Snackbar>
       </Backdrop>
 
-      <Header user={user} room={room}>
+      <Header>
         <Suspense fallback={Loading}>
           <Switch>
             <Route exact path="/" component={RoomList} />
@@ -117,7 +117,6 @@ function App({
 App.propTypes = {
   connected: PropTypes.bool,
   user: PropTypes.shape().isRequired,
-  room: PropTypes.shape().isRequired,
   messages: PropTypes.arrayOf(PropTypes.shape({
     severity: PropTypes.string,
     text: PropTypes.string,
@@ -132,9 +131,8 @@ App.defaultProps = {
 
 const mapStateToProps = (state) => ({
   connected: state.socket.connected,
-  room: state.room,
   user: state.user,
-  // messages: state.messages.messages,
+  messages: state.messages.messages,
 });
 
 export default connect(mapStateToProps)(App);

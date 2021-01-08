@@ -6,24 +6,22 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
-import Popover from '@material-ui/core/Popover';
-import IconButton from '@material-ui/core/IconButton';
-import HelpIcon from '@material-ui/icons/Help';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import { Cube } from 'react-cube-svg';
 import UIfx from 'uifx';
-import notificationAsset from '../../assets/notification.mp3';
-import calcStats from '../../lib/stats';
+import notificationAsset from '../../../assets/notification.mp3';
+import calcStats from '../../../lib/stats';
 import {
   submitResult,
   sendStatus,
   timerFocused,
-} from '../../store/room/actions';
+} from '../../../store/room/actions';
 import { StatsDialogProvider } from './StatsDialogProvider';
 import { EditDialogProvider } from './EditDialogProvider';
 import TimesTable from './TimesTable';
-import Timer from '../Timer/index';
-import Scramble from '../Scramble';
+import HelpPopover from '../../HelpPopover';
+import Timer from '../../Timer/index';
+import Scramble from '../../Scramble';
 import UserStats from './UserStats';
 
 const useStyles = withStyles((theme) => ({
@@ -50,7 +48,6 @@ class Main extends React.Component {
     super(props);
 
     this.state = {
-      helpAnchor: null,
       currentAttemptId: undefined,
     };
   }
@@ -114,10 +111,8 @@ class Main extends React.Component {
 
   render() {
     const {
-      classes, dispatch, room, user,
+      classes, dispatch, room, user, onlyShowSelf,
     } = this.props;
-
-    const { helpAnchor } = this.state;
 
     const {
       users, attempts, waitingFor,
@@ -150,35 +145,7 @@ class Main extends React.Component {
               </div>
               <Divider />
               <div>
-                <div style={{ position: 'relative', width: 0, height: 0 }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0 }}>
-                    <IconButton
-                      color="inherit"
-                      onClick={(e) => this.setState({ helpAnchor: e.currentTarget })}
-                    >
-                      <HelpIcon />
-                    </IconButton>
-                    <Popover
-                      open={!!helpAnchor}
-                      anchorEl={helpAnchor}
-                      onClose={() => this.setState({ helpAnchor: null })}
-                      anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'left',
-                      }}
-                      transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'left',
-                      }}
-                    >
-                      <Typography style={{ paddingLeft: '.5em', paddingRight: '.5em' }}>
-                        <p>Press `Spacebar` to start the timer.</p>
-                        <p>Press any key to stop the timer.</p>
-                        <p>Press `Enter` to submit time.</p>
-                      </Typography>
-                    </Popover>
-                  </div>
-                </div>
+                <HelpPopover />
                 {room.competing[user.id] && (
                   <Timer
                     disabled={timerDisabled}
@@ -191,7 +158,16 @@ class Main extends React.Component {
                 )}
               </div>
               <Divider />
-              <TimesTable room={room} stats={stats} userId={user.id} />
+              { onlyShowSelf
+                ? (
+                  <TimesTable
+                    room={room}
+                    stats={stats}
+                    userId={user.id}
+                    userFilter={(u) => +u.id === +user.id}
+                  />
+                )
+                : <TimesTable room={room} stats={stats} userId={user.id} />}
               <Grid container>
                 <Grid item xs={showScramble ? 10 : 12} sm={showScramble ? 9 : 12}>
                   <UserStats stats={stats[user.id]} />
@@ -263,6 +239,7 @@ Main.propTypes = {
   }),
   dispatch: PropTypes.func.isRequired,
   classes: PropTypes.shape().isRequired,
+  onlyShowSelf: PropTypes.bool,
 };
 
 Main.defaultProps = {
@@ -287,6 +264,7 @@ Main.defaultProps = {
     muteTimer: false,
     timerType: 'spacebar',
   },
+  onlyShowSelf: false,
 };
 
 const mapStateToProps = (state) => ({

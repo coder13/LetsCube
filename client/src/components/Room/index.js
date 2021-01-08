@@ -1,45 +1,21 @@
-import React from 'react';
-import clsx from 'clsx';
+import React, { useEffect } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
-import Grid from '@material-ui/core/Grid';
+import { makeStyles } from '@material-ui/core/styles';
+import { connect, useDispatch } from 'react-redux';
 import Paper from '@material-ui/core/Paper';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
-import BottomNavigation from '@material-ui/core/BottomNavigation';
-import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
-import Divider from '@material-ui/core/Divider';
-import ChatIcon from '@material-ui/icons/Chat';
-import TimerIcon from '@material-ui/icons/Timer';
-import Login from './Login';
-import Main from './Main';
-import Chat from './Chat';
-import AdminToolbar from './AdminToolbar';
-import UserToolbar from './UserToolbar';
+import qs from 'qs';
+import Login from './Common/Login';
 import {
   fetchRoom,
   joinRoom,
 } from '../../store/room/actions';
+import Normal from './Normal';
+import GrandPrix from './GrandPrix';
 
-/*
-  GET room
-  if there is no password, POS to the room to join it and start listening with socketio
-  if there is a password:
-    Present login screen, upon submission, send a POST to the room with the password
-    If we get an error, return to / with notifcation about not being able to join room
-    If no error, start listening with socketio
-*/
-
-const panels = [{
-  name: 'Timer',
-  icon: <TimerIcon />,
-}, {
-  name: 'Chat',
-  icon: <ChatIcon />,
-}];
-
-const useStyles = withStyles((theme) => ({
+const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -50,171 +26,69 @@ const useStyles = withStyles((theme) => ({
       width: '83.333333%',
     },
   },
-  bottomNav: {
-    width: '100%',
-    height: '4em',
-    flexGrow: 0,
-    backgroundColor: theme.palette.background.default,
-    [theme.breakpoints.up('md')]: {
-      display: 'none',
-    },
-  },
-  bottomNavItem: {
-    display: 'flex',
-    flexGrow: 1,
-    maxWidth: '100%',
-  },
-  hiddenOnMobile: {
-    [theme.breakpoints.down('sm')]: {
-      display: 'none',
-    },
-  },
-  container: {
-    flexGrow: 1,
-  },
-  panel: {
-    flexGrow: 1,
-    transition: `display 5s ${theme.transitions.easing.easeInOut}`,
-  },
-  backdrop: {
-    zIndex: theme.zIndex.drawer + 1,
-  },
-  toolbarContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-  },
 }));
 
-class RoomNav extends React.Component {
-  constructor(props) {
-    super(props);
-    const {
-      dispatch, match, room, inRoom,
-    } = this.props;
+const useQuery = () => qs.parse(useLocation().search, { ignoreQueryPrefix: true });
 
-    this.state = {
-      currentPanel: 0,
-    };
+const Room = ({
+  fetching, room, inRoom,
+}) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const query = useQuery();
+  const { roomId } = useParams();
 
-    this.tableBodyRef = React.createRef();
+  const { accessCode, _id } = room;
 
-    if (!room._id) {
-      dispatch(fetchRoom(match.params.roomId));
+  console.log(fetching, _id, accessCode)
+
+  useEffect(() => {
+    if (!fetching && !_id) {
+      console.log('refetching room');
+      dispatch(fetchRoom({
+        id: roomId,
+        password: query.password,
+        spectating: query.spectating,
+      }));
     }
+  }, [dispatch, fetching, query.password, query.spectating, roomId, _id]);
 
-    if (!inRoom && room.accessCode) {
-      dispatch(joinRoom(room._id));
+  useEffect(() => {
+    if (!fetching && accessCode) {
+      console.log('rejoining room');
+      dispatch(joinRoom({
+        id: _id,
+        password: query.password,
+      }));
     }
+  }, [dispatch, fetching, query.password, accessCode, _id]);
 
-    if (room.name) {
-      document.title = `${room.name} - Let's Cube`;
-    }
-  }
+  const loggedIn = !room.private || inRoom;
 
-  componentDidUpdate() {
-    const { dispatch, room, inRoom } = this.props;
-
-    // inRoom means we're not connected to a room
-    if (!inRoom && room.accessCode) {
-      dispatch(joinRoom(room._id));
-    }
-
-    if (room.name) {
-      document.title = `${room.name} - Let's Cube`;
-    }
-  }
-
-  isAdmin() {
-    const { room, user } = this.props;
-    return room.admin && room.admin.id === user.id;
-  }
-
-  handleChangePanel(e, value) {
-    this.setState({
-      currentPanel: value,
-    });
-  }
-
-  render() {
-    const {
-      classes, fetching, inRoom, room,
-    } = this.props;
-
-    const { currentPanel } = this.state;
-
-    const loggedIn = !room.private || inRoom;
-
-    if (fetching) {
-      return (
-        <Backdrop open>
-          <CircularProgress color="inherit" />
-        </Backdrop>
-      );
-    }
-
+  if (fetching) {
     return (
-      <Paper className={classes.root}>
-        { loggedIn && (
-          <Paper
-            className={classes.toolbarContainer}
-            square
-          >
-            <UserToolbar />
-            { this.isAdmin() && <AdminToolbar /> }
-          </Paper>
-        )}
-        <Divider />
-        <Grid container direction="row" className={classes.container}>
-          { !loggedIn ? <Login />
-            : (
-              <>
-                <Grid
-                  item
-                  className={clsx(classes.panel, {
-                    [classes.hiddenOnMobile]: currentPanel !== 0,
-                  })}
-                  md={8}
-                >
-                  <Main />
-                </Grid>
-                <Grid
-                  item
-                  className={clsx(classes.panel, {
-                    [classes.hiddenOnMobile]: currentPanel !== 1,
-                  })}
-                  md={4}
-                >
-                  <Chat />
-                </Grid>
-              </>
-            )}
-
-        </Grid>
-
-        { loggedIn && (
-          <BottomNavigation
-            value={currentPanel}
-            showLabels
-            onChange={(e, v) => this.handleChangePanel(e, v)}
-            className={classes.bottomNav}
-          >
-            {panels.map((panel, index) => (
-              <BottomNavigationAction
-                key={panel.name}
-                className={classes.bottomNavItem}
-                label={panel.name}
-                value={index}
-                icon={panel.icon}
-              />
-            ))}
-          </BottomNavigation>
-        )}
-      </Paper>
+      <Backdrop open>
+        <CircularProgress color="inherit" />
+      </Backdrop>
     );
   }
-}
 
-RoomNav.propTypes = {
+  if (loggedIn) {
+    if (room.type === 'grand_prix') {
+      return <GrandPrix room={room} />;
+    }
+
+    return <Normal room={room} />;
+  }
+
+  return (
+    <Paper className={classes.root}>
+      <Login />
+    </Paper>
+  );
+};
+
+Room.propTypes = {
   fetching: PropTypes.bool,
   room: PropTypes.shape({
     _id: PropTypes.string,
@@ -222,23 +96,22 @@ RoomNav.propTypes = {
     accessCode: PropTypes.string,
     name: PropTypes.string,
     admin: PropTypes.shape(),
+    type: PropTypes.oneOf(['normal', 'grand_prix']),
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
   }),
   inRoom: PropTypes.bool,
-  dispatch: PropTypes.func.isRequired,
-  match: PropTypes.shape().isRequired,
-  classes: PropTypes.shape().isRequired,
 };
 
-RoomNav.defaultProps = {
+Room.defaultProps = {
   fetching: true,
   room: {
     _id: undefined,
     private: false,
     accessCode: undefined,
     name: undefined,
+    type: 'normal',
   },
   user: {
     id: undefined,
@@ -253,4 +126,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(RoomNav));
+export default connect(mapStateToProps)(Room);

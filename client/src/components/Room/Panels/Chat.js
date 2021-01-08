@@ -17,7 +17,7 @@ import Typography from '@material-ui/core/Typography';
 import Icon from '@material-ui/core/Icon';
 import NotificationImportantIcon from '@material-ui/icons/NotificationImportant';
 import PersonIcon from '@material-ui/icons/Person';
-import { sendChat } from '../../store/chat/actions';
+import { sendChat } from '../../../store/chat/actions';
 
 const Icons = {
   USER: <PersonIcon />,

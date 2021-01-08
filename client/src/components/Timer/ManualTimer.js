@@ -40,7 +40,6 @@ const useStyles = withStyles((theme) => ({
   Based on different settings, needs to either start inspection, or start timer.
   Once spacebar is pressed again (again, need to prime)
 
-
   Status: Resting, priming, inspecting, inspecting-priming, timing, submitting
 
   submitting: needs to display buttons to ask if it was a penalty.

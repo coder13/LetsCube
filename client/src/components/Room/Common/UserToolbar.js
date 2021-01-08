@@ -16,8 +16,8 @@ import InputLabel from '@material-ui/core/InputLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
-import { updateCompeting } from '../../store/room/actions';
-import { updateProfile } from '../../store/user/actions';
+import { updateCompeting } from '../../../store/room/actions';
+import { updateProfile } from '../../../store/user/actions';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -72,7 +72,7 @@ function UserToolbar({ dispatch, room, user }) {
         >
           <SettingsIcon />
         </Button>
-        <Button onClick={handleCompeting}>
+        <Button onClick={handleCompeting} disabled={room.type === 'grand_prix' && !room.registered[user.id]}>
           {userCompeting ? 'Spectate' : 'Compete'}
         </Button>
       </FormGroup>
@@ -133,6 +133,8 @@ UserToolbar.propTypes = {
   dispatch: PropTypes.func.isRequired,
   room: PropTypes.shape({
     competing: PropTypes.shape(),
+    registered: PropTypes.shape(),
+    type: PropTypes.string,
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -145,6 +147,8 @@ UserToolbar.propTypes = {
 UserToolbar.defaultProps = {
   room: {
     competing: {},
+    registered: {},
+    type: 'normal',
   },
   user: {
     id: undefined,

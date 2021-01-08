@@ -7,7 +7,7 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { formatTime } from '../../lib/utils';
+import { formatTime } from '../../../lib/utils';
 
 const useStyles = makeStyles((theme) => ({
   root: {

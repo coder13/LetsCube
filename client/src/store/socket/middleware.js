@@ -1,5 +1,7 @@
 import { push } from 'connected-react-router';
 import { v4 as uuid } from 'uuid';
+import UIfx from 'uifx';
+import notificationAsset from '../../assets/notification.mp3';
 import * as Protocol from '../../lib/protocol';
 import Socket from './Socket';
 import {
@@ -24,6 +26,11 @@ import {
   UPDATE_COMPETING,
   EDIT_ROOM,
   KICK_USER,
+  UPDATE_USER_BANNED,
+  UPDATE_REGISTRATION,
+  START_ROOM,
+  PAUSE_ROOM,
+  UPDATE_USER,
   joinRoom,
   roomUpdated,
   leaveRoom,
@@ -35,6 +42,7 @@ import {
   receiveStatus,
   updateAdmin,
   updateCompetingForUser,
+  nextSolveAt,
 } from '../room/actions';
 import {
   CREATE_ROOM,
@@ -66,7 +74,10 @@ const socketMiddleware = (store) => {
         // eslint-disable-next-line no-console
         console.log('[SOCKET.IO] reconnected!');
         if (store.getState().room.accessCode) {
-          store.dispatch(joinRoom(store.getState().room._id, store.getState().room.password));
+          store.dispatch(joinRoom({
+            id: store.getState().room._id,
+            password: store.getState().room.password,
+          }));
         }
       },
       [Protocol.ERROR]: (error) => {
@@ -164,12 +175,21 @@ const socketMiddleware = (store) => {
           icon: 'SCRAMBLE',
           event: store.getState().room.event,
         }));
+
+        if (!store.getState().user.muteTimer) {
+          const notification = new UIfx(
+            notificationAsset,
+            { volume: 0.2 },
+          );
+          notification.play();
+        }
       },
       [Protocol.NEW_RESULT]: (result) => {
         store.dispatch(newResult(result));
       },
       [Protocol.EDIT_RESULT]: (result) => {
         store.dispatch(editResult(result));
+        // calculate grand prix points
       },
       [Protocol.MESSAGE]: (message) => {
         store.dispatch(receiveChat(message));
@@ -191,6 +211,9 @@ const socketMiddleware = (store) => {
       [Protocol.UPDATE_USER_COUNT]: (userCount) => {
         store.dispatch(userCountUpdated(userCount));
       },
+      [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
+        store.dispatch(nextSolveAt(dateTime));
+      },
     },
   });
 
@@ -210,8 +233,8 @@ const socketMiddleware = (store) => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({ id }) => {
-      socket.emit(Protocol.FETCH_ROOM, id);
+    [FETCH_ROOM]: ({ id, password, spectating }) => {
+      socket.emit(Protocol.FETCH_ROOM, id, spectating, password);
     },
     [DELETE_ROOM]: ({ id }) => {
       socket.emit(Protocol.DELETE_ROOM, id);
@@ -256,6 +279,25 @@ const socketMiddleware = (store) => {
     },
     [KICK_USER]: ({ userId }) => {
       socket.emit(Protocol.KICK_USER, userId);
+    },
+    [UPDATE_USER_BANNED]: ({ userId, banned }) => {
+      if (banned) {
+        socket.emit(Protocol.BAN_USER, userId);
+      } else {
+        socket.emit(Protocol.UNBAN_USER, userId);
+      }
+    },
+    [UPDATE_REGISTRATION]: ({ registration }) => {
+      socket.emit(Protocol.UPDATE_REGISTRATION, registration);
+    },
+    [UPDATE_USER]: ({ userId, competing, registered }) => {
+      socket.emit(Protocol.UPDATE_USER, { userId, competing, registered });
+    },
+    [START_ROOM]: () => {
+      socket.emit(Protocol.START_ROOM);
+    },
+    [PAUSE_ROOM]: () => {
+      socket.emit(Protocol.PAUSE_ROOM);
     },
   };
 

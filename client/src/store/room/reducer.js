@@ -13,6 +13,9 @@ import {
   RECEIVE_STATUS,
   UPDATE_COMPETING_FOR_USER,
   TIMER_FOCUSED,
+  UPDATE_USER_BANNED,
+  NEXT_SOLVE_AT,
+  TOGGLE_FOLLOW_USER,
 } from './actions';
 
 const INITIAL_STATE = {
@@ -24,21 +27,44 @@ const INITIAL_STATE = {
   private: null,
   password: null, // for reconnecting
   users: [],
+  usersInRoom: [],
   statuses: {},
   attempts: [],
   competing: {},
+  inRoom: {},
+  banned: {},
+  registered: {},
   waitingFor: [],
   admin: {
     id: null,
   },
+  type: 'normal',
+  requireRevealedIdentity: false,
+  startTime: null,
+  started: null,
+  nextSolveAt: null,
   timerFocused: true,
+  following: {},
+  registeredUsers: 0,
+  twitchChannel: '',
 };
 
+const editResult = (state, action) => ({
+  ...state,
+  attempts: state.attempts.map((attempt) => (
+    attempt.id === action.result.id ? ({
+      ...attempt,
+      results: { ...attempt.results, [action.result.userId]: action.result.result },
+    }) : attempt
+  )),
+  waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
+});
+
 const reducers = {
-  [ROOM_UPDATED]: (state, action) => ({
+  [ROOM_UPDATED]: (state, { room }) => ({
     ...state,
     fetching: false,
-    ...action.room,
+    ...room,
   }),
   [FETCH_ROOM]: (state, action) => ({
     ...state,
@@ -46,30 +72,26 @@ const reducers = {
   }),
   [USER_JOIN]: (state, action) => ({
     ...state,
-    users: state.users.concat(action.user),
+    users: [...state.users.filter((i) => +i.id !== action.user.id), action.user],
     competing: {
       ...state.competing,
+      [action.user.id]: true,
+    },
+    inRoom: {
+      ...state.inRoom,
       [action.user.id]: true,
     },
   }),
   [USER_LEFT]: (state, action) => ({
     ...state,
-    users: state.users.filter((user) => user.id !== action.user),
+    inRoom: {
+      ...state.inRoom,
+      [action.user]: false,
+    },
   }),
   [JOIN_ROOM]: (state, action) => ({ ...state, password: action.password }),
-  [LEAVE_ROOM]: (state) => ({
-    ...state,
-    name: undefined,
-    _id: undefined,
-    accessCode: undefined,
-    users: [],
-    statuses: {},
-    attempts: [],
-    competing: {},
-    waitingFor: [],
-    admin: {
-      id: null,
-    },
+  [LEAVE_ROOM]: () => ({
+    ...INITIAL_STATE,
   }),
   [NEW_ATTEMPT]: (state, action) => ({
     ...state,
@@ -77,34 +99,8 @@ const reducers = {
     waitingFor: action.waitingFor,
     new_scramble: true,
   }),
-  [NEW_RESULT]: (state, action) => ({
-    ...state,
-    attempts: state.attempts.map((attempt) => {
-      if (attempt.id === action.result.id) {
-        return {
-          ...attempt,
-          results: { ...attempt.results, [action.result.userId]: action.result.result },
-        };
-      }
-
-      return attempt;
-    }),
-    // remove user from waiting for for current attempt
-    waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
-  }),
-  [EDIT_RESULT]: (state, action) => ({
-    ...state,
-    attempts: state.attempts.map((attempt) => {
-      if (attempt.id === action.result.id) {
-        return {
-          ...attempt,
-          results: { ...attempt.results, [action.result.userId]: action.result.result },
-        };
-      }
-
-      return attempt;
-    }),
-  }),
+  [NEW_RESULT]: editResult,
+  [EDIT_RESULT]: editResult,
   [SEND_EDIT_RESULT]: (state) => state,
   [UPDATE_ADMIN]: (state, action) => ({ ...state, admin: action.admin }),
   [RECEIVE_STATUS]: (state, action) => ({
@@ -125,6 +121,24 @@ const reducers = {
   [TIMER_FOCUSED]: (state, action) => ({
     ...state,
     timerFocused: action.focus,
+  }),
+  [UPDATE_USER_BANNED]: (state, action) => ({
+    ...state,
+    banned: {
+      ...state.banned,
+      [action.userId]: action.banned,
+    },
+  }),
+  [NEXT_SOLVE_AT]: (state, action) => ({
+    ...state,
+    nextSolveAt: action.dateTime,
+  }),
+  [TOGGLE_FOLLOW_USER]: (state, action) => ({
+    ...state,
+    following: {
+      ...state.following,
+      [action.userId]: !state.following[action.userId],
+    },
   }),
 };
 

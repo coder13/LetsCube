@@ -114,3 +114,64 @@ export default function (_attempts, users) {
   stats.bests = bests;
   return stats;
 }
+
+// 8 place spread 10/8/6/5/4/3/2/1
+
+const calculateGrandPrixRules = (result, place) => {
+  switch (place) {
+    case 0: return 10;
+    case 1: return 8;
+    case 2: return 6;
+    case 3: return 5;
+    case 4: return 4;
+    case 5: return 3;
+    case 6: return 2;
+    case 7: return 1;
+    default: return 0;
+  }
+};
+
+export const calculatePointsForAttempt = (type, results) => {
+  const sortedResults = Object.keys(results)
+    .map((key) => ({
+      id: key,
+      time: getTimeOrDNF(results[key]),
+    }))
+    .filter((result) => result.time > 0)
+    .sort((a, b) => sort(a.time, b.time))
+    .map((result, index) => ({
+      id: result.id,
+      time: result.time,
+      points: calculateGrandPrixRules(result, index),
+    }));
+
+  const points = {};
+
+  sortedResults.forEach((result) => {
+    points[result.id] = result.points;
+  });
+
+  return points;
+};
+
+export const calculatePointsForAllAttempts = (allPoints) => {
+  const points = {};
+
+  allPoints.forEach((attempt) => {
+    // if (!attempt) {
+    //   console.error('attempt.points doesn\'t exist', attempt);
+    //   return;
+    // }
+
+    Object.keys(attempt).forEach((key) => {
+      const result = attempt[key];
+      if (points[key]) {
+        points[key] += result;
+      } else {
+        points[key] = result;
+      }
+    });
+  });
+
+  return points;
+};

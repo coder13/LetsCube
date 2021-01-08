@@ -2,7 +2,6 @@ import React, { createRef } from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
-import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
 import TableContainer from '@material-ui/core/TableContainer';
 import Table from '@material-ui/core/Table';
@@ -10,17 +9,18 @@ import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
-import { formatTime } from '../../lib/utils';
 import { useStatsDialog } from './StatsDialogProvider';
-import { useEditDialog } from './EditDialogProvider';
-import TableCellButton from '../TableCellButton';
-import User from '../User';
+import TableCellButton from '../../TableCellButton';
+import TableStatusCell from './TableStatusCell';
+import TableTimeCell from './TableTimeCell';
+import User from '../../User';
+import { getUsersInRoom } from '../../../store/room/selectors';
 
 const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
     display: 'flex',
-    overflowY: 'auto',
+    overflowY: 'hidden',
   },
   table: {
     display: 'flex',
@@ -28,12 +28,25 @@ const useStyles = makeStyles((theme) => ({
   },
   thead: {
     boxShadow: theme.shadows[1],
+    position: 'sticky',
   },
   tbody: {
     flexGrow: 1,
+    overflowY: 'scroll',
     height: '0px',
-    '&:scollbar': {
+    '&:scrollbar': {
       width: 200,
+    },
+    '&::-webkit-scrollbar': {
+      width: '0.2em',
+    },
+    '&::-webkit-scrollbar-track': {
+      boxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
+      webkitBoxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
+    },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(0,0,0,.1)',
+      outline: `1px solid ${theme.palette.divider}`,
     },
   },
   tr: {
@@ -90,91 +103,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function TableStatusCell({ status }) {
-  const classes = useStyles();
-
-  return (
-    <TableCell className={clsx(classes.td, classes.tableResultCell)}>
-      <Typography variant="subtitle1">{status === 'RESTING' ? '' : status}</Typography>
-    </TableCell>
-  );
-}
-
-TableStatusCell.propTypes = {
-  status: PropTypes.string,
-};
-
-TableStatusCell.defaultProps = {
-  status: '',
-};
-
-function TableTimeCell({
-  attemptId,
-  solveNum,
-  attempt: { time, penalties },
-  highlight,
-  isSelfUser,
-}) {
-  const classes = useStyles();
-  const displayTime = formatTime(time, penalties);
-  const showEditDialog = useEditDialog();
-
-  const editTime = (id, solve, result) => {
-    showEditDialog({
-      id,
-      solve,
-      result,
-    });
-  };
-
-  const timeText = (
-    <Typography
-      variant="subtitle2"
-      className={clsx({
-        [classes.highlight]: highlight,
-      })}
-    >
-      {time === null ? '' : displayTime}
-    </Typography>
-  );
-
-  return (
-    <TableCell className={clsx(classes.td, classes.tableResultCell)}>
-      {isSelfUser ? (
-        <Button onClick={() => editTime(attemptId, solveNum, { time, penalties })}>
-          {timeText}
-        </Button>
-      ) : timeText}
-    </TableCell>
-  );
-}
-
-TableTimeCell.propTypes = {
-  attemptId: PropTypes.number,
-  solveNum: PropTypes.number,
-  attempt: PropTypes.shape({
-    time: PropTypes.number,
-    penalties: PropTypes.shape(),
-  }),
-  highlight: PropTypes.bool,
-  isSelfUser: PropTypes.bool,
-};
-
-TableTimeCell.defaultProps = {
-  attemptId: 0,
-  solveNum: 1,
-  attempt: {
-    time: null,
-    penalties: {},
-  },
-  highlight: false,
-  isSelfUser: false,
-};
-
 function TimesTable({
-  room: {
-    users, statuses, attempts, competing, admin,
-  }, stats, userId,
+  room, stats, userId, userFilter,
 }) {
   const classes = useStyles();
   const tableBodyRef = createRef();
@@ -185,15 +115,23 @@ function TimesTable({
     tableBodyRef.current.scrollTop = 0;
   }
 
+  const {
+    statuses, attempts, competing, admin,
+  } = room;
+
+  const usersInRoom = getUsersInRoom(room).filter(userFilter);
+
   // Converts true/false to 1/0 and then sorts by looking at the difference between the 2 values
-  const sortedUsers = users.sort((userA, userB) => +competing[userB.id] - +competing[userA.id]);
+  const sortedUsers = usersInRoom.sort((userA, userB) => (
+    +competing[userB.id] - +competing[userA.id]
+  ));
 
   const showScramble = (attempt) => {
     showStatsDialog({
       title: `Solve ${attempt.id + 1}`,
       stats: [{
         scramble: attempt.scrambles[0],
-        results: users.map((user) => ({
+        results: usersInRoom.map((user) => ({
           name: user.displayName,
           result: attempt.results[user.id],
         })).sort((a, b) => a.time - b.time),
@@ -233,6 +171,7 @@ function TimesTable({
             {sortedUsers.map((u) => (
               <TableTimeCell
                 key={u.id}
+                className={clsx(classes.td, classes.tableResultCell)}
                 attempt={{
                   time: stats[u.id] ? stats[u.id].mean : 0,
                 }}
@@ -269,17 +208,23 @@ function TimesTable({
                   <Typography variant="subtitle2">{attempts.length - index}</Typography>
                 </TableCellButton>
                 {sortedUsers.map((u) => (index === 0 && !attempt.results[u.id] ? (
-                  <TableStatusCell key={u.id} status={statuses[u.id]} />
+                  <TableStatusCell
+                    key={u.id}
+                    className={clsx(classes.td, classes.tableResultCell)}
+                    status={statuses[u.id]}
+                  />
                 ) : (
                   <TableTimeCell
                     key={u.id}
+                    className={clsx(classes.td, classes.tableResultCell)}
                     attemptId={attempt.id}
                     solveNum={attempts.length - index}
                     attempt={attempt.results[u.id]}
                     highlight={attempt.results[u.id]
                       && Math.round(attempt.results[u.id].time)
                         === Math.round(stats.bests[reversedI])}
-                    isSelfUser={u.id === userId}
+                    userId={u.id}
+                    editable={u.id === userId || userId === room.admin.id}
                   />
                 )))}
               </TableRow>
@@ -305,6 +250,7 @@ TimesTable.propTypes = {
   }),
   stats: PropTypes.shape(),
   userId: PropTypes.number,
+  userFilter: PropTypes.func,
 };
 
 TimesTable.defaultProps = {
@@ -317,6 +263,7 @@ TimesTable.defaultProps = {
   },
   stats: {},
   userId: 0,
+  userFilter: () => true,
 };
 
 export default TimesTable;

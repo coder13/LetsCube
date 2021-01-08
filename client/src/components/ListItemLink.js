@@ -10,7 +10,7 @@ function ListItemLink({ children, to, disabled }) {
 }
 
 ListItemLink.propTypes = {
-  children: PropTypes.arrayOf(PropTypes.element).isRequired,
+  children: PropTypes.node.isRequired,
   to: PropTypes.string.isRequired,
   disabled: PropTypes.bool,
 };

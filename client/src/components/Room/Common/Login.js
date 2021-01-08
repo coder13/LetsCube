@@ -10,7 +10,7 @@ import ArrowBackIcon from '@material-ui/icons/ArrowBack';
 import { Link } from 'react-router-dom';
 import {
   joinRoom,
-} from '../../store/room/actions';
+} from '../../../store/room/actions';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -37,7 +37,10 @@ function Login({ dispatch, roomId, loginFailed }) {
   const login = (event) => {
     event.preventDefault();
     setResetPassword(false);
-    dispatch(joinRoom(roomId, password));
+    dispatch(joinRoom({
+      id: roomId,
+      password,
+    }));
   };
 
   const updatePassword = (event) => {

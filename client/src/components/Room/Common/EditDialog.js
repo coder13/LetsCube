@@ -8,11 +8,12 @@ import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
-import { formatRawTime, parseTime } from '../../lib/utils';
+import { formatRawTime, parseTime } from '../../../lib/utils';
 
 function EditDialog({
   editTime,
   open,
+  userId,
   solveNum,
   result: { time, penalties },
   onClose,
@@ -50,7 +51,7 @@ function EditDialog({
       return;
     }
     t += (auf ? 2000 : 0);
-    editTime(timeInput, penalties, auf, dnf);
+    editTime(userId, timeInput, penalties, auf, dnf);
     setInputError(false);
   };
 
@@ -95,6 +96,7 @@ function EditDialog({
 EditDialog.propTypes = {
   editTime: PropTypes.func.isRequired,
   open: PropTypes.bool,
+  userId: PropTypes.number,
   solveNum: PropTypes.number,
   result: PropTypes.shape({
     time: PropTypes.number,
@@ -105,6 +107,7 @@ EditDialog.propTypes = {
 
 EditDialog.defaultProps = {
   open: false,
+  userId: null,
   solveNum: 1,
   result: {
     time: null,

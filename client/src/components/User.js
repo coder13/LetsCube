@@ -30,7 +30,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function User({ user, admin }) {
+function User({ user, admin, className }) {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
 
@@ -48,7 +48,7 @@ function User({ user, admin }) {
     <div
       className={clsx(classes.root, {
         [classes.admin]: admin,
-      })}
+      }, className)}
     >
       <Typography
         className={classes.name}
@@ -113,10 +113,12 @@ User.propTypes = {
     showWCAID: PropTypes.bool,
   }).isRequired,
   admin: PropTypes.bool,
+  className: PropTypes.string,
 };
 
 User.defaultProps = {
   admin: false,
+  className: '',
 };
 
 export default User;

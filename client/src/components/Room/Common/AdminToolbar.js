@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
+import { connect, useDispatch } from 'react-redux';
 import Toolbar from '@material-ui/core/Toolbar';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -16,9 +16,11 @@ import {
   requestNewScramble,
   changeEvent,
   editRoom,
-} from '../../store/room/actions';
-import { Events } from '../../lib/events';
-import RoomConfigureDialog from '../RoomConfigureDialog';
+  startRoom,
+  pauseRoom,
+} from '../../../store/room/actions';
+import { Events } from '../../../lib/events';
+import RoomConfigureDialog from '../../RoomConfigureDialog';
 import ManageUsersDialog from './ManageUsersDialog';
 
 const useStyles = makeStyles(() => ({
@@ -35,9 +37,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function AdminToolbar({ dispatch, room, user }) {
+function AdminToolbar({ room }) {
   const classes = useStyles();
   const confirm = useConfirm();
+  const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showEditRoomDialog, setShowEditRoomDialog] = React.useState(false);
   const [showManageUsersDialog, setShowManageUsersDialog] = React.useState(false);
@@ -73,10 +76,19 @@ function AdminToolbar({ dispatch, room, user }) {
     dispatch(editRoom(options));
   };
 
+  const toggleRoomStart = () => {
+    dispatch(room.started ? pauseRoom() : startRoom());
+  };
+
   return (
     <>
       <Toolbar className={classes.adminToolbar}>
         <FormGroup row variant="text">
+          { room.type === 'grand_prix' && (
+            <Button onClick={toggleRoomStart}>
+              { room.started ? 'Pause' : 'Start'}
+            </Button>
+          )}
           <Button
             onClick={handleNewScramble}
           >
@@ -133,23 +145,21 @@ function AdminToolbar({ dispatch, room, user }) {
         onCancel={() => setShowEditRoomDialog(false)}
       />
       <ManageUsersDialog
-        room={room}
         open={showManageUsersDialog}
         onClose={() => setShowManageUsersDialog(false)}
-        self={user}
       />
     </>
   );
 }
 
 AdminToolbar.propTypes = {
-  dispatch: PropTypes.func.isRequired,
   room: PropTypes.shape({
     _id: PropTypes.string,
     attempts: PropTypes.array,
     event: PropTypes.string,
+    started: PropTypes.bool,
+    type: PropTypes.oneOf(['normal', 'grand_prix']),
   }),
-  user: PropTypes.shape({}),
 };
 
 AdminToolbar.defaultProps = {
@@ -157,15 +167,13 @@ AdminToolbar.defaultProps = {
     _id: undefined,
     attempts: [],
     event: undefined,
-  },
-  user: {
-
+    started: undefined,
+    type: 'normal',
   },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
-  user: state.user,
 });
 
 export default connect(mapStateToProps)(AdminToolbar);

@@ -68,7 +68,6 @@ export const parseTime = (inputTime) => {
   return (((((hours * 3600) + minutes * 60) + seconds) * 100) + centiSeconds) * 10;
 };
 
-
 // Better refresh and cross compatability.
 const requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame
   || window.mozRequestAnimationFrame || window.oRequestAnimationFrame

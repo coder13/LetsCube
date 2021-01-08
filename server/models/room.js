@@ -69,10 +69,48 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
+  banned: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
+  inRoom: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
+  registered: {
+    type: Map,
+    of: Boolean,
+    default: {},
+  },
   admin: User,
   owner: User,
+  type: {
+    type: String,
+    enum: ['normal', 'grand_prix'],
+    default: 'normal',
+  },
+  requireRevealedIdentity: {
+    type: Boolean,
+    default: false,
+  },
+  startTime: {
+    type: Date,
+  },
+  started: {
+    type: Boolean,
+    default: false,
+  },
+  nextSolveAt: {
+    type: Date,
+  },
   expireAt: {
     type: Date,
+    default: undefined,
+  },
+  twitchChannel: {
+    type: String,
     default: undefined,
   },
 }, {
@@ -89,13 +127,35 @@ Room.virtual('scrambler').get(function () {
   return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
+Room.virtual('usersInRoom').get(function () {
+  return this.users.filter(({ id }) => this.inRoom.get(id.toString()));
+});
+
 Room.virtual('usersLength').get(function () {
-  return this.users.length;
+  return this.usersInRoom.length;
 });
 
 Room.virtual('private').get(function () {
   return !!this.password;
 });
+
+Room.methods.start = function () {
+  this.started = true;
+
+  this.users.forEach((user) => {
+    if (this.registered.get(user.id.toString())) {
+      this.competing.set(user.id.toString(), true);
+    }
+  });
+
+  return this.save();
+};
+
+Room.methods.pause = function () {
+  this.started = false;
+  this.nextSolveAt = null;
+  return this.save();
+};
 
 Room.methods.updateStale = function updateStale(stale) {
   if (stale) {
@@ -107,15 +167,27 @@ Room.methods.updateStale = function updateStale(stale) {
   return this.save();
 };
 
-Room.methods.addUser = async function (user, updateAdmin) {
-  if (this.users.find((i) => i.id === user.id)) {
+Room.methods.addUser = async function (user, spectating, updateAdmin) {
+  if (this.inRoom.get(user.id.toString())) {
     return false;
   }
 
-  this.users.push(user);
-  this.competing.set(user.id.toString(), true);
+  if (!this.users.find((i) => i.id === user.id)) {
+    this.users.push(user);
+    this.competing.set(user.id.toString(), this.type === 'normal');
+  } else if (spectating) {
+    this.competing.set(user.id.toString(), false);
+  }
+
+  this.inRoom.set(user.id.toString(), true);
 
   if (this.waitingFor.length === 0) {
+    this.waitingFor.push(user.id);
+  }
+
+  if (this.type !== 'grand_prix'
+    && (this.attempts.length === 0
+      || !this.attempts[this.attempts.length - 1].results[user.id.toString()])) {
     this.waitingFor.push(user.id);
   }
 
@@ -128,7 +200,8 @@ Room.methods.addUser = async function (user, updateAdmin) {
 };
 
 Room.methods.dropUser = async function (user, updateAdmin) {
-  this.users = this.users.filter((i) => i.id !== user.id);
+  // this.users = this.users.filter((i) => i.id !== user.id);
+  this.inRoom.set(user.id.toString(), false);
   this.waitingFor.splice(this.waitingFor.indexOf(user.id), 1);
 
   await this.save();
@@ -137,10 +210,25 @@ Room.methods.dropUser = async function (user, updateAdmin) {
     await this.updateAdminIfNeeded(updateAdmin);
   }
 
-  if (this.users.length === 0) {
+  if (this.usersInRoom.length === 0 && this.type === 'normal') {
     await this.updateStale(true);
   }
 
+  return this.save();
+};
+
+Room.methods.banUser = async function (userId) {
+  this.banned.set(userId.toString(), true);
+  return this.dropUser({ id: userId });
+};
+
+Room.methods.unbanUser = async function (userId) {
+  this.banned.set(userId.toString(), false);
+  return this.save();
+};
+
+Room.methods.updateRegistration = async function (userId, registration) {
+  this.registered.set(userId.toString(), registration);
   return this.save();
 };
 
@@ -157,6 +245,10 @@ Room.methods.authenticate = function (password) {
 };
 
 Room.methods.doneWithScramble = function () {
+  if (this.type === 'grand_prix') {
+    return false;
+  }
+
   if (this.users.filter((user) => this.attempts[this.attempts.length - 1].results
     .get(user.id.toString())).length === 0) {
     return false;
@@ -179,7 +271,8 @@ Room.methods.newAttempt = function () {
   this.attempts = this.attempts.concat([attempt]);
 
   this.waitingFor = this.users
-    .filter(({ id }) => this.competing.get(id.toString())).map(({ id }) => +id);
+    .filter(({ id }) => this.competing.get(id.toString()) && this.inRoom.get(id.toString()))
+    .map(({ id }) => +id);
 
   return this.save();
 };
@@ -197,6 +290,9 @@ Room.methods.edit = function (options) {
   } else {
     this.password = null;
   }
+  this.type = options.type;
+  this.requireRevealedIdentity = options.requireRevealedIdentity;
+  this.startTime = options.startTime;
   return this.save();
 };
 
