@@ -40,11 +40,8 @@ const Room = ({
 
   const { accessCode, _id } = room;
 
-  console.log(fetching, _id, accessCode)
-
   useEffect(() => {
     if (!fetching && !_id) {
-      console.log('refetching room');
       dispatch(fetchRoom({
         id: roomId,
         password: query.password,
@@ -55,7 +52,6 @@ const Room = ({
 
   useEffect(() => {
     if (!fetching && accessCode) {
-      console.log('rejoining room');
       dispatch(joinRoom({
         id: _id,
         password: query.password,
