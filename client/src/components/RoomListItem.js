@@ -202,6 +202,9 @@ RoomListItem.defaultProps = {
     users: undefined,
     startTime: undefined,
     requireRevealedIdentity: false,
+    admin: {
+      id: undefined,
+    },
   },
   user: {
     id: undefined,

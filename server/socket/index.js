@@ -2,13 +2,14 @@ const _ = require('lodash');
 const http = require('http');
 const bcrypt = require('bcrypt');
 const socketIO = require('socket.io');
+const redis = require('socket.io-redis');
 const expressSocketSession = require('express-socket.io-session');
 const logger = require('../logger');
-const Protocol = require('../../client/src/lib/protocol.js');
+const Protocol = require('../../client/src/lib/protocol');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
-const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'admin', 'startTime', 'started', 'twitchChannel'];
+const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'admin', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
 
 // Data for people not in room
@@ -71,6 +72,11 @@ module.exports = ({ app, expressSession }) => {
   const server = http.Server(app);
   const io = socketIO(server);
   app.io = io;
+
+  io.adapter(redis({
+    host: 'localhost',
+    port: 6379,
+  }));
 
   io.use(expressSocketSession(expressSession, {
     autoSave: true,
@@ -417,6 +423,7 @@ module.exports = ({ app, expressSession }) => {
         twitchChannel: socket.userId === 6784 || socket.userId === 8184
           ? options.twitchChannel
           : undefined,
+        admin: socket.user,
       });
 
       if (options.password) {

@@ -1,7 +1,10 @@
 import React from 'react';
+import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
 import { makeStyles, useTheme } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
+import Typography from '@material-ui/core/Typography';
 import Link from '@material-ui/core/Link';
 import IconButton from '@material-ui/core/IconButton';
 import EmojiObjectsIcon from '@material-ui/icons/EmojiObjects';
@@ -31,7 +34,12 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(1),
   },
   grow: {
+    display: 'flex',
+    flexDirection: 'row',
     flexGrow: 1,
+    marginLeft: theme.spacing(1),
+    marginRight: theme.spacing(1),
+    alignItems: 'center',
   },
   link: {
     fontSize: '1.125em',
@@ -45,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Footer() {
+function Footer({ socket }) {
   const classes = useStyles();
   const theme = useTheme();
   const toggleTheme = useToggleTheme();
@@ -69,7 +77,13 @@ function Footer() {
             )}
           </IconButton>
         </Grid>
-        <Grid item className={classes.grow} />
+        <Grid item className={classes.grow}>
+          {process.env.NODE_ENV === 'development' && (
+            <Typography variant="body2">
+              {socket.URI}
+            </Typography>
+          )}
+        </Grid>
         <Grid item>
           {Links.map((link) => (
             <Link
@@ -89,4 +103,20 @@ function Footer() {
   );
 }
 
-export default Footer;
+Footer.propTypes = {
+  socket: PropTypes.shape({
+    URI: PropTypes.string,
+  }),
+};
+
+Footer.defaultProps = {
+  socket: {
+    URI: null,
+  },
+};
+
+const mapStateToProps = (state) => ({
+  socket: state.socket,
+});
+
+export default connect(mapStateToProps)(Footer);

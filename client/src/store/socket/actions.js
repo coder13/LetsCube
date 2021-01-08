@@ -27,9 +27,10 @@ export const roomJoined = (room) => ({
   room,
 });
 
-export const connected = () => ({
+export const connected = (URI) => ({
   type: CONNECTED,
   connected: true,
+  URI,
 });
 
 export const disconnected = () => ({

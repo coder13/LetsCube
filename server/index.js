@@ -79,7 +79,7 @@ const init = async () => {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  initSocket({ app, expressSession }).listen(9000);
+  initSocket({ app, expressSession }).listen(config.socketio.port);
 
   /* Cors */
 
