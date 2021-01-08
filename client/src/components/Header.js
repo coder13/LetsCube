@@ -56,11 +56,12 @@ function Header({ children, user, room }) {
   };
 
   const login = () => {
-    window.location = `/auth/login?redirect=${document.location.href}`;
+    console.log(process.env.REACT_APP_API_ORIGIN);
+    window.location = `${process.env.REACT_APP_API_ORIGIN || ''}/auth/login?redirect=${document.location.href}`;
   };
 
   const logout = () => {
-    window.location = `/auth/logout?redirect=${document.location.origin}/`;
+    window.location = `${process.env.REACT_APP_API_ORIGIN || ''}/auth/logout?redirect=${document.location.origin}/`;
   };
 
   return (
