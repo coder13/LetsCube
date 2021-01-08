@@ -22,6 +22,7 @@ import MoreVertIcon from '@material-ui/icons/MoreVert';
 import ShareIcon from '@material-ui/icons/Share';
 import { useConfirm } from 'material-ui-confirm';
 import { TwitchEmbed } from 'react-twitch-embed';
+import lcFetch from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 import { createMessage } from '../store/messages/actions';
 import { deleteRoom } from '../store/room/actions';
@@ -94,7 +95,7 @@ function RoomListItem({
       if (room.requireRevealedIdentity && !user.showWCAID) {
         confirm({ title: 'You must reveal identity to join room. Are you sure you want to?' })
           .then(() => {
-            fetch('/api/updatePreference', {
+            lcFetch('/api/updatePreference', {
               headers: {
                 'Content-Type': 'application/json',
               },
