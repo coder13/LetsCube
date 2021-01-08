@@ -8,13 +8,14 @@ const Protocol = require('../../client/src/lib/protocol.js');
 const { User, Room } = require('../models');
 const ChatMessage = require('./ChatMessage');
 
-const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime', 'started'];
+const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
 
 // Data for people not in room
 const roomMask = (room) => ({
   ..._.partial(_.pick, _, publicRoomKeys)(room),
   users: room.private ? undefined : room.usersInRoom.map((user) => user.displayName),
+  registeredUsers: room.users.filter((user) => room.registered.get(user.id.toString())).length,
 });
 
 // Data for people in room
@@ -413,6 +414,9 @@ module.exports = ({ app, expressSession }) => {
         type: options.type,
         requireRevealedIdentity: options.requireRevealedIdentity,
         startTime: options.startTime ? new Date(options.startTime) : null,
+        twitchChannel: socket.userId === 6784 || socket.userId === 8184
+          ? options.twitchChannel
+          : undefined,
       });
 
       if (options.password) {

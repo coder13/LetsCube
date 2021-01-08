@@ -109,6 +109,10 @@ const Room = new mongoose.Schema({
     type: Date,
     default: undefined,
   },
+  twitchChannel: {
+    type: String,
+    default: undefined,
+  },
 }, {
   timestamps: true,
 });
