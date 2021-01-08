@@ -56,7 +56,6 @@ function Header({ children, user, room }) {
   };
 
   const login = () => {
-    console.log(process.env.REACT_APP_API_ORIGIN);
     window.location = `${process.env.REACT_APP_API_ORIGIN || ''}/auth/login?redirect=${document.location.href}`;
   };
 
