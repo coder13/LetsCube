@@ -5,7 +5,7 @@ const dev = process.env.NODE_ENV === 'development';
 const protocol = () => (dev ? 'http' : 'https');
 const origin = () => `${protocol()}://${process.env.REACT_APP_SOCKETIO_HOSTNAME || window.location.hostname}`;
 const makeURI = (port) => (
-  `${origin()}:${port || process.env.REACT_APP_SOCKETIO_PORT || 9000}`
+  `${origin()}${port ? `:${port}` : ''}`
 );
 
 Error.stackTraceLimit = Infinity;
@@ -27,7 +27,7 @@ export default class Socket {
   // attempt to connect to server
   connect = () => {
     // Connect
-    this.URI = makeURI(this.port);
+    this.URI = makeURI(this.port || process.env.REACT_APP_SOCKETIO_PORT || '');
     this.socket = io(this.URI, {
       reconnection: true,
       reconnectionAttempts: 5,
