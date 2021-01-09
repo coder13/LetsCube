@@ -16,7 +16,7 @@ import InputLabel from '@material-ui/core/InputLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
-import lcFetch from '../../../lib/fetch';
+import { lcFetch } from '../../../lib/fetch';
 import { updateCompeting } from '../../../store/room/actions';
 import { updateProfile } from '../../../store/user/actions';
 

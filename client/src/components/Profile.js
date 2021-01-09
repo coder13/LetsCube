@@ -11,7 +11,7 @@ import Checkbox from '@material-ui/core/Checkbox';
 import Divider from '@material-ui/core/Divider';
 import Alert from '@material-ui/lab/Alert';
 import EditableTextField from './EditableTextField';
-import lcFetch from '../lib/fetch';
+import { lcFetch } from '../lib/fetch';
 import { updateProfile } from '../store/user/actions';
 
 const validate = (username) => {

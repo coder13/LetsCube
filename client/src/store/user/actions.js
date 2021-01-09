@@ -1,4 +1,4 @@
-import lcFetch from '../../lib/fetch';
+import { lcFetch } from '../../lib/fetch';
 
 export const USER_CHANGED = 'user/changed';
 export const USER_FETCHING = 'user/fetching';

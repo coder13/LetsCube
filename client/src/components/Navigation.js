@@ -8,6 +8,7 @@ import Snackbar from '@material-ui/core/Snackbar';
 import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
 import Header from './Header';
+import WCARedirect from './WCARedirect';
 // import RoomList from './RoomList';
 // import Room from './Room/index';
 // import Profile from './Profile';
@@ -89,6 +90,7 @@ function App({
             { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
             { (user.id || user.fetching)
               && (<Route exact path="/profile" component={Profile} user={user} />)}
+            <Route path="/wca-redirect" component={WCARedirect} />
             <Redirect to="/" />
           </Switch>
         </Suspense>

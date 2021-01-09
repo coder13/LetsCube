@@ -1,4 +1,5 @@
 import React from 'react';
+import qs from 'qs';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -13,6 +14,7 @@ import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import Footer from './Footer';
+import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 
 const useStyles = makeStyles(() => ({
@@ -56,11 +58,18 @@ function Header({ children, user, room }) {
   };
 
   const login = () => {
-    window.location = `${process.env.REACT_APP_API_ORIGIN || ''}/auth/login?redirect=${document.location.href}`;
+    localStorage.setItem('letscube.redirect_uri', `${document.location.origin}/wca-redirect`);
+    const url = `${process.env.REACT_APP_WCA_ORIGIN}/oauth/authorize?${qs.stringify({
+      response_type: 'code',
+      scope: 'public dob email',
+      redirect_uri: `${document.location.origin}/wca-redirect`,
+      client_id: 'example-application-id',
+    })}`;
+    window.location = url;
   };
 
   const logout = () => {
-    window.location = `${process.env.REACT_APP_API_ORIGIN || ''}/auth/logout?redirect=${document.location.origin}/`;
+    window.location = `${apiOrigin || ''}/auth/logout?redirect=${document.location.origin}/`;
   };
 
   return (
