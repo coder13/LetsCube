@@ -12,6 +12,19 @@ module.exports = {
     env: {
       NODE_ENV: 'prod',
     },
+  }, {
+    name: 'letscube-socket',
+    script: 'node ./socket/index.js',
+
+    // Options reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
+    args: '',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'prod',
+    },
   }],
 
   deploy: {

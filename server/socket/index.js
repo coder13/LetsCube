@@ -1,9 +1,13 @@
 const _ = require('lodash');
 const http = require('http');
 const bcrypt = require('bcrypt');
+const config = require('getconfig');
 const socketIO = require('socket.io');
 const redis = require('socket.io-redis');
+const session = require('express-session');
+const MongoStore = require('connect-mongo')(session);
 const expressSocketSession = require('express-socket.io-session');
+const { connect } = require('../database');
 const logger = require('../logger');
 const Protocol = require('../../client/src/lib/protocol');
 const { User, Room } = require('../models');
@@ -68,17 +72,33 @@ const getRooms = (userId) => Room.find()
 
 const roomTimerObj = {};
 
-module.exports = ({ app, expressSession }) => {
-  const server = http.Server(app);
+const init = async () => {
+  const server = http.createServer();
   const io = socketIO(server);
-  app.io = io;
+
+  const mongoose = await connect();
+
+  const sessionOptions = {
+    secret: config.auth.secret,
+    saveUninitialized: false, // don't create session until something stored
+    resave: false, // don't save session if unmodified,
+    proxy: true,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'prod',
+      sameSite: 'strict',
+    },
+    store: new MongoStore({
+      mongooseConnection: mongoose.connection,
+    }),
+  };
 
   io.adapter(redis({
     host: 'localhost',
     port: 6379,
   }));
 
-  io.use(expressSocketSession(expressSession, {
+  io.use(expressSocketSession(session(sessionOptions), {
     autoSave: true,
   }));
 
@@ -863,5 +883,7 @@ module.exports = ({ app, expressSession }) => {
     });
   });
 
-  return server;
+  return server.listen(config.socketio.port);
 };
+
+init();

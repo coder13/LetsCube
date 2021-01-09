@@ -4,12 +4,11 @@ const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
-const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
+const { connect } = require('./database');
 const logger = require('./logger');
-const initSocket = require('./socket');
 const auth = require('./auth');
 const api = require('./api');
 const { Room } = require('./models');
@@ -30,16 +29,7 @@ const init = async () => {
   }));
   app.use(bodyParser.json());
 
-  logger.debug('[MONGODB] Attempting to connect to database.', { url: config.mongodb });
-  await mongoose.connect(config.mongodb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }).then(() => {
-    logger.debug('[MONGODB] Connected to database.', { url: config.mongodb });
-  }).catch((err) => {
-    logger.error('[MONGODB] Error when connecting to database', err);
-    process.exit();
-  });
+  const mongoose = await connect();
 
   /* Logging */
 
@@ -77,8 +67,6 @@ const init = async () => {
 
   app.use(passport.initialize());
   app.use(passport.session());
-
-  initSocket({ app, expressSession }).listen(config.socketio.port);
 
   /* Cors */
 
