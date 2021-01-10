@@ -1,16 +1,13 @@
-const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
-const mongoose = require('mongoose');
 const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
+const { connect } = require('./database');
 const logger = require('./logger');
-const initSocket = require('./socket');
 const auth = require('./auth');
 const api = require('./api');
 const { Room } = require('./models');
@@ -26,21 +23,7 @@ const init = async () => {
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
-  app.use(bodyParser.urlencoded({
-    extended: true,
-  }));
-  app.use(bodyParser.json());
-
-  logger.debug('[MONGODB] Attempting to connect to database.', { url: config.mongodb });
-  await mongoose.connect(config.mongodb, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }).then(() => {
-    logger.debug('[MONGODB] Connected to database.', { url: config.mongodb });
-  }).catch((err) => {
-    logger.error('[MONGODB] Error when connecting to database', err);
-    process.exit();
-  });
+  const mongoose = await connect();
 
   /* Logging */
 
@@ -79,13 +62,11 @@ const init = async () => {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  initSocket({ app, expressSession }).listen(config.socketio.port);
-
   /* Cors */
 
   app.use(cors({
-    origin: '*',
     credentials: true,
+    origin: [/localhost/],
   }));
 
   app.use(express.static(path.join(__dirname, '../client/build')));
@@ -95,18 +76,10 @@ const init = async () => {
   });
 
   app.use('/auth', auth(app, passport));
-  app.use('/api', api(app));
+  app.use('/api', api(app, passport));
 
   app.get('/api/announcements', (req, res) => {
-    fs.readFile('./announcements', (err, data) => {
-      if (err) {
-        res.status(500).end('');
-        logger.error(err);
-        return;
-      }
-
-      res.end(data);
-    });
+    res.sendFile(path.join(__dirname, './announcements'));
   });
 
   app.use('/*', (req, res) => {

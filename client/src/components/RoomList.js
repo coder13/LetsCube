@@ -18,7 +18,7 @@ import AddIcon from '@material-ui/icons/Add';
 import RoomConfigureDialog from './RoomConfigureDialog';
 import RoomListItem from './RoomListItem';
 import EventListItem from './EventListItem';
-import lcFetch from '../lib/fetch';
+import { lcFetch } from '../lib/fetch';
 import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
@@ -91,6 +91,9 @@ function RoomList({
       })
       .then((data) => {
         setAnnouncements(data);
+      })
+      .catch((err) => {
+        throw err;
       });
   }, []);
 
