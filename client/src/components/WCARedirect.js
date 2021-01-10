@@ -2,16 +2,28 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { connect, useDispatch } from 'react-redux';
 import qs from 'qs';
-import { useLocation } from 'react-router-dom';
+import { Redirect, useLocation } from 'react-router-dom';
 import { makeStyles } from '@material-ui/core/styles';
+import Box from '@material-ui/core/Box';
 import Paper from '@material-ui/core/Paper';
+import Typography from '@material-ui/core/Typography';
+import LinearProgress from '@material-ui/core/LinearProgress';
+import Alert from '@material-ui/lab/Alert';
+import AlertTitle from '@material-ui/lab/AlertTitle';
 import { lcFetch } from '../lib/fetch';
 import { userChanged } from '../store/user/actions';
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
+    display: 'flex',
+    flexDirection: 'column',
     flexGrow: 1,
-    padding: '1em',
+  },
+  paper: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1,
+    padding: theme.spacing(1),
   },
 }));
 
@@ -19,35 +31,59 @@ const WCARedirect = ({ user }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const query = qs.parse(useLocation().search, { ignoreQueryPrefix: true });
-  const redirectUri = localStorage.getItem('letscube.redirect_uri')
+  const redirectUri = localStorage.getItem('letscube.redirect_uri');
   const { code } = query;
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    lcFetch(`/auth/code?code=${code}&redirectUri=${redirectUri}`)
+    lcFetch('/auth/code', {
+      method: 'POST',
+      body: JSON.stringify({
+        code,
+        redirectUri,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
       .then((data) => data.json())
       .then((data) => {
-        console.log(data);
         if (!data.ok) {
           setError(data);
         }
         setFetching(false);
-        dispatch(userChanged(data))
+        dispatch(userChanged(data));
       })
       .catch((err) => {
-        console.error(err);
         setFetching(false);
         setError(err);
-      })
-  }, [code]);
+      });
+  }, [dispatch, code, redirectUri]);
 
   return (
-    <Paper className={classes.root}>
-      { fetching && 'fetching...' }
-      { error && JSON.stringify(error) }
-      { user && user.id }
-    </Paper>
+    <Box className={classes.root}>
+      { error && (
+        <Alert severity="error">
+          <AlertTitle>An Error occured</AlertTitle>
+          <br />
+          { JSON.stringify(error) }
+        </Alert>
+      ) }
+      { fetching && (
+        <>
+          <LinearProgress color="secondary" />
+          <Paper className={classes.paper}>
+            <Typography>
+              fetching...
+            </Typography>
+          </Paper>
+        </>
+      )}
+      { user && user.id && (
+        <Redirect to={user.canJoinRoom ? '/' : '/profile'} />
+      )}
+    </Box>
   );
 };
 

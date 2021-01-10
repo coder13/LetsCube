@@ -1,6 +1,5 @@
 const path = require('path');
 const express = require('express');
-const bodyParser = require('body-parser');
 const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -23,11 +22,6 @@ const init = async () => {
 
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
-
-  app.use(bodyParser.urlencoded({
-    extended: true,
-  }));
-  app.use(bodyParser.json());
 
   const mongoose = await connect();
 
@@ -71,8 +65,8 @@ const init = async () => {
   /* Cors */
 
   app.use(cors({
-    origin: '*',
     credentials: true,
+    origin: [/localhost/],
   }));
 
   app.use(express.static(path.join(__dirname, '../client/build')));
@@ -82,7 +76,7 @@ const init = async () => {
   });
 
   app.use('/auth', auth(app, passport));
-  app.use('/api', api(app));
+  app.use('/api', api(app, passport));
 
   app.get('/api/announcements', (req, res) => {
     res.sendFile(path.join(__dirname, './announcements'));

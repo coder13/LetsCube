@@ -1,8 +1,7 @@
 const express = require('express');
-const LocalStrategy = require('passport-local').Strategy;
+const CustomStrategy = require('passport-custom').Strategy;
 const fetch = require('node-fetch');
 const { URLSearchParams } = require('url');
-const logger = require('../logger');
 const { User } = require('../models');
 
 const checkStatus = async (res) => {
@@ -15,67 +14,17 @@ const checkStatus = async (res) => {
 module.exports = (app, passport) => {
   const router = express.Router();
   const config = app.get('config');
-  const options = config.auth;
-  options.authorizationURL = `${config.wcaSource}/oauth/authorize`;
-  options.tokenURL = `${config.wcaSource}/oauth/token`;
-  options.callbackURL = config.auth.callbackURL;
-  options.userProfileURL = `${config.wcaSource}/api/v0/me`;
-  options.scope = 'email dob public';
+  const tokenURL = `${config.wcaSource}/oauth/token`;
+  const userProfileURL = `${config.wcaSource}/api/v0/me`;
 
-  // passport.use(new WCAStrategy(options,
-  //   (accessToken, refreshToken, profile, done) => {
-  //     User.findOneAndUpdate({
-  //       id: +profile.id,
-  //     }, {
-  //       id: +profile.id,
-  //       name: profile.displayName,
-  //       email: profile.emails[0].value,
-  //       wcaId: profile.wca.id,
-  //       accessToken,
-  //       avatar: profile._json.me.avatar,
-  //     }, {
-  //       upsert: true,
-  //       useFindAndModify: false,
-  //       new: true,
-  //     }, (err, user) => {
-  //       done(err, user);
-  //     });
-  //   }));
-
-  passport.use(new LocalStrategy((userId, done) => {
-    console.log(46, userId);
-    // check to see if the username exists
-    User.findOne({
-      id: userId,
-    })
-      .then((user) => {
-        if (!user) return done(null, false);
-        done(null, user);
-      })
-      .catch((err) => done(err));
-  }));
-
-  passport.serializeUser((user, done) => {
-    console.log(59, user);
-    done(null, user.id);
-  });
-
-  passport.deserializeUser((id, done) => {
-    User.findOne({ id }, (err, user) => {
-      done(err, user);
-    });
-  });
-
-  router.get('/code', async (req, res) => {
-    const { code, redirectUri } = req.query;
+  passport.use('custom', new CustomStrategy(async (req, done) => {
+    const { code, redirectUri } = req.body;
 
     if (!code) {
-      res
-        .status(400)
-        .send({
-          status: 400,
-          message: 'Invalid code passed',
-        });
+      done(new Error({
+        status: 400,
+        message: 'Invalid code passed',
+      }));
       return;
     }
 
@@ -87,7 +36,7 @@ module.exports = (app, passport) => {
     params.append('code', code);
 
     try {
-      const tokenRes = await fetch('https://staging.worldcubeassociation.org/oauth/token', {
+      const tokenRes = await fetch(tokenURL, {
         method: 'POST',
         body: params,
         headers: {
@@ -95,7 +44,7 @@ module.exports = (app, passport) => {
         },
       }).then(checkStatus).then((data) => data.json());
 
-      const meRes = await fetch('https://staging.worldcubeassociation.org/api/v0/me', {
+      const meRes = await fetch(userProfileURL, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Bearer ${tokenRes.access_token}`,
@@ -103,10 +52,9 @@ module.exports = (app, passport) => {
       }).then(checkStatus).then((data) => data.json());
 
       if (!meRes) {
-        res.status(500);
-        res.json({
+        done(new Error({
           error: 'Profile is not defined',
-        });
+        }));
         return;
       }
 
@@ -119,32 +67,52 @@ module.exports = (app, passport) => {
         name: profile.name,
         email: profile.email,
         wcaId: profile.wca_id,
-        accessToken: tokenRes.accessToken,
+        accessToken: tokenRes.access_token,
         avatar: profile.avatar,
       }, {
         upsert: true,
         useFindAndModify: false,
         new: true,
       }, (err, user) => {
-        if (err) {
-          logger.error(err);
-          return err;
-        }
-
-        req.login(user, (e) => {
-          if (e) {
-            logger.error(e);
-            return;
-          }
-
-          res.json(user.toObject());
-        });
+        done(err, user.toObject());
       });
     } catch (e) {
-      res.status(500);
-      res.json(e);
+      done(e);
     }
+  }));
+
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
   });
+
+  passport.deserializeUser((id, done) => {
+    User.findOne({ id }, (err, user) => {
+      done(err, user);
+    });
+  });
+
+  router.post('/code',
+    (req, res, next) => {
+      passport.authenticate('custom', (err, user) => {
+        if (err) {
+          return res.status(500).json(err);
+        }
+
+        if (!user) {
+          return res.status(401).json({
+            message: 'Authentication failed',
+          });
+        }
+
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            return res.json(loginErr);
+          }
+
+          res.json(user);
+        });
+      })(req, res, next);
+    });
 
   router.get('/logout', (req, res) => {
     req.logout();

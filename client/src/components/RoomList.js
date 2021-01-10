@@ -82,7 +82,6 @@ function RoomList({
   };
 
   React.useEffect(() => {
-    console.log(85);
     lcFetch('/api/announcements')
       .then((data) => {
         if (!data.ok) {
@@ -94,7 +93,7 @@ function RoomList({
         setAnnouncements(data);
       })
       .catch((err) => {
-        console.error(err);
+        throw err;
       });
   }, []);
 
