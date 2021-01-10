@@ -30,8 +30,8 @@ module.exports = (app, passport) => {
 
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
-    params.append('client_id', 'example-application-id');
-    params.append('client_secret', 'example-secret');
+    params.append('client_id', config.auth.clientID);
+    params.append('client_secret', config.auth.clientSecret);
     params.append('redirect_uri', redirectUri);
     params.append('code', code);
 
