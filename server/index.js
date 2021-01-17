@@ -66,7 +66,7 @@ const init = async () => {
 
   app.use(cors({
     credentials: true,
-    origin: [/localhost/],
+    origin: config.cors.origin.map((o) => new RegExp(o)),
   }));
 
   app.use(express.static(path.join(__dirname, '../client/build')));

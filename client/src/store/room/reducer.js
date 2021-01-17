@@ -1,6 +1,6 @@
 import {
   ROOM_UPDATED,
-  FETCH_ROOM,
+  RESET_ROOM,
   USER_JOIN,
   USER_LEFT,
   LEAVE_ROOM,
@@ -34,7 +34,7 @@ const INITIAL_STATE = {
   inRoom: {},
   banned: {},
   registered: {},
-  waitingFor: [],
+  waitingFor: {},
   admin: {
     id: null,
   },
@@ -57,7 +57,10 @@ const editResult = (state, action) => ({
       results: { ...attempt.results, [action.result.userId]: action.result.result },
     }) : attempt
   )),
-  waitingFor: state.waitingFor.filter((user) => user !== action.result.userId),
+  waitingFor: {
+    ...state.waitingFor,
+    [action.result.userId]: false,
+  },
 });
 
 const reducers = {
@@ -65,10 +68,6 @@ const reducers = {
     ...state,
     fetching: false,
     ...room,
-  }),
-  [FETCH_ROOM]: (state, action) => ({
-    ...state,
-    fetching: action.fetching,
   }),
   [USER_JOIN]: (state, action) => ({
     ...state,
@@ -88,8 +87,19 @@ const reducers = {
       ...state.inRoom,
       [action.user]: false,
     },
+    waitingFor: {
+      ...state.inRoom,
+      [action.user]: false,
+    },
   }),
-  [JOIN_ROOM]: (state, action) => ({ ...state, password: action.password }),
+  [JOIN_ROOM]: (state, action) => ({
+    ...state,
+    fetching: true,
+    password: action.password,
+  }),
+  [RESET_ROOM]: () => ({
+    ...INITIAL_STATE,
+  }),
   [LEAVE_ROOM]: () => ({
     ...INITIAL_STATE,
   }),
@@ -114,9 +124,10 @@ const reducers = {
       [action.userId]: action.competing,
     },
     // remove user from waiting for for current attempt
-    waitingFor: action.competing
-      ? state.waitingFor
-      : state.waitingFor.filter((user) => user !== action.userId),
+    waitingFor: {
+      ...state.waitingFor,
+      [action.userId]: action.competing,
+    },
   }),
   [TIMER_FOCUSED]: (state, action) => ({
     ...state,

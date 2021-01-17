@@ -26,3 +26,5 @@ yarn-error.log*
 
 /server/config/prod.json
 /server/announcements
+
+client/config/.env.development

@@ -14,4 +14,12 @@ const logger = winston.createLogger({
   ],
 });
 
+logger.error = (err) => {
+  if (err instanceof Error) {
+    logger.log({ level: 'error', message: `${err.stack || err}` });
+  } else {
+    logger.log({ level: 'error', message: err });
+  }
+};
+
 module.exports = logger;

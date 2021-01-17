@@ -12,5 +12,8 @@
     "callbackUrl": "",
     "clientID": "",
     "clientSecret": ""
+  },
+  "cors": {
+    "origin": ["localhost"]
   }
 }
