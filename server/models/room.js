@@ -61,8 +61,9 @@ const Room = new mongoose.Schema({
   users: [User],
   // userIds waiting for till next round.
   waitingFor: {
-    type: [Number],
-    default: [],
+    type: Map,
+    of: Boolean,
+    default: {},
   },
   competing: {
     type: Map,
@@ -139,6 +140,14 @@ Room.virtual('private').get(function () {
   return !!this.password;
 });
 
+Room.virtual('waitingForCount').get(function () {
+  return [...this.waitingFor.values()].filter((i) => i).length;
+});
+
+Room.virtual('latestAttempt').get(function () {
+  return this.attempts[this.attempts.length - 1];
+});
+
 Room.methods.start = function () {
   this.started = true;
 
@@ -181,14 +190,15 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 
   this.inRoom.set(user.id.toString(), true);
 
-  if (this.waitingFor.length === 0) {
-    this.waitingFor.push(user.id);
+  if (this.waitingForCount === 0) {
+    this.waitingFor.set(user.id.toString(), true);
   }
 
   if (this.type !== 'grand_prix'
     && (this.attempts.length === 0
-      || !this.attempts[this.attempts.length - 1].results[user.id.toString()])) {
-    this.waitingFor.push(user.id);
+      || [...this.latestAttempt.results.keys()].length > 0)) {
+    this.waitingFor.set(user.id.toString(), true);
+    await this.newAttempt();
   }
 
   await this.updateStale(false);
@@ -200,9 +210,8 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 };
 
 Room.methods.dropUser = async function (user, updateAdmin) {
-  // this.users = this.users.filter((i) => i.id !== user.id);
   this.inRoom.set(user.id.toString(), false);
-  this.waitingFor.splice(this.waitingFor.indexOf(user.id), 1);
+  this.waitingFor.set(user.id.toString(), false);
 
   await this.save();
 
@@ -249,12 +258,13 @@ Room.methods.doneWithScramble = function () {
     return false;
   }
 
-  if (this.users.filter((user) => this.attempts[this.attempts.length - 1].results
-    .get(user.id.toString())).length === 0) {
+  if (this.usersInRoom.filter((user) => (
+    this.latestAttempt.results.get(user.id.toString())
+  )).length === 0) {
     return false;
   }
 
-  return (this.waitingFor.length === 0 || this.attempts.length === 0) && this.users.length > 0;
+  return (this.waitingForCount === 0 || this.attempts.length === 0) && this.usersInRoom.length > 0;
 };
 
 Room.methods.genAttempt = function () {
@@ -270,9 +280,9 @@ Room.methods.newAttempt = function () {
 
   this.attempts = this.attempts.concat([attempt]);
 
-  this.waitingFor = this.users
-    .filter(({ id }) => this.competing.get(id.toString()) && this.inRoom.get(id.toString()))
-    .map(({ id }) => +id);
+  this.usersInRoom.forEach((user) => {
+    this.waitingFor.set(user.id.toString(), this.competing.get(user.id.toString()));
+  });
 
   return this.save();
 };
@@ -297,22 +307,22 @@ Room.methods.edit = function (options) {
 };
 
 Room.methods.updateAdminIfNeeded = function (cb) {
-  if (this.users.length === 0) {
+  if (this.usersInRoom.length === 0) {
     this.admin = null;
     return this.save();
   }
 
-  const findOwner = this.users.find((user) => user.id === this.owner.id);
+  const findOwner = this.usersInRoom.find((user) => user.id === this.owner.id);
   if (findOwner && this.admin && this.admin.id !== findOwner.id) {
     this.admin = findOwner;
     return this.save().then(cb);
   }
 
-  if (!this.admin || this.admin.id !== this.users[0].id) {
-    const { users } = this;
+  if (!this.admin || this.admin.id !== this.usersInRoom[0].id) {
+    const { usersInRoom } = this;
 
     // eslint-disable-next-line prefer-destructuring
-    this.admin = users[0];
+    this.admin = usersInRoom[0];
     return this.save().then(cb);
   }
 };

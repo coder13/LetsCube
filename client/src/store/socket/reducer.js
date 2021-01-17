@@ -3,14 +3,12 @@ import {
   SOCKET_JOIN_ROOM,
   CONNECTED,
   DISCONNECTED,
-  LOGIN_FAILED,
 } from './actions';
 import { LEAVE_ROOM } from '../room/actions';
 
 const INITIAL_STATE = {
   connected: false,
   room: null,
-  loginFailed: null,
   URI: null,
 };
 
@@ -24,7 +22,6 @@ const reducers = {
   }),
   [SOCKET_JOIN_ROOM]: (state, action) => ({ ...state, room: action.room }),
   [LEAVE_ROOM]: (state) => ({ ...state, room: null }),
-  [LOGIN_FAILED]: (state, action) => ({ ...state, loginFailed: action.error }),
 };
 
 function socketReducer(state = INITIAL_STATE, action) {

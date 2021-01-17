@@ -13,5 +13,8 @@
     "callbackURL": "http://localhost:8080/auth/callback",
     "clientID": "example-application-id",
     "clientSecret": "example-secret"
+  },
+  "cors": {
+    "origin": ["localhost", "192.168.1.12"]
   }
 }

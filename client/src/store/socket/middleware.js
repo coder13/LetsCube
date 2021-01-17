@@ -11,10 +11,8 @@ import {
   roomJoined,
   connected,
   disconnected,
-  loginFailed,
 } from './actions';
 import {
-  FETCH_ROOM,
   DELETE_ROOM,
   JOIN_ROOM,
   LEAVE_ROOM,
@@ -32,8 +30,9 @@ import {
   PAUSE_ROOM,
   UPDATE_USER,
   joinRoom,
-  roomUpdated,
   leaveRoom,
+  roomUpdated,
+  resetRoom,
   userJoined,
   userLeft,
   newAttempt,
@@ -83,25 +82,6 @@ const socketMiddleware = (store) => {
           }));
         }
       },
-      [Protocol.ERROR]: (error) => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO]', error);
-        if (error.statusCode === 404) {
-          store.dispatch(push('/'));
-        } else if (error.statusCode === 403 && error.event === Protocol.JOIN_ROOM) {
-          // Login failed attempt
-          store.dispatch(loginFailed({
-            error,
-          }));
-
-          store.dispatch(createMessage({
-            severity: 'error',
-            text: error.message,
-          }));
-        } else if (error.statusCode >= 400 && error.redirect) {
-          store.dispatch(push(error.redirect));
-        }
-      },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
         store.dispatch(roomsUpdated(rooms));
       },
@@ -117,8 +97,8 @@ const socketMiddleware = (store) => {
       [Protocol.ROOM_DELETED]: (room) => {
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room._id) {
-          store.dispatch(leaveRoom());
           store.dispatch(push('/'));
+          store.dispatch(resetRoom());
         }
       },
       [Protocol.UPDATE_ADMIN]: (admin) => {
@@ -135,17 +115,13 @@ const socketMiddleware = (store) => {
       [Protocol.FORCE_JOIN]: (room) => {
         store.dispatch(push(`/rooms/${room._id}`));
       },
-      [Protocol.FORCE_LEAVE]: () => {
+      [Protocol.KICKED]: () => {
         store.dispatch(push('/'));
+        store.dispatch(resetRoom());
       },
-      [Protocol.JOIN]: (room) => {
-        store.dispatch(roomJoined(room.accessCode)); // update socket store
-        store.dispatch(roomUpdated(room));
-
-        store.dispatch(createMessage({
-          severity: 'success',
-          text: 'room joined',
-        }));
+      [Protocol.BANNED]: () => {
+        store.dispatch(push('/'));
+        store.dispatch(resetRoom());
       },
       [Protocol.USER_JOIN]: (user) => {
         store.dispatch(userJoined(user));
@@ -226,7 +202,10 @@ const socketMiddleware = (store) => {
     '@@router/LOCATION_CHANGE': ({ payload }) => {
       // TODO: improve
       if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
-        store.dispatch(leaveRoom());
+        if (store.getState().room._id) {
+          store.dispatch(leaveRoom());
+        }
+
         document.title = 'Let\'s Cube';
       }
     },
@@ -236,17 +215,57 @@ const socketMiddleware = (store) => {
     [DISCONNECT_SOCKET]: () => {
       socket.disconnect();
     },
-    [FETCH_ROOM]: ({ id, password, spectating }) => {
-      socket.emit(Protocol.FETCH_ROOM, id, spectating, password);
-    },
     [DELETE_ROOM]: ({ id }) => {
-      socket.emit(Protocol.DELETE_ROOM, id);
+      socket.emit(Protocol.DELETE_ROOM, id, (err) => {
+        if (err) {
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+        } else {
+          store.dispatch(push('/'));
+        }
+      });
     },
     [JOIN_ROOM]: ({ id, password }) => {
-      socket.emit(Protocol.JOIN_ROOM, { id, password });
+      socket.emit(Protocol.JOIN_ROOM, { id, password }, (err, room) => {
+        if (err) {
+          if (err.banned) {
+            store.dispatch(push('/'));
+          }
+
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+        }
+
+        if (room) {
+          store.dispatch(roomUpdated(room));
+
+          if (room.accessCode) {
+            store.dispatch(roomJoined(room.accessCode)); // update socket store
+            store.dispatch(createMessage({
+              severity: 'success',
+              text: 'room joined',
+            }));
+          }
+        }
+      });
     },
     [CREATE_ROOM]: ({ options }) => {
-      socket.emit(Protocol.CREATE_ROOM, options);
+      socket.emit(Protocol.CREATE_ROOM, options, (err, room) => {
+        if (err) {
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+        }
+
+        store.dispatch(roomJoined(room.accessCode));
+        store.dispatch(roomUpdated(room));
+        store.dispatch(push(`/rooms/${room._id}`));
+      });
     },
     [LEAVE_ROOM]: () => {
       if (store.getState().room._id) {
