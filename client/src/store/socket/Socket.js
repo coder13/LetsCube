@@ -36,6 +36,7 @@ export default class Socket {
       timeout: 20000,
       autoConnect: true,
       'force new connection': false,
+      withCredentials: true,
     });
 
     this.socket.on(Protocol.CONNECT, this._onConnected);

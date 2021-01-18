@@ -48,7 +48,7 @@ function RoomListItem({
   const [duration, setDuration] = React.useState(null);
   const [unixDuration, setUnixDuration] = React.useState(null);
 
-  const canDelete = +user.id === 8184 || user.id === room.admin.id;
+  const canDelete = +user.id === 8184 || user.id === room.owner.id;
 
   React.useEffect(() => {
     const startTime = room.startTime ? new Date(room.startTime) : null;
@@ -183,7 +183,7 @@ RoomListItem.propTypes = {
     users: PropTypes.array,
     startTime: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
-    admin: PropTypes.shape({
+    owner: PropTypes.shape({
       id: PropTypes.number,
     }),
   }),
@@ -203,7 +203,7 @@ RoomListItem.defaultProps = {
     users: undefined,
     startTime: undefined,
     requireRevealedIdentity: false,
-    admin: {
+    owner: {
       id: undefined,
     },
   },
