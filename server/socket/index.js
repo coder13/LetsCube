@@ -48,7 +48,11 @@ const encodeUserRoom = (userId, roomId) => `user-room/${userId}-${roomId}`;
 
 const init = async () => {
   const server = http.createServer();
-  const io = socketIO(server);
+  const io = socketIO(server, {
+    cors: {
+      origin: [/localhost/],
+    },
+  });
 
   const mongoose = await connect();
 
@@ -86,11 +90,7 @@ const init = async () => {
 
     socket.userId = userId;
 
-    socket.join(encodeUser(userId), (err) => {
-      if (err) {
-        logger.error(err);
-      }
-    });
+    socket.join(encodeUser(userId));
 
     try {
       socket.user = await User.findOne({ id: userId });
@@ -104,22 +104,20 @@ const init = async () => {
   io.use(attachUser);
 
   io.use((socket, next) => {
-    socket.use(([event, data], n) => {
+    socket.onAny(([event, data]) => {
       logger.info(event, {
         id: socket.id,
         userId: socket.userId,
         roomId: socket.roomId,
         data,
       });
-
-      n();
     });
 
     next();
   });
 
   io.use((socket, next) => {
-    socket.use(async (packet, n) => {
+    socket.onAny(async () => {
       if (socket.userId) {
         try {
           socket.user = await User.findOne({ id: socket.userId });
@@ -131,8 +129,6 @@ const init = async () => {
       if (socket.roomId) {
         socket.room = await fetchRoom(socket.roomId);
       }
-
-      n();
     });
     next();
   });
@@ -225,14 +221,17 @@ const init = async () => {
       });
     });
 
-  function updateUsersOnline() {
-    io.of('/').adapter.clients((err, clients) => {
-      logger.debug(`Users online: ${clients.length}`);
-      broadcastToEveryone(Protocol.UPDATE_USER_COUNT, clients.length);
-    });
+  async function updateUsersOnline() {
+    try {
+      const sockets = await io.of('/').adapter.sockets([]);
+      logger.debug(`Users online: ${sockets.size}`);
+      broadcastToEveryone(Protocol.UPDATE_USER_COUNT, sockets.size);
+    } catch (e) {
+      logger.error(e);
+    }
   }
 
-  io.sockets.on('connection', (socket) => {
+  io.of('/').on('connection', (socket) => {
     logger.debug(`socket ${socket.id} connected; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     getRooms(socket.userId)
@@ -298,8 +297,8 @@ const init = async () => {
       }
     }
 
-    function joinRoom(room, cb, spectating) {
-      if (socket.rooms[room.accessCode]) {
+    async function joinRoom(room, cb, spectating) {
+      if (socket.rooms.get(room.accessCode)) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
         return cb({
           statusCode: 400,
@@ -307,37 +306,36 @@ const init = async () => {
         });
       }
 
-      socket.join(room.accessCode, async () => {
-        socket.roomId = room._id;
+      socket.join(room.accessCode);
+      socket.roomId = room._id;
 
-        if (!socket.user) {
-          logger.debug('Socket is not authenticated but joining anyways', { roomId: room._id, userId: socket.userId });
-          return cb(null, joinRoomMask(room));
-        }
+      if (!socket.user) {
+        logger.debug('Socket is not authenticated but joining anyways', { roomId: room._id, userId: socket.userId });
+        return cb(null, joinRoomMask(room));
+      }
 
-        socket.join(encodeUserRoom(socket.userId, room._id));
+      socket.join(encodeUserRoom(socket.userId, room._id));
 
-        const r = await room.addUser(socket.user, spectating, (_room) => {
-          broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
-        });
-
-        if (!r) {
-          // Join the socket to the room anyways but don't add them
-          return cb(null, joinRoomMask(room));
-        }
-
-        socket.room = r;
-        socket.emit(Protocol.JOIN, joinRoomMask(r));
-        cb(null, joinRoomMask(r));
-
-        broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
-        broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
-
-        if (room.doneWithScramble()) {
-          logger.debug('everyone done, sending new scramble');
-          sendNewScramble(room);
-        }
+      const r = await room.addUser(socket.user, spectating, (_room) => {
+        broadcastToAllInRoom(_room.accessCode, Protocol.UPDATE_ADMIN, _room.admin);
       });
+
+      if (!r) {
+        // Join the socket to the room anyways but don't add them
+        return cb(null, joinRoomMask(room));
+      }
+
+      socket.room = r;
+      socket.emit(Protocol.JOIN, joinRoomMask(r));
+      cb(null, joinRoomMask(r));
+
+      broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
+      broadcastToEveryone(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
+
+      if (room.doneWithScramble()) {
+        logger.debug('everyone done, sending new scramble');
+        sendNewScramble(room);
+      }
     }
 
     // Socket wants to join room.
