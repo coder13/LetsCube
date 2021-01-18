@@ -260,6 +260,7 @@ const socketMiddleware = (store) => {
             severity: 'error',
             text: err.message,
           }));
+          return;
         }
 
         store.dispatch(roomJoined(room.accessCode));
