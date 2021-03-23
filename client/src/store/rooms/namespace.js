@@ -64,16 +64,12 @@ const roomsNamespaceMiddleware = (store) => {
     onChange,
     onConnected: () => {
       store.dispatch(connected(namespace.URI));
-      console.log('[SOCKET.IO] connected to /rooms');
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
-      console.log('[SOCKET.IO] disconnected to /rooms');
     },
     events: {
       [Protocol.RECONNECT]: () => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO] reconnected to /rooms namespace!');
         if (store.getState().room.accessCode) {
           store.dispatch(joinRoom({
             id: store.getState().room._id,
