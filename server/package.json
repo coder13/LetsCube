@@ -35,7 +35,8 @@
     "winston-daily-rotate-file": "4.4.2"
   },
   "scripts": {
-    "start": "node index.js",
+    "start:server": "nodemon index.js", 
+    "start:socket": "nodemon socket/",
     "lint": "eslint ./",
     "lint:fix": "eslint --fix ./"
   },

@@ -175,7 +175,7 @@ function Chat({
         className={classes.paper}
         elevation={8}
       >
-        <FormControl fullWidth disabled={!user.id && 'disabled'}>
+        <FormControl fullWidth disabled={!user.id}>
           <Input
             className={classes.input}
             fullWidth

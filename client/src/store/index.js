@@ -8,13 +8,14 @@ import history from '../lib/history';
 
 import roomsReducer from './rooms/reducer';
 import roomReducer from './room/reducer';
-import socketReducer from './socket/reducer';
+import socketReducer from './default/reducer';
 import userReducer from './user/reducer';
 import messageReducer from './messages/reducers';
 import chatReducer from './chat/reducer';
 import serverReducer from './server/reducers';
 
-import socketMiddleware from './socket/middleware';
+import defaultNamespaceMiddleware from './default/namespace';
+import roomsNamespaceMiddleware from './rooms/namespace';
 
 const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
@@ -51,7 +52,8 @@ const rootReducer = combineReducers({
 const middlewares = [
   routerMiddleware(history),
   thunkMiddleware,
-  socketMiddleware,
+  defaultNamespaceMiddleware,
+  roomsNamespaceMiddleware,
 ];
 
 if (process.env.NODE_ENV === 'production') {

@@ -1,15 +1,14 @@
 import {
   CONNECTION_CHANGED,
-  SOCKET_JOIN_ROOM,
   CONNECTED,
   DISCONNECTED,
+  USER_COUNT_UPDATED,
 } from './actions';
-import { LEAVE_ROOM } from '../room/actions';
 
 const INITIAL_STATE = {
   connected: false,
-  room: null,
   URI: null,
+  userCount: 0,
 };
 
 const reducers = {
@@ -20,8 +19,7 @@ const reducers = {
     connected: action.connected,
     error: false,
   }),
-  [SOCKET_JOIN_ROOM]: (state, action) => ({ ...state, room: action.room }),
-  [LEAVE_ROOM]: (state) => ({ ...state, room: null }),
+  [USER_COUNT_UPDATED]: (state, action) => ({ ...state, userCount: action.userCount }),
 };
 
 function socketReducer(state = INITIAL_STATE, action) {
