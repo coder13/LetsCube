@@ -22,7 +22,6 @@ const init = async () => {
       name: config.auth.secret,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'prod',
-      sameSite: 'strict',
     },
   });
 
