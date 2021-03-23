@@ -1,9 +1,9 @@
 import io from 'socket.io-client';
 import * as Protocol from './protocol';
 
-const dev = process.env.NODE_ENV === 'development';
-const protocol = () => (dev ? 'http' : 'https');
-const origin = () => `${protocol()}://${process.env.REACT_APP_SOCKETIO_HOSTNAME || window.location.hostname}`;
+// const dev = process.env.NODE_ENV === 'development';
+// const protocol = () => (dev ? 'http' : 'https');
+const origin = () => process.env.REACT_APP_SOCKETIO_ORIGIN;
 const makeURI = (port, namespace) => (
   `${origin()}${port ? `:${port}` : ''}${namespace}`
 );
