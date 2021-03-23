@@ -4,9 +4,8 @@ const config = require('getconfig');
 const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
-const session = require('express-session');
-const MongoStore = require('connect-mongo')(session);
 const { connect } = require('./database');
+const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
@@ -40,24 +39,8 @@ const init = async () => {
   /* Auth */
 
   app.set('trust proxy', 1);
-  const sessionOptions = {
-    secret: config.auth.secret,
-    saveUninitialized: false, // don't create session until something stored
-    resave: false, // don't save session if unmodified,
-    proxy: true,
-    cookie: {
-      httpOnly: true,
-      secure: app.get('prod'),
-      sameSite: 'strict',
-    },
-    store: new MongoStore({
-      mongooseConnection: mongoose.connection,
-    }),
-  };
 
-  const expressSession = session(sessionOptions);
-
-  app.use(expressSession);
+  app.use(session(mongoose));
 
   app.use(passport.initialize());
   app.use(passport.session());

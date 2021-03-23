@@ -1,4 +1,7 @@
 import {
+  ROOMS_CONNECTED,
+  ROOMS_DISCONNECTED,
+  ROOMS_CONNECTION_CHANGED,
   ROOMS_UPDATED,
   ROOM_CREATED,
   ROOM_DELETED,
@@ -7,9 +10,18 @@ import {
 
 const INITIAL_STATE = {
   rooms: [],
+  connected: false,
+  URI: null,
 };
 
 const reducers = {
+  [ROOMS_CONNECTED]: (state, action) => ({ ...state, connected: true, URI: action.URI }),
+  [ROOMS_DISCONNECTED]: (state) => ({ ...state, connected: false, URI: null }),
+  [ROOMS_CONNECTION_CHANGED]: (state, action) => ({
+    ...state,
+    connected: action.connected,
+    error: false,
+  }),
   [ROOMS_UPDATED]: (state, action) => ({
     ...state,
     fetching: false,
