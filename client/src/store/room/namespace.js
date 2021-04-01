@@ -34,7 +34,7 @@ import {
   updateAdmin,
   updateCompetingForUser,
   nextSolveAt,
-} from '../room/actions';
+} from './actions';
 import {
   ROOMS_CONNECT,
   ROOMS_DISCONNECT,
@@ -46,7 +46,7 @@ import {
   roomUpdated as globalRoomUpdated,
   roomDeleted,
   roomsUpdated,
-} from './actions';
+} from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
 
@@ -236,7 +236,6 @@ const roomsNamespaceMiddleware = (store) => {
           store.dispatch(roomUpdated(room));
 
           if (room.accessCode) {
-            // store.dispatch(roomJoined(room.accessCode)); // update socket store
             store.dispatch(createMessage({
               severity: 'success',
               text: 'room joined',

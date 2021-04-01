@@ -15,7 +15,7 @@ import chatReducer from './chat/reducer';
 import serverReducer from './server/reducers';
 
 import defaultNamespaceMiddleware from './default/namespace';
-import roomsNamespaceMiddleware from './rooms/namespace';
+import roomNamespaceMiddleware from './room/namespace';
 
 const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
@@ -53,7 +53,7 @@ const middlewares = [
   routerMiddleware(history),
   thunkMiddleware,
   defaultNamespaceMiddleware,
-  roomsNamespaceMiddleware,
+  roomNamespaceMiddleware,
 ];
 
 if (process.env.NODE_ENV === 'production') {

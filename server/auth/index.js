@@ -35,8 +35,6 @@ module.exports = (app, passport) => {
     params.append('redirect_uri', redirectUri);
     params.append('code', code);
 
-    console.log(params);
-
     try {
       const tokenRes = await fetch(tokenURL, {
         method: 'POST',

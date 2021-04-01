@@ -107,7 +107,7 @@ Room.defaultProps = {
 const mapStateToProps = (state) => ({
   fetching: state.room.fetching,
   room: state.room,
-  inRoom: !!state.socket.room, // this tells us that we're actually in the room
+  inRoom: !!state.room.accessCode, // this tells us that we're actually in the room
   user: state.user,
 });
 
