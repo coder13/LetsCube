@@ -20,7 +20,7 @@ module.exports = (io, middlewares) => {
   }
 
   ns.on('connection', (socket) => {
-    logger.debug(`socket ${socket.id} connected to default; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+    logger.info(`socket ${socket.id} connected to default; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     updateUsersOnline();
 
