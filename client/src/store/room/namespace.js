@@ -49,6 +49,7 @@ import {
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
+import { USER_CHANGED } from '../user/actions';
 
 const roomsNamespaceMiddleware = (store) => {
   // The socket's connection state changed
@@ -206,6 +207,10 @@ const roomsNamespaceMiddleware = (store) => {
 
         document.title = 'Let\'s Cube';
       }
+    },
+    [USER_CHANGED]: () => {
+      namespace.disconnect();
+      namespace.connect();
     },
     [DELETE_ROOM]: ({ id }) => {
       namespace.emit(Protocol.DELETE_ROOM, id, (err) => {

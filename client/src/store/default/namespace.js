@@ -8,6 +8,7 @@ import {
   disconnected,
 } from './actions';
 import { userCountUpdated } from '../server/actions';
+import { USER_CHANGED } from '../user/actions';
 
 const defaultNamespaceMiddleware = (store) => {
   // The socket's connection state changed
@@ -45,6 +46,10 @@ const defaultNamespaceMiddleware = (store) => {
     },
     [DISCONNECT]: () => {
       namespace.disconnect();
+    },
+    [USER_CHANGED]: () => {
+      namespace.disconnect();
+      namespace.connect();
     },
   };
 
