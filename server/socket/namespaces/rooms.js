@@ -37,33 +37,16 @@ const getRooms = (userId) => Room.find()
 const roomTimerObj = {};
 
 module.exports = (io, middlewares) => {
-  const ns = io.of('/rooms');
+  const ns = () => io.of('/rooms');
 
   middlewares.forEach((middleware) => {
-    ns.use(middleware);
-  });
-
-  ns.use((socket, next) => {
-    socket.onAny(async () => {
-      if (socket.userId) {
-        try {
-          socket.user = await User.findOne({ id: socket.userId });
-        } catch (e) {
-          logger.error(e, { userId: socket.userId });
-        }
-      }
-
-      if (socket.roomId) {
-        socket.room = await fetchRoom(socket.roomId);
-      }
-    });
-    next();
+    ns().use(middleware);
   });
 
   function sendNewScramble(room) {
     return room.newAttempt().then((r) => {
       logger.debug('Sending new scramble to room', { roomId: room.id });
-      ns.in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
+      ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
         waitingFor: r.waitingFor,
         attempt: r.attempts[r.attempts.length - 1],
       });
@@ -93,7 +76,7 @@ module.exports = (io, middlewares) => {
         await sendNewScramble(r);
         r.nextSolveAt = nextSolveAt;
         await r.save();
-        ns.in(room.accessCode).emit(Protocol.NEXT_SOLVE_AT, nextSolveAt);
+        ns().in(room.accessCode).emit(Protocol.NEXT_SOLVE_AT, nextSolveAt);
       });
     };
 
@@ -103,7 +86,7 @@ module.exports = (io, middlewares) => {
 
     const nextSolveAt = new Date(Date.now() + interval);
     logger.info('Starting timer for room; first solve at: ', { roomId: room._id, nextSolveAt });
-    ns.in(room.accessCode).emit(Protocol.NEXT_SOLVE_AT, nextSolveAt);
+    ns().in(room.accessCode).emit(Protocol.NEXT_SOLVE_AT, nextSolveAt);
     room.nextSolveAt = nextSolveAt;
     room.save();
   }
@@ -118,7 +101,7 @@ module.exports = (io, middlewares) => {
     setTimeout(() => {
       Room.findById(room._id).then((r) => {
         r.start().then((rr) => {
-          ns.in(rr.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(rr));
+          ns().in(rr.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(rr));
           startTimer(rr);
         });
       });
@@ -140,8 +123,23 @@ module.exports = (io, middlewares) => {
       });
     });
 
-  ns.on('connection', (socket) => {
+  ns().on('connection', (socket) => {
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+
+    socket.use(async (foo, next) => {
+      if (socket.userId) {
+        try {
+          socket.user = await User.findOne({ id: socket.userId });
+        } catch (e) {
+          logger.error(e, { userId: socket.userId });
+        }
+      }
+
+      if (socket.roomId) {
+        socket.room = await fetchRoom(socket.roomId);
+      }
+      next();
+    });
 
     getRooms(socket.userId)
       .then((rooms) => {
@@ -174,8 +172,10 @@ module.exports = (io, middlewares) => {
 
     function checkAdmin() {
       if (!isLoggedIn() || !isInRoom()) {
+        logger.debug('Unauthenticated user or user not in room attempting to perform admin action');
         return false;
       } if (socket.room.admin.id !== socket.user.id) {
+        logger.debug('Non-admin attempting to perform admin action');
         socket.emit(Protocol.ERROR, {
           statusCode: 403,
           message: 'Must be admin of room',
@@ -189,11 +189,11 @@ module.exports = (io, middlewares) => {
     async function leaveRoom() {
       try {
         const room = await socket.room.dropUser(socket.user, (_room) => {
-          ns.in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+          ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
         });
 
         broadcast(Protocol.USER_LEFT, socket.user.id);
-        ns.emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -224,7 +224,7 @@ module.exports = (io, middlewares) => {
       socket.join(encodeUserRoom(socket.userId, room._id));
 
       const r = await room.addUser(socket.user, spectating, (_room) => {
-        ns.in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+        ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
       });
 
       if (!r) {
@@ -237,7 +237,7 @@ module.exports = (io, middlewares) => {
       cb(null, joinRoomMask(r));
 
       broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
-      ns.emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
+      ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
 
       if (room.doneWithScramble()) {
         logger.debug('everyone done, sending new scramble');
@@ -318,7 +318,7 @@ module.exports = (io, middlewares) => {
       newRoom.owner = socket.user;
 
       const room = await newRoom.save();
-      ns.emit(Protocol.ROOM_CREATED, roomMask(room));
+      ns().emit(Protocol.ROOM_CREATED, roomMask(room));
       joinRoom(room, (err, r) => {
         if (err) {
           return cb(err, r);
@@ -344,7 +344,7 @@ module.exports = (io, middlewares) => {
         if (res.deletedCount > 0) {
           socket.room = undefined;
           cb(null);
-          ns.emit(Protocol.ROOM_DELETED, id);
+          ns().emit(Protocol.ROOM_DELETED, id);
         } else if (res.deletedCount > 1) {
           logger.error(168, 'big problemo');
         }
@@ -360,7 +360,7 @@ module.exports = (io, middlewares) => {
       try {
         const room = await socket.room.updateRegistration(socket.userId, registration);
 
-        ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
       } catch (e) {
         logger.error(e);
       }
@@ -383,7 +383,7 @@ module.exports = (io, middlewares) => {
 
         const room = await socket.room.save();
 
-        ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
       } catch (e) {
         logger.error(e);
       }
@@ -413,7 +413,7 @@ module.exports = (io, middlewares) => {
 
         const r = await socket.room.save();
 
-        ns.in(r.accessCode).emit(Protocol.NEW_RESULT, {
+        ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
           id,
           result,
           userId: socket.user.id,
@@ -457,7 +457,7 @@ module.exports = (io, middlewares) => {
 
         const r = await socket.room.save();
 
-        ns.in(r.accessCode).emit(Protocol.EDIT_RESULT, {
+        ns().in(r.accessCode).emit(Protocol.EDIT_RESULT, {
           ...result,
           userId,
         });
@@ -480,7 +480,7 @@ module.exports = (io, middlewares) => {
       }
 
       socket.room.changeEvent(event).then((r) => {
-        ns.in(r.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+        ns().in(r.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
       }).catch(logger.error);
     });
 
@@ -491,10 +491,10 @@ module.exports = (io, middlewares) => {
 
       try {
         const room = await socket.room.edit(options);
-        ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
 
         Room.find().then((rooms) => {
-          ns.emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
+          ns().emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
         });
       } catch (e) {
         (logger.error(e));
@@ -509,7 +509,7 @@ module.exports = (io, middlewares) => {
       const room = await socket.room.start();
       try {
         startTimer(room);
-        ns.in(socket.room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
       } catch (e) {
         logger.error(e);
       }
@@ -522,7 +522,7 @@ module.exports = (io, middlewares) => {
 
       pauseTimer(await socket.room.pause());
 
-      ns.in(socket.room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
+      ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
     });
 
     socket.on(Protocol.KICK_USER, async (userId) => {
@@ -530,35 +530,34 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns.in(encodeUserRoom(userId, socket.room._id)).clients(async (err, clients) => {
-        if (err) {
-          return logger.error(err);
-        }
+      try {
+        const sockets = await ns().adapter.sockets(
+          new Set([encodeUserRoom(userId, socket.room._id)]),
+        );
 
-        clients.forEach((sId) => {
-          io.to(sId).emit(Protocol.KICKED);
-          ns.adapter.remoteLeave(sId, socket.room.accessCode);
-          ns.adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
+        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
+
+        sockets.forEach((sId) => {
+          ns().adapter.remoteLeave(sId, socket.room.accessCode);
+          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
         });
 
-        try {
-          const room = await socket.room.dropUser({ id: userId });
+        const room = await socket.room.dropUser({ id: userId });
 
-          if (!room) {
-            logger.debug('User kick failed for some reason');
-          }
-
-          ns.in(socket.room.accessCode).emit(Protocol.USER_LEFT, userId);
-          ns.emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-          if (room.doneWithScramble()) {
-            logger.debug('everyone done, sending new scramble');
-            sendNewScramble(room);
-          }
-        } catch (e) {
-          logger.error(e);
+        if (!room) {
+          logger.debug('User kick failed for some reason');
         }
-      });
+
+        ns().in(socket.room.accessCode).emit(Protocol.USER_LEFT, userId);
+        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
+      } catch (err) {
+        logger.error(err);
+      }
     });
 
     socket.on(Protocol.BAN_USER, async (userId) => {
@@ -566,35 +565,34 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns.in(encodeUserRoom(userId, socket.room._id)).clients(async (err, clients) => {
-        if (err) {
-          return logger.error(err);
-        }
+      try {
+        const sockets = await ns().adapter.sockets(
+          new Set([encodeUserRoom(userId, socket.room._id)]),
+        );
 
-        clients.forEach((sId) => {
-          io.to(sId).emit(Protocol.BANNED);
-          ns.adapter.remoteLeave(sId, socket.room.accessCode);
-          ns.adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
+        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
+
+        sockets.forEach((sId) => {
+          ns().adapter.remoteLeave(sId, socket.room.accessCode);
+          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
         });
 
-        try {
-          const room = await socket.room.banUser(userId);
+        const room = await socket.room.banUser(userId);
 
-          if (!room) {
-            logger.debug('User ban failed for some reason');
-          }
-
-          ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-          ns.emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-          if (room.doneWithScramble()) {
-            logger.debug('everyone done, sending new scramble');
-            sendNewScramble(room);
-          }
-        } catch (e) {
-          logger.error(e);
+        if (!room) {
+          logger.debug('User ban failed for some reason');
         }
-      });
+
+        ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+
+        if (room.doneWithScramble()) {
+          logger.debug('everyone done, sending new scramble');
+          sendNewScramble(room);
+        }
+      } catch (e) {
+        logger.error(e);
+      }
     });
 
     socket.on(Protocol.UNBAN_USER, async (userId) => {
@@ -609,8 +607,8 @@ module.exports = (io, middlewares) => {
           logger.debug('User unban failed for some reason');
         }
 
-        ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-        ns.emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
       } catch (e) {
         logger.error(e);
       }
@@ -622,7 +620,7 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns.in(socket.room.accessCode).emit(Protocol.MESSAGE,
+      ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
         new ChatMessage(message.text, socket.user.id));
     });
 
@@ -667,7 +665,7 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns.in(socket.room.accessCode).emit(Protocol.UPDATE_COMPETING, {
+      ns().in(socket.room.accessCode).emit(Protocol.UPDATE_COMPETING, {
         userId: socket.userId,
         competing,
       });
@@ -684,7 +682,7 @@ module.exports = (io, middlewares) => {
           const latest = room.latestAttempt;
           if (!latest.results.get(socket.userId.toString())) {
             room.waitingFor.set(socket.userId.toString(), true);
-            ns.in(room.accessCode).emit(Protocol.UPDATE_ROOM,
+            ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM,
               joinRoomMask(room));
           } else if (room.doneWithScramble()) {
             logger.debug('everyone done because user kibitzed, sending new scramble');

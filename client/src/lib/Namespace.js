@@ -21,7 +21,7 @@ export default class Namespace {
     if (props.onError) this.onError = props.onError;
     if (props.onConnected) this.onConnected = props.onConnected;
     if (props.onDisconnected) this.onDisconnected = props.onDisconnected;
-    this.onReconnect = props.onReconnect;
+    if (props.onReconnect) this.onReconnect = props.onReconnect;
 
     this.namespace = props.namespace;
     this.events = props.events;
@@ -45,10 +45,10 @@ export default class Namespace {
     });
 
     this.socket.on(Protocol.CONNECT, this._onConnected);
-    this.socket.on(Protocol.DISCONNECT, this.onDisconnected);
-    this.socket.on(Protocol.CONNECT_ERR, this.onError);
-    this.socket.on(Protocol.RECONNECT_ERR, this.onError);
-    this.socket.on(Protocol.reconnect, this.onReconnect);
+    this.socket.on(Protocol.DISCONNECT, this._onDisconnected);
+    this.socket.on(Protocol.CONNECT_ERR, this._onError);
+    this.socket.on(Protocol.RECONNECT_ERR, this._onError);
+    this.socket.on(Protocol.RECONNECT, this._onReconnect);
 
     // Set listeners
     Object.keys(this.events).forEach((event) => {
@@ -66,7 +66,7 @@ export default class Namespace {
   }
 
   // Received disconnect event from socket
-  onDisconnected = () => {
+  _onDisconnected = () => {
     // eslint-disable-next-line no-console
     console.log('[SOCKET.IO]', Protocol.DISCONNECT);
     if (this.onDisconnected) {
@@ -74,11 +74,18 @@ export default class Namespace {
     }
   }
 
+  _onReconnect = () => {
+    console.log('[SOCKET.IO]', Protocol.RECONNECT);
+    if (this.onReconnect) {
+      this.onReconnect();
+    }
+  }
+
   // Close the socket
   disconnect = () => this.socket.close();
 
   // Received error from socket
-  onError = (message) => {
+  _onError = (message) => {
     // eslint-disable-next-line no-console
     console.log('[SOCKET.IO]', 'error', message);
   };

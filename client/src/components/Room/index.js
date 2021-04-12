@@ -9,7 +9,7 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import qs from 'qs';
 import Login from './Common/Login';
 import {
-  joinRoom,
+  joinRoom, leaveRoom,
 } from '../../store/room/actions';
 import Normal from './Normal';
 import GrandPrix from './GrandPrix';
@@ -47,6 +47,11 @@ const Room = ({
       }));
     }
   }, [dispatch, fetching, roomId, room.private, query.password, accessCode]);
+
+  // Resets room data upon leaving room
+  useEffect(() => () => {
+    dispatch(leaveRoom());
+  }, [dispatch, roomId]);
 
   const loggedIn = !room.private || inRoom;
 

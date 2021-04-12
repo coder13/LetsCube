@@ -22,7 +22,7 @@ import {
   PAUSE_ROOM,
   UPDATE_USER,
   joinRoom,
-  leaveRoom,
+  // leaveRoom,
   roomUpdated,
   resetRoom,
   userJoined,
@@ -59,25 +59,27 @@ const roomsNamespaceMiddleware = (store) => {
 
   const { port } = store.getState().router.location.query;
 
+  const reconnectToRoom = () => {
+    if (store.getState().room.accessCode) {
+      store.dispatch(joinRoom({
+        id: store.getState().room._id,
+        password: store.getState().room.password,
+      }));
+    }
+  };
+
   const namespace = new Namespace({
     namespace: '/rooms',
     port,
     onChange,
     onConnected: () => {
       store.dispatch(connected(namespace.URI));
+      reconnectToRoom();
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
     },
     events: {
-      [Protocol.RECONNECT]: () => {
-        if (store.getState().room.accessCode) {
-          store.dispatch(joinRoom({
-            id: store.getState().room._id,
-            password: store.getState().room.password,
-          }));
-        }
-      },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
         store.dispatch(roomsUpdated(rooms));
       },
@@ -201,10 +203,6 @@ const roomsNamespaceMiddleware = (store) => {
     '@@router/LOCATION_CHANGE': ({ payload }) => {
       // TODO: improve
       if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
-        if (store.getState().room._id) {
-          store.dispatch(leaveRoom());
-        }
-
         document.title = 'Let\'s Cube';
       }
     },
