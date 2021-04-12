@@ -106,10 +106,12 @@ function Chat({
   };
 
   const submit = () => {
-    dispatch(sendChat({
-      text: message,
-    }));
-    setMessage('');
+    if (message.trim()) {
+      dispatch(sendChat({
+        text: message,
+      }));
+      setMessage('');
+    }
   };
 
   const handleSubmit = (e) => {
@@ -157,8 +159,8 @@ function Chat({
 
           const sender = findUser(userId);
           const avatarUrl = sender && sender.avatar && sender.avatar.url;
-          const shouldDisplayAvatar = !!avatarUrl
-            && (index === 0 || messages[index - 1].userId !== sender.id);
+          const shouldDisplayAvatar = !avatarUrl
+            || index === 0 || messages[index - 1].userId !== sender.id;
           const isNextMessageTheSameSender = messages[index + 1]
             && messages[index + 1].userId === sender.id;
 

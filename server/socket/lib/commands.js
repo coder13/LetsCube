@@ -10,12 +10,21 @@ const Commands = {
     reply(new ChatMessage(`${users.length} users: [${users.join(', ')}]`, -2));
   },
   io_allRooms: (ns, user, room, args, reply) => {
-    if (!user || user.id !== 8184) {
+    if (!user || +user.id !== 8184) {
       return;
     }
 
     ns().adapter.allRooms().then((rooms) => {
       reply(new ChatMessage(`${Array.from(rooms).join(',\n')}`, -2));
+    });
+  },
+  io_sockets_in_room: (ns, user, room, args, reply) => {
+    if (!user || +user.id !== 8184) {
+      return;
+    }
+
+    ns().adapter.sockets(new Set([room.accessCode])).then((sockets) => {
+      reply(new ChatMessage(`${sockets.size} sockets: ${Array.from(sockets).join(', ')}`, -2));
     });
   },
 };
