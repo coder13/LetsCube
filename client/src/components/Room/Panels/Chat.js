@@ -156,10 +156,9 @@ function Chat({
           }
 
           const sender = findUser(userId);
-          const avatar = sender && sender.avatar.url;
-          const displayAvatar = !avatar
-                              || index === 0
-                              || messages[index - 1].userId !== sender.id;
+          const avatarUrl = sender && sender.avatar && sender.avatar.url;
+          const shouldDisplayAvatar = !!avatarUrl
+            && (index === 0 || messages[index - 1].userId !== sender.id);
           const isNextMessageTheSameSender = messages[index + 1]
             && messages[index + 1].userId === sender.id;
 
@@ -172,12 +171,12 @@ function Chat({
               })}
             >
               <ListItemAvatar>
-                {displayAvatar ? <Avatar src={sender.avatar.url} /> : <> </>}
+                {shouldDisplayAvatar ? <Avatar src={avatarUrl} /> : <> </>}
               </ListItemAvatar>
 
               <ListItemText
                 className={classes.selectable}
-                primary={displayAvatar ? sender.displayName : ''}
+                primary={shouldDisplayAvatar ? sender.displayName : ''}
                 secondary={(
                   <Typography variant="body2">
                     {text}
