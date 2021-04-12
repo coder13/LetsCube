@@ -15,7 +15,7 @@ const init = async () => {
   const io = socketIO(server, {
     cors: {
       origin: true,
-      //config.cors.origin.map((o) => new RegExp(o)),
+      // config.cors.origin.map((o) => new RegExp(o)),
       methods: ['GET', 'POST'],
       credentials: true,
     },
