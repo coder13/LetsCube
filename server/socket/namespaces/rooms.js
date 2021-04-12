@@ -205,7 +205,7 @@ module.exports = (io, middlewares) => {
     }
 
     async function joinRoom(room, cb, spectating) {
-      if (socket.rooms[room.accessCode]) {
+      if (socket.roomId) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
         return cb({
           statusCode: 400,
@@ -635,10 +635,6 @@ module.exports = (io, middlewares) => {
 
     socket.on(Protocol.DISCONNECT, async () => {
       logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
-
-      if (socket.roomId) {
-        socket.room = await fetchRoom(socket.roomId);
-      }
 
       if (socket.user && socket.room) {
         await leaveRoom();
