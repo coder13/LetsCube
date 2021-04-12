@@ -1,24 +1,29 @@
 import io from 'socket.io-client';
-import * as Protocol from '../../lib/protocol';
+import * as Protocol from './protocol';
 
-const dev = process.env.NODE_ENV === 'development';
-const protocol = () => (dev ? 'http' : 'https');
-const origin = () => `${protocol()}://${process.env.REACT_APP_SOCKETIO_HOSTNAME || window.location.hostname}`;
-const makeURI = (port) => (
-  `${origin()}${port ? `:${port}` : ''}`
+// const dev = process.env.NODE_ENV === 'development';
+// const protocol = () => (dev ? 'http' : 'https');
+const origin = () => process.env.REACT_APP_SOCKETIO_ORIGIN;
+const makeURI = (port, namespace) => (
+  `${origin()}${port ? `:${port}` : ''}${namespace}`
 );
 
 Error.stackTraceLimit = Infinity;
 
 // Socket manager
-export default class Socket {
+export default class Namespace {
   constructor(props) {
+    if (!props.namespace) {
+      throw new Error('namespace required');
+    }
+
     if (props.onChange) this.onChange = props.onChange;
     if (props.onError) this.onError = props.onError;
     if (props.onConnected) this.onConnected = props.onConnected;
     if (props.onDisconnected) this.onDisconnected = props.onDisconnected;
     this.onReconnect = props.onReconnect;
 
+    this.namespace = props.namespace;
     this.events = props.events;
     this.socket = null;
     this.port = props.port;
@@ -27,7 +32,7 @@ export default class Socket {
   // attempt to connect to server
   connect = () => {
     // Connect
-    this.URI = makeURI(this.port || process.env.REACT_APP_SOCKETIO_PORT || '');
+    this.URI = makeURI(this.port || process.env.REACT_APP_SOCKETIO_PORT || '', this.namespace);
     this.socket = io(this.URI, {
       reconnection: true,
       reconnectionAttempts: 5,
@@ -36,6 +41,7 @@ export default class Socket {
       timeout: 20000,
       autoConnect: true,
       'force new connection': false,
+      withCredentials: true,
     });
 
     this.socket.on(Protocol.CONNECT, this._onConnected);

@@ -9,7 +9,6 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import qs from 'qs';
 import Login from './Common/Login';
 import {
-  fetchRoom,
   joinRoom,
 } from '../../store/room/actions';
 import Normal from './Normal';
@@ -38,26 +37,16 @@ const Room = ({
   const query = useQuery();
   const { roomId } = useParams();
 
-  const { accessCode, _id } = room;
+  const { accessCode } = room;
 
   useEffect(() => {
-    if (!fetching && !_id) {
-      dispatch(fetchRoom({
+    if (!fetching && !accessCode && !room.private) {
+      dispatch(joinRoom({
         id: roomId,
         password: query.password,
-        spectating: query.spectating,
       }));
     }
-  }, [dispatch, fetching, query.password, query.spectating, roomId, _id]);
-
-  useEffect(() => {
-    if (!fetching && accessCode) {
-      dispatch(joinRoom({
-        id: _id,
-        password: query.password,
-      }));
-    }
-  }, [dispatch, fetching, query.password, accessCode, _id]);
+  }, [dispatch, fetching, roomId, room.private, query.password, accessCode]);
 
   const loggedIn = !room.private || inRoom;
 
@@ -118,7 +107,7 @@ Room.defaultProps = {
 const mapStateToProps = (state) => ({
   fetching: state.room.fetching,
   room: state.room,
-  inRoom: !!state.socket.room, // this tells us that we're actually in the room
+  inRoom: !!state.room.accessCode, // this tells us that we're actually in the room
   user: state.user,
 });
 

@@ -119,8 +119,8 @@ class Main extends React.Component {
     } = room;
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const timerDisabled = !room.timerFocused || !room.competing[user.id]
-      || room.waitingFor.indexOf(user.id) === -1;
-    const hidden = room.competing[user.id] && waitingFor.indexOf(user.id) === -1;
+      || !room.waitingFor[user.id];
+    const hidden = room.competing[user.id] && !waitingFor[user.id];
 
     const stats = calcStats(attempts, users);
     const showScramble = latestAttempt.scrambles && room.event === '333';
@@ -179,7 +179,12 @@ class Main extends React.Component {
                     <Typography variant="body2">
                       Waiting For:
                       {' '}
-                      {waitingFor.map((userId) => users.find((u) => u.id === userId)).filter((u) => !!u).map((u) => u.displayName).join(', ')}
+                      { Object.keys(waitingFor)
+                        .filter((userId) => waitingFor[userId])
+                        .map((userId) => users.find((u) => +u.id === +userId))
+                        .filter((u) => !!u)
+                        .map((u) => u.displayName)
+                        .join(', ')}
                     </Typography>
                   </Paper>
                 </Grid>
@@ -221,7 +226,7 @@ Main.propTypes = {
       id: PropTypes.number,
     })),
     competing: PropTypes.shape(),
-    waitingFor: PropTypes.array,
+    waitingFor: PropTypes.shape(),
     statuses: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number,
@@ -250,7 +255,7 @@ Main.defaultProps = {
     event: '333',
     users: [],
     competing: {},
-    waitingFor: [],
+    waitingFor: {},
     statues: {},
     attempts: [],
     admin: {

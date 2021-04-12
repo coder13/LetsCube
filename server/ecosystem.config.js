@@ -1,10 +1,8 @@
 module.exports = {
   apps: [{
     name: 'letscube-api',
-    script: 'node ./index.js',
+    script: 'NODE_ENV=prod node ./index.js',
 
-    // Options reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
-    args: '',
     instances: 1,
     autorestart: true,
     watch: false,
@@ -12,17 +10,21 @@ module.exports = {
     env: {
       NODE_ENV: 'prod',
     },
+    env_production: {
+      NODE_ENV: 'prod',
+    },
   }, {
     name: 'letscube-socket',
-    script: 'node ./socket/index.js',
+    script: 'NODE_ENV=prod node ./socket/index.js',
 
-    // Options reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
-    args: '',
     instances: 1,
     autorestart: true,
     watch: false,
     max_memory_restart: '1G',
     env: {
+      NODE_ENV: 'prod',
+    },
+    env_production: {
       NODE_ENV: 'prod',
     },
   }],

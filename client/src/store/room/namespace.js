@@ -3,18 +3,8 @@ import { v4 as uuid } from 'uuid';
 import UIfx from 'uifx';
 import notificationAsset from '../../assets/notification.mp3';
 import * as Protocol from '../../lib/protocol';
-import Socket from './Socket';
+import Namespace from '../../lib/Namespace';
 import {
-  CONNECT_SOCKET,
-  DISCONNECT_SOCKET,
-  connectionChanged,
-  roomJoined,
-  connected,
-  disconnected,
-  loginFailed,
-} from './actions';
-import {
-  FETCH_ROOM,
   DELETE_ROOM,
   JOIN_ROOM,
   LEAVE_ROOM,
@@ -32,8 +22,9 @@ import {
   PAUSE_ROOM,
   UPDATE_USER,
   joinRoom,
-  roomUpdated,
   leaveRoom,
+  roomUpdated,
+  resetRoom,
   userJoined,
   userLeft,
   newAttempt,
@@ -43,9 +34,14 @@ import {
   updateAdmin,
   updateCompetingForUser,
   nextSolveAt,
-} from '../room/actions';
+} from './actions';
 import {
+  ROOMS_CONNECT,
+  ROOMS_DISCONNECT,
   CREATE_ROOM,
+  connected,
+  disconnected,
+  connectionChanged,
   roomCreated,
   roomUpdated as globalRoomUpdated,
   roomDeleted,
@@ -53,9 +49,8 @@ import {
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
-import { userCountUpdated } from '../server/actions';
 
-const socketMiddleware = (store) => {
+const roomsNamespaceMiddleware = (store) => {
   // The socket's connection state changed
   const onChange = (isConnected) => {
     store.dispatch(connectionChanged(isConnected));
@@ -63,43 +58,23 @@ const socketMiddleware = (store) => {
 
   const { port } = store.getState().router.location.query;
 
-  const socket = new Socket({
+  const namespace = new Namespace({
+    namespace: '/rooms',
     port,
     onChange,
     onConnected: () => {
-      store.dispatch(connected(socket.URI));
+      store.dispatch(connected(namespace.URI));
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
     },
     events: {
       [Protocol.RECONNECT]: () => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO] reconnected!');
         if (store.getState().room.accessCode) {
           store.dispatch(joinRoom({
             id: store.getState().room._id,
             password: store.getState().room.password,
           }));
-        }
-      },
-      [Protocol.ERROR]: (error) => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO]', error);
-        if (error.statusCode === 404) {
-          store.dispatch(push('/'));
-        } else if (error.statusCode === 403 && error.event === Protocol.JOIN_ROOM) {
-          // Login failed attempt
-          store.dispatch(loginFailed({
-            error,
-          }));
-
-          store.dispatch(createMessage({
-            severity: 'error',
-            text: error.message,
-          }));
-        } else if (error.statusCode >= 400 && error.redirect) {
-          store.dispatch(push(error.redirect));
         }
       },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
@@ -117,8 +92,8 @@ const socketMiddleware = (store) => {
       [Protocol.ROOM_DELETED]: (room) => {
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room._id) {
-          store.dispatch(leaveRoom());
           store.dispatch(push('/'));
+          store.dispatch(resetRoom());
         }
       },
       [Protocol.UPDATE_ADMIN]: (admin) => {
@@ -135,17 +110,13 @@ const socketMiddleware = (store) => {
       [Protocol.FORCE_JOIN]: (room) => {
         store.dispatch(push(`/rooms/${room._id}`));
       },
-      [Protocol.FORCE_LEAVE]: () => {
+      [Protocol.KICKED]: () => {
         store.dispatch(push('/'));
+        store.dispatch(resetRoom());
       },
-      [Protocol.JOIN]: (room) => {
-        store.dispatch(roomJoined(room.accessCode)); // update socket store
-        store.dispatch(roomUpdated(room));
-
-        store.dispatch(createMessage({
-          severity: 'success',
-          text: 'room joined',
-        }));
+      [Protocol.BANNED]: () => {
+        store.dispatch(push('/'));
+        store.dispatch(resetRoom());
       },
       [Protocol.USER_JOIN]: (user) => {
         store.dispatch(userJoined(user));
@@ -211,9 +182,6 @@ const socketMiddleware = (store) => {
           icon: 'USER',
         }));
       },
-      [Protocol.UPDATE_USER_COUNT]: (userCount) => {
-        store.dispatch(userCountUpdated(userCount));
-      },
       [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
         store.dispatch(nextSolveAt(dateTime));
       },
@@ -222,85 +190,128 @@ const socketMiddleware = (store) => {
 
   // catch attempt to join room here and then fetch socket event
   const reducers = {
+    [ROOMS_CONNECT]: () => {
+      namespace.connect();
+    },
+    [ROOMS_DISCONNECT]: () => {
+      namespace.disconnect();
+    },
     // no real point in this being here oper other places
     '@@router/LOCATION_CHANGE': ({ payload }) => {
       // TODO: improve
       if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
-        store.dispatch(leaveRoom());
+        if (store.getState().room._id) {
+          store.dispatch(leaveRoom());
+        }
+
         document.title = 'Let\'s Cube';
       }
     },
-    [CONNECT_SOCKET]: () => {
-      socket.connect();
-    },
-    [DISCONNECT_SOCKET]: () => {
-      socket.disconnect();
-    },
-    [FETCH_ROOM]: ({ id, password, spectating }) => {
-      socket.emit(Protocol.FETCH_ROOM, id, spectating, password);
-    },
     [DELETE_ROOM]: ({ id }) => {
-      socket.emit(Protocol.DELETE_ROOM, id);
+      namespace.emit(Protocol.DELETE_ROOM, id, (err) => {
+        if (err) {
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+        } else {
+          store.dispatch(push('/'));
+        }
+      });
     },
     [JOIN_ROOM]: ({ id, password }) => {
-      socket.emit(Protocol.JOIN_ROOM, { id, password });
+      namespace.emit(Protocol.JOIN_ROOM, { id, password }, (err, room) => {
+        if (err) {
+          if (err.banned) {
+            store.dispatch(push('/'));
+          }
+
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+        }
+
+        if (room) {
+          store.dispatch(roomUpdated(room));
+
+          if (room.accessCode) {
+            store.dispatch(createMessage({
+              severity: 'success',
+              text: 'room joined',
+            }));
+          }
+        }
+      });
     },
     [CREATE_ROOM]: ({ options }) => {
-      socket.emit(Protocol.CREATE_ROOM, options);
+      namespace.emit(Protocol.CREATE_ROOM, options, (err, room) => {
+        if (err) {
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+          return;
+        }
+
+        // store.dispatch(roomJoined(room.accessCode));
+        store.dispatch(roomUpdated(room));
+        store.dispatch(push(`/rooms/${room._id}`));
+      });
     },
     [LEAVE_ROOM]: () => {
       if (store.getState().room._id) {
-        socket.emit(Protocol.LEAVE_ROOM);
+        namespace.emit(Protocol.LEAVE_ROOM);
       }
     },
     [SUBMIT_RESULT]: (event) => {
-      socket.emit(Protocol.SUBMIT_RESULT, event.result);
+      namespace.emit(Protocol.SUBMIT_RESULT, event.result);
     },
     [SEND_EDIT_RESULT]: (event) => {
-      socket.emit(Protocol.SEND_EDIT_RESULT, event.result);
+      namespace.emit(Protocol.SEND_EDIT_RESULT, event.result);
     },
     [REQUEST_SCRAMBLE]: (event) => {
-      socket.emit(Protocol.REQUEST_SCRAMBLE, event.result);
+      namespace.emit(Protocol.REQUEST_SCRAMBLE, event.result);
     },
     [CHANGE_EVENT]: ({ event }) => {
-      socket.emit(Protocol.CHANGE_EVENT, event);
+      namespace.emit(Protocol.CHANGE_EVENT, event);
     },
     [EDIT_ROOM]: ({ options }) => {
-      socket.emit(Protocol.EDIT_ROOM, options);
+      namespace.emit(Protocol.EDIT_ROOM, options);
     },
     [SEND_CHAT]: ({ message }) => {
-      socket.emit(Protocol.MESSAGE, message);
+      namespace.emit(Protocol.MESSAGE, message);
     },
     [SEND_STATUS]: ({ status }) => {
-      socket.emit(Protocol.UPDATE_STATUS, {
+      namespace.emit(Protocol.UPDATE_STATUS, {
         user: store.getState().user.id,
         status,
       });
     },
     [UPDATE_COMPETING]: ({ competing }) => {
-      socket.emit(Protocol.UPDATE_COMPETING, competing);
+      namespace.emit(Protocol.UPDATE_COMPETING, competing);
     },
     [KICK_USER]: ({ userId }) => {
-      socket.emit(Protocol.KICK_USER, userId);
+      namespace.emit(Protocol.KICK_USER, userId);
     },
     [UPDATE_USER_BANNED]: ({ userId, banned }) => {
       if (banned) {
-        socket.emit(Protocol.BAN_USER, userId);
+        namespace.emit(Protocol.BAN_USER, userId);
       } else {
-        socket.emit(Protocol.UNBAN_USER, userId);
+        namespace.emit(Protocol.UNBAN_USER, userId);
       }
     },
     [UPDATE_REGISTRATION]: ({ registration }) => {
-      socket.emit(Protocol.UPDATE_REGISTRATION, registration);
+      namespace.emit(Protocol.UPDATE_REGISTRATION, registration);
     },
     [UPDATE_USER]: ({ userId, competing, registered }) => {
-      socket.emit(Protocol.UPDATE_USER, { userId, competing, registered });
+      namespace.emit(Protocol.UPDATE_USER, { userId, competing, registered });
     },
     [START_ROOM]: () => {
-      socket.emit(Protocol.START_ROOM);
+      namespace.emit(Protocol.START_ROOM);
     },
     [PAUSE_ROOM]: () => {
-      socket.emit(Protocol.PAUSE_ROOM);
+      namespace.emit(Protocol.PAUSE_ROOM);
     },
   };
 
@@ -313,4 +324,4 @@ const socketMiddleware = (store) => {
   };
 };
 
-export default socketMiddleware;
+export default roomsNamespaceMiddleware;

@@ -1,6 +1,6 @@
 export const ROOM_UPDATED = 'room/updated';
+export const RESET_ROOM = 'room/reset';
 export const DELETE_ROOM = 'room/delete';
-export const FETCH_ROOM = 'room/fetch';
 export const JOIN_ROOM = 'room/join';
 export const LEAVE_ROOM = 'room/leave';
 export const SUBMIT_RESULT = 'room/submit_result';
@@ -34,12 +34,8 @@ export const roomUpdated = (room) => ({
   room,
 });
 
-export const fetchRoom = ({ id, password, spectating }) => ({
-  type: FETCH_ROOM,
-  fetching: true,
-  id,
-  password,
-  spectating,
+export const resetRoom = () => ({
+  type: RESET_ROOM,
 });
 
 export const deleteRoom = (id) => ({
@@ -47,9 +43,10 @@ export const deleteRoom = (id) => ({
   id,
 });
 
-export const joinRoom = ({ id, password }) => ({
+export const joinRoom = ({ id, spectating, password }) => ({
   type: JOIN_ROOM,
   id,
+  spectating,
   password,
 });
 

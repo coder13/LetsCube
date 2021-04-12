@@ -4,7 +4,6 @@ import { connect, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Button from '@material-ui/core/Button';
-import IconButton from '@material-ui/core/IconButton';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import Dialog from '@material-ui/core/Dialog';
@@ -14,11 +13,15 @@ import DialogTitle from '@material-ui/core/DialogTitle';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
+import ListSubheader from '@material-ui/core/ListSubheader';
 import ListItemAvatar from '@material-ui/core/ListItemAvatar';
-import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import Avatar from '@material-ui/core/Avatar';
-import DeleteIcon from '@material-ui/icons/Delete';
-import { kickUser, updateUser } from '../../../store/room/actions';
+import { kickUser, updateUser, updateBanned } from '../../../store/room/actions';
+import {
+  getUsersInRoom,
+  getUnbannedUsersNotInRoom,
+  getBannedUsers,
+} from '../../../store/room/selectors';
 
 const useStyles = makeStyles((theme) => ({
   admin: {
@@ -27,7 +30,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function UserListItem({
-  room, user, isSelf, handleKickUser,
+  room, user, isSelf,
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -40,6 +43,14 @@ function UserListItem({
     dispatch(updateUser(user.id, {
       [option]: !status[option],
     }));
+  };
+
+  const handleKickUser = () => {
+    dispatch(kickUser(user.id));
+  };
+
+  const handleBanUser = () => {
+    dispatch(updateBanned(user.id, !room.banned[user.id]));
   };
 
   return (
@@ -78,13 +89,22 @@ function UserListItem({
           label="Registered"
         />
       )}
-      {!isSelf && (
-        <ListItemSecondaryAction>
-          <IconButton edge="end" aria-label="delete" onClick={handleKickUser}>
-            <DeleteIcon />
-          </IconButton>
-        </ListItemSecondaryAction>
-      )}
+      <Button
+        edge="end"
+        aria-label="kick"
+        disabled={isSelf || !room.inRoom[user.id]}
+        onClick={handleKickUser}
+      >
+        KICK
+      </Button>
+      <Button
+        edge="end"
+        aria-label="ban"
+        disabled={isSelf}
+        onClick={handleBanUser}
+      >
+        { room.banned[user.id] ? 'UNBAN' : 'BAN' }
+      </Button>
     </ListItem>
   );
 }
@@ -100,10 +120,11 @@ UserListItem.propTypes = {
   room: PropTypes.shape({
     competing: PropTypes.shape(),
     registered: PropTypes.shape(),
+    banned: PropTypes.shape(),
+    inRoom: PropTypes.shape(),
     type: PropTypes.string,
   }),
   isSelf: PropTypes.bool,
-  handleKickUser: PropTypes.func,
 };
 
 UserListItem.defaultProps = {
@@ -111,9 +132,9 @@ UserListItem.defaultProps = {
   room: {
     competing: {},
     registered: {},
+    inRoom: {},
     type: 'normal',
   },
-  handleKickUser: () => {},
 };
 
 function MangeUsersDialog({
@@ -121,24 +142,41 @@ function MangeUsersDialog({
   onClose,
   room,
   self,
-  dispatch,
 }) {
-  const handleKickUser = (userId) => {
-    dispatch(kickUser(userId));
-  };
+  const userInRoom = getUsersInRoom(room);
+  const unbannedUsersNotInRoom = getUnbannedUsersNotInRoom(room);
+  const bannedUsers = getBannedUsers(room);
 
   return (
     <Dialog fullWidth open={open} onClose={onClose}>
       <DialogTitle>Manage Users</DialogTitle>
       <DialogContent>
         <List>
-          {room.users.map((user) => (
+          <ListSubheader>In Room</ListSubheader>
+          {userInRoom.map((user) => (
             <UserListItem
               key={user.id}
               room={room}
               user={user}
-              isSelf={user.id === self.id}
-              handleKickUser={() => handleKickUser(user.id)}
+              isSelf={+user.id === +self.id}
+            />
+          ))}
+          <ListSubheader>Not in Room</ListSubheader>
+          {unbannedUsersNotInRoom.map((user) => (
+            <UserListItem
+              key={user.id}
+              room={room}
+              user={user}
+              isSelf={+user.id === +self.id}
+            />
+          ))}
+          <ListSubheader>Banned</ListSubheader>
+          {bannedUsers.map((user) => (
+            <UserListItem
+              key={user.id}
+              room={room}
+              user={user}
+              isSelf={+user.id === +self.id}
             />
           ))}
         </List>
@@ -161,7 +199,6 @@ MangeUsersDialog.propTypes = {
   }),
   open: PropTypes.bool,
   onClose: PropTypes.func,
-  dispatch: PropTypes.func.isRequired,
 };
 
 MangeUsersDialog.defaultProps = {
@@ -177,6 +214,7 @@ MangeUsersDialog.defaultProps = {
 
 const mapStateToProps = (state) => ({
   room: state.room,
+  self: state.user,
 });
 
 export default connect(mapStateToProps)(MangeUsersDialog);

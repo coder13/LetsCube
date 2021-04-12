@@ -63,7 +63,7 @@ function Header({ children, user, room }) {
       response_type: 'code',
       scope: 'public dob email',
       redirect_uri: `${document.location.origin}/wca-redirect`,
-      client_id: 'example-application-id',
+      client_id: process.env.REACT_APP_WCA_CLIENT_ID,
     })}`;
     window.location = url;
   };

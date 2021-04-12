@@ -4,10 +4,12 @@ import './css/index.css';
 import App from './components/App';
 import * as serviceWorker from './registerServiceWorker';
 import store from './store';
-import { connectSocket } from './store/socket/actions';
+import { connectSocket as connectToDefault } from './store/default/actions';
+import { connectSocket as connectToRooms } from './store/rooms/actions';
 import { fetchUser } from './store/user/actions';
 
-store.dispatch(connectSocket());
+store.dispatch(connectToDefault());
+store.dispatch(connectToRooms());
 store.dispatch(fetchUser());
 
 const render = () => {
