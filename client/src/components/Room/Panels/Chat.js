@@ -69,18 +69,40 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const UNKOWN_USER = {
+  id: -1,
+  displayName: 'Unknown User',
+  avatar: {
+    url: undefined,
+  },
+};
+
 function Chat({
   dispatch, messages, users, user,
 }) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
   const listRef = useRef();
-  const findUser = (id) => users.find((i) => i.id === id) || {
-    id: -1,
-    displayName: 'Unknown User',
-    avatar: {
-      url: undefined,
-    },
+
+  const findUser = (id) => {
+    if (id > 0) {
+      const u = users.find((i) => i.id === id);
+      if (u) {
+        return u;
+      }
+    }
+
+    if (id === -2) {
+      return {
+        id: -2,
+        displayName: 'System',
+        avatar: {
+          url: undefined,
+        },
+      };
+    }
+
+    return UNKOWN_USER;
   };
 
   const submit = () => {

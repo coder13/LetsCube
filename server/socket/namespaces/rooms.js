@@ -2,6 +2,7 @@ const _ = require('lodash');
 const bcrypt = require('bcrypt');
 const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
+const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
 const { User, Room } = require('../../models');
 const { encodeUserRoom } = require('../utils');
@@ -535,7 +536,7 @@ module.exports = (io, middlewares) => {
           new Set([encodeUserRoom(userId, socket.room._id)]),
         );
 
-        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
+        ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
 
         sockets.forEach((sId) => {
           ns().adapter.remoteLeave(sId, socket.room.accessCode);
@@ -570,7 +571,7 @@ module.exports = (io, middlewares) => {
           new Set([encodeUserRoom(userId, socket.room._id)]),
         );
 
-        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
+        ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
 
         sockets.forEach((sId) => {
           ns().adapter.remoteLeave(sId, socket.room.accessCode);
@@ -620,8 +621,12 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
-        new ChatMessage(message.text, socket.user.id));
+      if (message.text[0] === '/') {
+        parseCommand(socket, message.text);
+      } else {
+        ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
+          new ChatMessage(message.text, socket.user.id));
+      }
     });
 
     // Simplest event here. Just echo the message to everyone else.
