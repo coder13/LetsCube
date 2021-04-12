@@ -622,7 +622,7 @@ module.exports = (io, middlewares) => {
       }
 
       if (message.text[0] === '/') {
-        parseCommand(socket, message.text);
+        parseCommand(ns, socket, message.text);
       } else {
         ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
           new ChatMessage(message.text, socket.user.id));
