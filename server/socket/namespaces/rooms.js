@@ -44,6 +44,10 @@ module.exports = (io, middlewares) => {
     ns().use(middleware);
   });
 
+  const socketsForUserRoom = async (userId, roomId) => ns().adapter.sockets(
+    new Set([encodeUserRoom(userId, roomId)]),
+  );
+
   function sendNewScramble(room) {
     return room.newAttempt().then((r) => {
       logger.debug('Sending new scramble to room', { roomId: room.id });
@@ -189,6 +193,12 @@ module.exports = (io, middlewares) => {
     // Only deals with removing authenticated users from a room
     async function leaveRoom() {
       try {
+        const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
+
+        if (sockets.size > 0) {
+          return;
+        }
+
         const room = await socket.room.dropUser(socket.user, (_room) => {
           ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
         });
@@ -532,9 +542,7 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await ns().adapter.sockets(
-          new Set([encodeUserRoom(userId, socket.room._id)]),
-        );
+        const sockets = await socketsForUserRoom(userId, socket.roomId);
 
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
 
@@ -567,9 +575,7 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await ns().adapter.sockets(
-          new Set([encodeUserRoom(userId, socket.room._id)]),
-        );
+        const sockets = await socketsForUserRoom(userId, socket.roomId);
 
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
 
@@ -639,10 +645,18 @@ module.exports = (io, middlewares) => {
     });
 
     socket.on(Protocol.DISCONNECT, async () => {
-      logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
+      try {
+        if (socket.roomId) {
+          socket.room = await fetchRoom(socket.roomId);
+        }
 
-      if (socket.user && socket.room) {
-        await leaveRoom();
+        logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
+
+        if (socket.user && socket.room) {
+          await leaveRoom();
+        }
+      } catch (err) {
+        logger.error(err);
       }
     });
 
@@ -652,7 +666,10 @@ module.exports = (io, middlewares) => {
 
         if (socket.user) {
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
-          await leaveRoom();
+          const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
+          if (sockets.size === 0) {
+            await leaveRoom();
+          }
         }
       }
 

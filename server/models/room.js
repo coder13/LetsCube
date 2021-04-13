@@ -213,8 +213,6 @@ Room.methods.dropUser = async function (user, updateAdmin) {
   this.inRoom.set(user.id.toString(), false);
   this.waitingFor.set(user.id.toString(), false);
 
-  await this.save();
-
   if (updateAdmin) {
     await this.updateAdminIfNeeded(updateAdmin);
   }
