@@ -69,25 +69,49 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const UNKOWN_USER = {
+  id: -1,
+  displayName: 'Unknown User',
+  avatar: {
+    url: undefined,
+  },
+};
+
 function Chat({
   dispatch, messages, users, user,
 }) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
   const listRef = useRef();
-  const findUser = (id) => users.find((i) => i.id === id) || {
-    id: -1,
-    displayName: 'Unknown User',
-    avatar: {
-      url: undefined,
-    },
+
+  const findUser = (id) => {
+    if (id > 0) {
+      const u = users.find((i) => i.id === id);
+      if (u) {
+        return u;
+      }
+    }
+
+    if (id === -2) {
+      return {
+        id: -2,
+        displayName: 'System',
+        avatar: {
+          url: undefined,
+        },
+      };
+    }
+
+    return UNKOWN_USER;
   };
 
   const submit = () => {
-    dispatch(sendChat({
-      text: message,
-    }));
-    setMessage('');
+    if (message.trim()) {
+      dispatch(sendChat({
+        text: message,
+      }));
+      setMessage('');
+    }
   };
 
   const handleSubmit = (e) => {
@@ -134,10 +158,9 @@ function Chat({
           }
 
           const sender = findUser(userId);
-          const avatar = sender && sender.avatar.url;
-          const displayAvatar = !avatar
-                              || index === 0
-                              || messages[index - 1].userId !== sender.id;
+          const avatarUrl = sender && sender.avatar && sender.avatar.url;
+          const shouldDisplayAvatar = !avatarUrl
+            || index === 0 || messages[index - 1].userId !== sender.id;
           const isNextMessageTheSameSender = messages[index + 1]
             && messages[index + 1].userId === sender.id;
 
@@ -150,12 +173,12 @@ function Chat({
               })}
             >
               <ListItemAvatar>
-                {displayAvatar ? <Avatar src={sender.avatar.url} /> : <> </>}
+                {shouldDisplayAvatar ? <Avatar src={avatarUrl} /> : <> </>}
               </ListItemAvatar>
 
               <ListItemText
                 className={classes.selectable}
-                primary={displayAvatar ? sender.displayName : ''}
+                primary={shouldDisplayAvatar ? sender.displayName : ''}
                 secondary={(
                   <Typography variant="body2">
                     {text}

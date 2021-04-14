@@ -2,9 +2,11 @@ const _ = require('lodash');
 const bcrypt = require('bcrypt');
 const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
+const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
-const { User, Room } = require('../../models');
+const { Room } = require('../../models');
 const { encodeUserRoom } = require('../utils');
+const roomMap = require('../lib/roomMap');
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
@@ -42,6 +44,10 @@ module.exports = (io, middlewares) => {
   middlewares.forEach((middleware) => {
     ns().use(middleware);
   });
+
+  const socketsForUserRoom = async (userId, roomId) => ns().adapter.sockets(
+    new Set([encodeUserRoom(userId, roomId)]),
+  );
 
   function sendNewScramble(room) {
     return room.newAttempt().then((r) => {
@@ -127,14 +133,6 @@ module.exports = (io, middlewares) => {
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     socket.use(async (foo, next) => {
-      if (socket.userId) {
-        try {
-          socket.user = await User.findOne({ id: socket.userId });
-        } catch (e) {
-          logger.error(e, { userId: socket.userId });
-        }
-      }
-
       if (socket.roomId) {
         socket.room = await fetchRoom(socket.roomId);
       }
@@ -188,6 +186,12 @@ module.exports = (io, middlewares) => {
     // Only deals with removing authenticated users from a room
     async function leaveRoom() {
       try {
+        const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
+
+        if (sockets.size > 0) {
+          return;
+        }
+
         const room = await socket.room.dropUser(socket.user, (_room) => {
           ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
         });
@@ -531,11 +535,9 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await ns().adapter.sockets(
-          new Set([encodeUserRoom(userId, socket.room._id)]),
-        );
+        const sockets = await socketsForUserRoom(userId, socket.roomId);
 
-        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
+        ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
 
         sockets.forEach((sId) => {
           ns().adapter.remoteLeave(sId, socket.room.accessCode);
@@ -566,11 +568,9 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await ns().adapter.sockets(
-          new Set([encodeUserRoom(userId, socket.room._id)]),
-        );
+        const sockets = await socketsForUserRoom(userId, socket.roomId);
 
-        ns().to(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
+        ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
 
         sockets.forEach((sId) => {
           ns().adapter.remoteLeave(sId, socket.room.accessCode);
@@ -620,8 +620,12 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
-        new ChatMessage(message.text, socket.user.id));
+      if (message.text[0] === '/') {
+        parseCommand(ns, socket, message.text);
+      } else {
+        ns().in(socket.room.accessCode).emit(Protocol.MESSAGE,
+          new ChatMessage(message.text, socket.user.id));
+      }
     });
 
     // Simplest event here. Just echo the message to everyone else.
@@ -634,10 +638,18 @@ module.exports = (io, middlewares) => {
     });
 
     socket.on(Protocol.DISCONNECT, async () => {
-      logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`);
+      try {
+        if (socket.roomId) {
+          socket.room = await fetchRoom(socket.roomId);
+        }
 
-      if (socket.user && socket.room) {
-        await leaveRoom();
+        logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
+
+        if (socket.user && socket.room) {
+          await leaveRoom();
+        }
+      } catch (err) {
+        logger.error(err);
       }
     });
 
@@ -647,7 +659,10 @@ module.exports = (io, middlewares) => {
 
         if (socket.user) {
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
-          await leaveRoom();
+          const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
+          if (sockets.size === 0) {
+            await leaveRoom();
+          }
         }
       }
 
@@ -695,6 +710,16 @@ module.exports = (io, middlewares) => {
           sendNewScramble(room);
         }
       }
+    });
+
+    socket.on(Protocol.ADMIN, (cb) => {
+      if (!socket.userId || +socket.userId !== 8184) {
+        return;
+      }
+
+      roomMap(ns).then((sockets) => {
+        cb(sockets);
+      });
     });
   });
 };
