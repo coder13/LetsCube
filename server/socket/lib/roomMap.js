@@ -20,6 +20,9 @@ module.exports = async (ns) => {
       password: room.password,
       users: room.users,
       inRoom: room.inRoom,
+      expireAt: room.expireAt,
+      admin: room.admin,
+      owner: room.owner,
       userSocketsInRoom,
       sockets,
     };

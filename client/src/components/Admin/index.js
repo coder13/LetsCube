@@ -36,6 +36,8 @@ function Admin({ rooms }) {
     navigator.clipboard.writeText(text);
   };
 
+  const renderUser = (user) => (user ? `${user.displayName} (${user.id})` : 'null');
+
   return (
     <Paper className={classes.root}>
       <Button
@@ -59,18 +61,21 @@ function Admin({ rooms }) {
                 <FilterNoneIcon />
               </IconButton>
             </Typography>
+            <Typography>{`admin: ${renderUser(room.admin)}`}</Typography>
+            <Typography>{`owner: ${renderUser(room.owner)}`}</Typography>
             <Typography>{`accessCode: ${room.accessCode}`}</Typography>
             <Typography>{`private: ${room.private}`}</Typography>
             {room.private && <Typography>{`password: ${room.password}`}</Typography>}
-            <Typography>{`users: [${room.users.map((i) => i.displayName).join(', ')}]`}</Typography>
+            <Typography>{`users: [${room.users.map(renderUser).join(', ')}]`}</Typography>
             <Typography variant="h5" component="h3">Users in Room: </Typography>
             <div style={{ padding: '1em' }}>
               {room.userSocketsInRoom.length > 0
                 ? room.userSocketsInRoom.map((user) => (
-                  <Typography key={user.id}>{`${user.displayName} (${user.id}): [${user.sockets.join(', ')}]`}</Typography>
+                  <Typography key={user.id}>{`${renderUser(user)}: [${user.sockets.join(', ')}]`}</Typography>
                 ))
                 : <Typography>None</Typography>}
             </div>
+            <Typography>{`Expires at: ${room.expireAt}`}</Typography>
           </CardContent>
         </Card>
       ))}
