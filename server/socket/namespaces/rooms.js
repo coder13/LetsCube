@@ -4,8 +4,9 @@ const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
-const { User, Room } = require('../../models');
+const { Room } = require('../../models');
 const { encodeUserRoom } = require('../utils');
+const roomMap = require('../lib/roomMap');
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
@@ -132,14 +133,6 @@ module.exports = (io, middlewares) => {
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     socket.use(async (foo, next) => {
-      if (socket.userId) {
-        try {
-          socket.user = await User.findOne({ id: socket.userId });
-        } catch (e) {
-          logger.error(e, { userId: socket.userId });
-        }
-      }
-
       if (socket.roomId) {
         socket.room = await fetchRoom(socket.roomId);
       }
@@ -717,6 +710,16 @@ module.exports = (io, middlewares) => {
           sendNewScramble(room);
         }
       }
+    });
+
+    socket.on(Protocol.ADMIN, (cb) => {
+      if (!socket.userId || +socket.userId !== 8184) {
+        return;
+      }
+
+      roomMap(ns).then((sockets) => {
+        cb(sockets);
+      });
     });
   });
 };

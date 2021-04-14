@@ -44,4 +44,5 @@ module.exports = {
   START_ROOM: 'start',
   PAUSE_ROOM: 'pause',
   UPDATE_USER: 'update_user',
+  ADMIN: 'admin',
 };

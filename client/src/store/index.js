@@ -13,6 +13,7 @@ import userReducer from './user/reducer';
 import messageReducer from './messages/reducers';
 import chatReducer from './chat/reducer';
 import serverReducer from './server/reducers';
+import adminReducer from './admin/reducers';
 
 import defaultNamespaceMiddleware from './default/namespace';
 import roomNamespaceMiddleware from './room/namespace';
@@ -47,6 +48,7 @@ const rootReducer = combineReducers({
   messages: messageReducer,
   chat: chatReducer,
   server: serverReducer,
+  admin: adminReducer,
 });
 
 const middlewares = [

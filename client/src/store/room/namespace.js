@@ -50,6 +50,10 @@ import {
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
 import { USER_CHANGED } from '../user/actions';
+import {
+  FETCH_ADMIN_DATA,
+  setAdminData,
+} from '../admin/actions';
 
 const roomsNamespaceMiddleware = (store) => {
   // The socket's connection state changed
@@ -315,6 +319,12 @@ const roomsNamespaceMiddleware = (store) => {
     },
     [PAUSE_ROOM]: () => {
       namespace.emit(Protocol.PAUSE_ROOM);
+    },
+    [FETCH_ADMIN_DATA]: () => {
+      namespace.emit(Protocol.ADMIN, (data) => {
+        console.log(326, data);
+        store.dispatch(setAdminData(data));
+      });
     },
   };
 
