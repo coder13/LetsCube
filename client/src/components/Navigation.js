@@ -86,16 +86,18 @@ function App({
 
       <Header>
         <Suspense fallback={Loading}>
-          <Switch>
-            <Route exact path="/" component={RoomList} />
-            { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
-            { (user.id || user.fetching)
-              && (<Route exact path="/profile" component={Profile} user={user} />)}
-            { (user.id && +user.id === 8184)
-              && (<Route path="/admin" component={Admin} />)}
-            <Route path="/wca-redirect" component={WCARedirect} />
-            <Redirect to="/" />
-          </Switch>
+          {!user.fetching && (
+            <Switch>
+              <Route exact path="/" component={RoomList} />
+              { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
+              { user.id
+                && (<Route exact path="/profile" component={Profile} user={user} />)}
+              { (user.id && +user.id === 8184)
+                && (<Route path="/admin" component={Admin} />)}
+              <Route path="/wca-redirect" component={WCARedirect} />
+              <Redirect to="/" />
+            </Switch>
+          )}
         </Suspense>
       </Header>
 
