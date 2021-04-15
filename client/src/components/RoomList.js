@@ -17,7 +17,7 @@ import AddIcon from '@material-ui/icons/Add';
 // import AddRoomDialog from './AddRoomDialog';
 import RoomConfigureDialog from './RoomConfigureDialog';
 import RoomListItem from './RoomListItem';
-import EventListItem from './EventListItem';
+import EventListItem from './common/EventListItem';
 import { lcFetch } from '../lib/fetch';
 import { createRoom } from '../store/rooms/actions';
 

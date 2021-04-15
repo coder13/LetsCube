@@ -10,7 +10,7 @@ import TableBody from '@material-ui/core/TableBody';
 import TableRow from '@material-ui/core/TableRow';
 import TableCell from '@material-ui/core/TableCell';
 import { useStatsDialog } from './StatsDialogProvider';
-import TableCellButton from '../../TableCellButton';
+import TableCellButton from '../../common/TableCellButton';
 import TableStatusCell from './TableStatusCell';
 import TableTimeCell from './TableTimeCell';
 import User from '../../User';

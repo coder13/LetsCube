@@ -22,9 +22,9 @@ import { getRegisteredUsers } from '../../../store/room/selectors';
 import { StatsDialogProvider } from '../Common/StatsDialogProvider';
 import { EditDialogProvider } from '../Common/EditDialogProvider';
 import TimesTable from '../Common/TimesTable';
-import HelpPopover from '../../HelpPopover';
+import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
-import Scramble from '../../Scramble';
+import Scramble from '../../common/Scramble';
 import UserStats from '../Common/UserStats';
 import UserSelectorDialog from '../Common/UserSelectorDialog';
 

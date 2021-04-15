@@ -7,7 +7,7 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import Snackbar from '@material-ui/core/Snackbar';
 import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
-import PrivateRoute from './PrivateRoute';
+import PrivateRoute from './common/PrivateRoute';
 import Header from './Header';
 import WCARedirect from './WCARedirect';
 import Admin from './Admin';
@@ -18,7 +18,7 @@ import { closeMessage } from '../store/messages/actions';
 
 const RoomList = lazy(() => import('./RoomList'));
 const Room = lazy(() => import('./Room/index'));
-const Profile = lazy(() => import('./Profile'));
+const Profile = lazy(() => import('./common/Profile'));
 
 const useStyles = makeStyles((theme) => ({
   root: {

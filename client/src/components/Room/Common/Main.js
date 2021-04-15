@@ -19,9 +19,9 @@ import {
 import { StatsDialogProvider } from './StatsDialogProvider';
 import { EditDialogProvider } from './EditDialogProvider';
 import TimesTable from './TimesTable';
-import HelpPopover from '../../HelpPopover';
+import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
-import Scramble from '../../Scramble';
+import Scramble from '../../common/Scramble';
 import UserStats from './UserStats';
 
 const useStyles = withStyles((theme) => ({

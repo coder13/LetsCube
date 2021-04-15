@@ -22,11 +22,11 @@ import MoreVertIcon from '@material-ui/icons/MoreVert';
 import ShareIcon from '@material-ui/icons/Share';
 import { useConfirm } from 'material-ui-confirm';
 import { TwitchEmbed } from 'react-twitch-embed';
-import { lcFetch } from '../lib/fetch';
-import { getNameFromId } from '../lib/events';
-import { createMessage } from '../store/messages/actions';
-import { deleteRoom } from '../store/room/actions';
-import { updateProfile } from '../store/user/actions';
+import { lcFetch } from '../../lib/fetch';
+import { getNameFromId } from '../../lib/events';
+import { createMessage } from '../../store/messages/actions';
+import { deleteRoom } from '../../store/room/actions';
+import { updateProfile } from '../../store/user/actions';
 
 const useStyles = makeStyles((theme) => ({
   root: {
