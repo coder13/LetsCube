@@ -13,7 +13,6 @@ import Avatar from '@material-ui/core/Avatar';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
-import Footer from './Footer';
 import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 
@@ -43,7 +42,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function Header({ children, user, room }) {
+function Header({ user, room }) {
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -73,62 +72,53 @@ function Header({ children, user, room }) {
   };
 
   return (
-    <div className={classes.root}>
-      <AppBar position="relative" elevation={1}>
-        <Toolbar>
-          <Typography variant="h6" className={classes.title}>
-            <Link to="/" className={classes.titleLink}>Let&apos;s Cube</Link>
-          </Typography>
-          {/* <IconButton color="inherit" edge="start" onClick={() => setDrawerOpen(true)}>
-            <MenuIcon/>
-          </IconButton> */}
-          <Grid className={classes.roomTitleGrid}>
-            { room._id && (
-              <>
-                <Typography variant="h6" component="span">
-                  <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
-                </Typography>
-                <Typography variant="subtitle2" component="span" style={{ paddingLeft: '1em' }}>
-                  {getNameFromId(room.event)}
-                </Typography>
-              </>
-            )}
-          </Grid>
+    <AppBar position="relative" elevation={1}>
+      <Toolbar>
+        <Typography variant="h6" className={classes.title}>
+          <Link to="/" className={classes.titleLink}>Let&apos;s Cube</Link>
+        </Typography>
+        <Grid className={classes.roomTitleGrid}>
+          { room._id && (
+            <>
+              <Typography variant="h6" component="span">
+                <Link to={`/rooms/${room._id}`} className={classes.titleLink}>{room.name}</Link>
+              </Typography>
+              <Typography variant="subtitle2" component="span" style={{ paddingLeft: '1em' }}>
+                {getNameFromId(room.event)}
+              </Typography>
+            </>
+          )}
+        </Grid>
 
-          { loggedIn
-            ? (
-              <div style={{ display: 'flex' }}>
-                <IconButton onClick={handleMenu} color="inherit">
-                  <Avatar src={user.avatar.thumb_url} />
-                </IconButton>
-                <Menu
-                  id="menu-appbar"
-                  anchorEl={anchorEl}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  open={open}
-                  onClose={handleClose}
-                >
-                  <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
-                  <MenuItem onClick={logout}>Log out</MenuItem>
-                </Menu>
-              </div>
-            )
-            : <Button color="inherit" onClick={login}>Login</Button>}
-        </Toolbar>
-      </AppBar>
-      <main className={classes.content}>
-        {children}
-      </main>
-      { !room._id && <Footer /> }
-    </div>
+        { loggedIn
+          ? (
+            <div style={{ display: 'flex' }}>
+              <IconButton onClick={handleMenu} color="inherit">
+                <Avatar src={user.avatar.thumb_url} />
+              </IconButton>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={open}
+                onClose={handleClose}
+              >
+                <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
+                <MenuItem onClick={logout}>Log out</MenuItem>
+              </Menu>
+            </div>
+          )
+          : <Button color="inherit" onClick={login}>Login</Button>}
+      </Toolbar>
+    </AppBar>
   );
 }
 
@@ -146,7 +136,6 @@ Header.propTypes = {
     name: PropTypes.string,
     event: PropTypes.string,
   }),
-  children: PropTypes.element.isRequired,
 };
 
 Header.defaultProps = {

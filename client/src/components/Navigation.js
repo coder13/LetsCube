@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
 import { Switch, Route, Redirect } from 'react-router-dom';
-import { connect } from 'react-redux';
+import { connect, useDispatch } from 'react-redux';
 import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Snackbar from '@material-ui/core/Snackbar';
@@ -9,11 +9,9 @@ import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
 import PrivateRoute from './common/PrivateRoute';
 import Header from './Header';
+import Footer from './Footer';
 import WCARedirect from './WCARedirect';
 import Admin from './Admin';
-// import RoomList from './RoomList';
-// import Room from './Room/index';
-// import Profile from './Profile';
 import { closeMessage } from '../store/messages/actions';
 
 const RoomList = lazy(() => import('./RoomList'));
@@ -34,24 +32,23 @@ const useStyles = makeStyles((theme) => ({
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,
   },
-  backdropContainer: {
-    textAlign: 'center',
-    verticalAlign: 'middle',
-  },
-  drawerHeader: {
+  container: {
     display: 'flex',
-    alignItems: 'center',
-    padding: theme.spacing(0, 1),
-    // necessary for content to be below app bar
-    ...theme.mixins.toolbar,
-    justifyContent: 'flex-end',
+    flexDirection: 'column',
+    height: '100vh',
+  },
+  content: {
+    display: 'flex',
+    flexGrow: 1,
+    flexDirection: 'column',
   },
 }));
 
-function App({
-  dispatch, connected, user, messages,
+function Navigation({
+  room, connected, user, messages,
 }) {
   const classes = useStyles();
+  const dispatch = useDispatch();
 
   const handleClose = (index, event, reason) => {
     if (reason === 'clickaway') {
@@ -85,20 +82,24 @@ function App({
         </Snackbar>
       </Backdrop>
 
-      <Header>
-        <Suspense fallback={Loading}>
-          {!user.fetching && (
-            <Switch>
-              <Route exact path="/" component={RoomList} />
-              { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
-              <PrivateRoute exact path="/profile" component={Profile} user={user} />
-              <PrivateRoute path="/admin" isCalebRoute component={Admin} />
-              <Route path="/wca-redirect" component={WCARedirect} />
-              <Redirect to="/" />
-            </Switch>
-          )}
-        </Suspense>
-      </Header>
+      <div className={classes.container}>
+        <Header />
+        <main className={classes.content}>
+          <Suspense fallback={Loading}>
+            {!user.fetching && (
+              <Switch>
+                <Route exact path="/" component={RoomList} />
+                { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
+                <PrivateRoute exact path="/profile" component={Profile} user={user} />
+                <PrivateRoute path="/admin" isCalebRoute component={Admin} />
+                <Route path="/wca-redirect" component={WCARedirect} />
+                <Redirect to="/" />
+              </Switch>
+            )}
+          </Suspense>
+        </main>
+        { !room._id && <Footer /> }
+      </div>
 
       {messages[0] ? (
         <Snackbar
@@ -120,25 +121,31 @@ function App({
   );
 }
 
-App.propTypes = {
+Navigation.propTypes = {
   connected: PropTypes.bool,
   user: PropTypes.shape().isRequired,
   messages: PropTypes.arrayOf(PropTypes.shape({
     severity: PropTypes.string,
     text: PropTypes.string,
   })),
-  dispatch: PropTypes.func.isRequired,
+  room: PropTypes.shape({
+    _id: PropTypes.string,
+  }),
 };
 
-App.defaultProps = {
+Navigation.defaultProps = {
   connected: false,
   messages: [],
+  room: {
+    id: undefined,
+  },
 };
 
 const mapStateToProps = (state) => ({
   connected: state.socket.connected,
   user: state.user,
   messages: state.messages.messages,
+  room: state.room,
 });
 
-export default connect(mapStateToProps)(App);
+export default connect(mapStateToProps)(Navigation);
