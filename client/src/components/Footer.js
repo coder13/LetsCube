@@ -6,6 +6,7 @@ import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Typography from '@material-ui/core/Typography';
 import Link from '@material-ui/core/Link';
+import { Link as ReactRouterLink } from 'react-router-dom';
 import IconButton from '@material-ui/core/IconButton';
 import EmojiObjectsIcon from '@material-ui/icons/EmojiObjects';
 import EmojiObjectsOutlinedIcon from '@material-ui/icons/EmojiObjectsOutlined';
@@ -53,7 +54,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Footer({ socket }) {
+function Footer({ user, socket }) {
   const classes = useStyles();
   const theme = useTheme();
   const toggleTheme = useToggleTheme();
@@ -83,6 +84,16 @@ function Footer({ socket }) {
               {socket.URI}
             </Typography>
           )}
+          {(user.id && +user.id === 8184) && (
+            <Link
+              className={classes.link}
+              component={ReactRouterLink}
+              variant="body2"
+              to="/admin"
+            >
+              Admin
+            </Link>
+          )}
         </Grid>
         <Grid item>
           {Links.map((link) => (
@@ -107,16 +118,23 @@ Footer.propTypes = {
   socket: PropTypes.shape({
     URI: PropTypes.string,
   }),
+  user: PropTypes.shape({
+    id: PropTypes.number,
+  }),
 };
 
 Footer.defaultProps = {
   socket: {
     URI: null,
   },
+  user: {
+    id: undefined,
+  },
 };
 
 const mapStateToProps = (state) => ({
   socket: state.socket,
+  user: state.user,
 });
 
 export default connect(mapStateToProps)(Footer);
