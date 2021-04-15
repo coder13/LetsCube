@@ -7,6 +7,7 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import Snackbar from '@material-ui/core/Snackbar';
 import Alert from '@material-ui/lab/Alert';
 import { makeStyles } from '@material-ui/core/styles';
+import PrivateRoute from './PrivateRoute';
 import Header from './Header';
 import WCARedirect from './WCARedirect';
 import Admin from './Admin';
@@ -90,10 +91,8 @@ function App({
             <Switch>
               <Route exact path="/" component={RoomList} />
               { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
-              { user.id
-                && (<Route exact path="/profile" component={Profile} user={user} />)}
-              { (user.id && +user.id === 8184)
-                && (<Route path="/admin" component={Admin} />)}
+              <PrivateRoute exact path="/profile" component={Profile} user={user} />
+              <PrivateRoute path="/admin" isCalebRoute component={Admin} />
               <Route path="/wca-redirect" component={WCARedirect} />
               <Redirect to="/" />
             </Switch>
@@ -104,7 +103,7 @@ function App({
       {messages[0] ? (
         <Snackbar
           open={!!messages[0]}
-          autoHideDuration={6000}
+          autoHideDuration={3000}
           onClose={(event, reason) => handleClose(0, event, reason)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         >

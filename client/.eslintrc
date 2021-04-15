@@ -11,6 +11,9 @@
     "semi": 1,
     "no-underscore-dangle": 0,
     "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
-    "no-console": "warn"
+    "no-console": "warn",
+    "react/jsx-props-no-spreading": [1, {
+      "custom": "ignore"
+    }]
   }
 }
