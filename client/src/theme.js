@@ -11,6 +11,8 @@ import {
 } from '@material-ui/core/styles';
 import useMediaQuery from '@material-ui/core/useMediaQuery';
 
+const defaultTheme = createMuiTheme();
+
 const primary = {
   light: {
     main: indigo[500],
@@ -37,6 +39,28 @@ const makeTheme = (darkMode) => createMuiTheme({
   },
   typography: {
     fontSize: 12,
+  },
+  overrides: {
+    MuiCssBaseline: {
+      '@global': {
+        '*scrollbar': {
+          width: 200,
+          height: 200,
+        },
+        '*::-webkit-scrollbar': {
+          width: '0.2em',
+          height: '0.2em',
+        },
+        '*::-webkit-scrollbar-track': {
+          boxShadow: `inset 0 0 6px ${defaultTheme.palette.background.paper}`,
+          webkitBoxShadow: `inset 0 0 6px ${defaultTheme.palette.background.paper}`,
+        },
+        '*::-webkit-scrollbar-thumb': {
+          backgroundColor: 'rgba(0,0,0,.1)',
+          outline: `1px solid ${defaultTheme.palette.divider}`,
+        },
+      },
+    },
   },
 });
 

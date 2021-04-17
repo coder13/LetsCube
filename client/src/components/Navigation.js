@@ -15,7 +15,7 @@ import Admin from './Admin';
 import { closeMessage } from '../store/messages/actions';
 import Text from './Text';
 
-const RoomList = lazy(() => import('./RoomList'));
+const Lobby = lazy(() => import('./Lobby'));
 const Room = lazy(() => import('./Room/index'));
 const Profile = lazy(() => import('./common/Profile'));
 
@@ -103,7 +103,7 @@ function Navigation({
           <Suspense fallback={Loading}>
             {!user.fetching && (
               <Switch>
-                <Route exact path="/" component={RoomList} />
+                <Route exact path="/" component={Lobby} />
                 { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
                 <PrivateRoute exact path="/profile" component={Profile} user={user} />
                 <PrivateRoute path="/admin" isCalebRoute component={Admin} />
