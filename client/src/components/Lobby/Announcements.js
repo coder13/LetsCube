@@ -32,6 +32,10 @@ function Announcements() {
       });
   }, []);
 
+  if (!announcements) {
+    return false;
+  }
+
   return (
     <Paper className={classes.root}>
       <ReactMarkdown
