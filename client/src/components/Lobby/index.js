@@ -54,6 +54,9 @@ const useStyles = makeStyles((theme) => ({
     height: 0,
     overflowY: 'auto',
   },
+  eventList: {
+    marginBottom: '1em',
+  },
   alert: {
     padding: '1em',
     '& a': {
@@ -63,6 +66,8 @@ const useStyles = makeStyles((theme) => ({
   },
   createRoom: {
     padding: '1em',
+    marginTop: '2em',
+    marginBottom: '2em',
     '&:hover': {
       backgroundColor: theme.palette.primary.dark,
     },
@@ -211,31 +216,23 @@ function Lobby({
                 </Alert>
               )}
 
-              <br />
               {user.id && (
-                <>
-                  <ListItem
-                    button
-                    className={classes.createRoom}
-                    variant="contained"
-                    color="primary"
-                    component={Button}
-                    onClick={() => setCreateRoomDialogOpen(true)}
-                  >
-                    <ListItemIcon>
-                      <AddIcon />
-                    </ListItemIcon>
-                    Create Room
-                  </ListItem>
-                  <br />
-                </>
+                <ListItem
+                  button
+                  className={classes.createRoom}
+                  variant="contained"
+                  color="primary"
+                  component={Button}
+                  onClick={() => setCreateRoomDialogOpen(true)}
+                >
+                  <ListItemIcon>
+                    <AddIcon />
+                  </ListItemIcon>
+                  Create Room
+                </ListItem>
               )}
 
-              <div
-                style={{
-                  marginBottom: '1em',
-                }}
-              >
+              <div className={classes.eventList}>
                 { events.map((room) => <EventListItem key={room._id} room={room} />)}
               </div>
 
