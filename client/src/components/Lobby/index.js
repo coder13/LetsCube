@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
 import { connect, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -15,15 +14,14 @@ import Button from '@material-ui/core/Button';
 import Alert from '@material-ui/lab/Alert';
 import ListSubheader from '@material-ui/core/ListSubheader';
 import AddIcon from '@material-ui/icons/Add';
-// import AddRoomDialog from './AddRoomDialog';
-import RoomConfigureDialog from './RoomConfigureDialog';
-import RoomListItem from './RoomListItem';
-import EventListItem from './common/EventListItem';
-import LobbyUserList from './LobbyUserList';
-import { lcFetch } from '../lib/fetch';
-import { createRoom } from '../store/rooms/actions';
+import RoomConfigureDialog from '../RoomConfigureDialog';
+import RoomListItem from '../RoomListItem';
+import EventListItem from '../common/EventListItem';
+import UserList from './UserList';
+import Announcements from './Announcements';
+import { createRoom } from '../../store/rooms/actions';
 
-/**
+/**-
  * Lobby:
  * Has 2 parts: room list and user list
  * should render with tabs on mobile like the Room page
@@ -68,11 +66,6 @@ const useStyles = makeStyles((theme) => ({
     '&:hover': {
       backgroundColor: theme.palette.primary.dark,
     },
-  },
-  announcements: {
-    padding: '1em',
-    marginTop: '1em',
-    marginBottom: '1em',
   },
   userList: {
     display: 'flex',
@@ -174,7 +167,6 @@ function Lobby({
   const classes = useStyles();
   const dispatch = useDispatch();
   const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
-  const [announcements, setAnnouncements] = React.useState('');
   const events = rooms.filter((room) => room.type !== 'normal');
   const publicRooms = rooms.filter((room) => !room.private && room.type === 'normal');
   const privateRooms = rooms.filter((room) => !!room.private && room.type === 'normal');
@@ -183,22 +175,6 @@ function Lobby({
   const onCreateRoom = (options) => {
     dispatch(createRoom(options));
   };
-
-  React.useEffect(() => {
-    lcFetch('/api/announcements')
-      .then((data) => {
-        if (!data.ok) {
-          throw new Error();
-        }
-        return data.text();
-      })
-      .then((data) => {
-        setAnnouncements(data);
-      })
-      .catch((err) => {
-        throw err;
-      });
-  }, []);
 
   return (
     <div className={classes.root}>
@@ -218,14 +194,7 @@ function Lobby({
               maxWidth="md"
               disableGutters
             >
-              { announcements && (
-                <Paper className={classes.announcements}>
-                  <ReactMarkdown
-                    linkTarget="_blank"
-                    source={announcements}
-                  />
-                </Paper>
-              )}
+              <Announcements />
               { showAlert && (
                 <Alert
                   className={classes.alert}
@@ -279,22 +248,6 @@ function Lobby({
                     />
                   ))}
                 </List>
-                <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-                  {publicRooms.map((room) => (
-                    <RoomListItem
-                      key={room._id}
-                      room={room}
-                    />
-                  ))}
-                </List>
-                <List subheader={<ListSubheader>Public Rooms</ListSubheader>}>
-                  {publicRooms.map((room) => (
-                    <RoomListItem
-                      key={room._id}
-                      room={room}
-                    />
-                  ))}
-                </List>
                 <Divider />
                 <List subheader={<ListSubheader>Private Rooms</ListSubheader>}>
                   {privateRooms.map((room) => (
@@ -309,7 +262,7 @@ function Lobby({
           </div>
         </Grid>
         <Grid item xs={3} className={classes.userList}>
-          <LobbyUserList users={USERS} />
+          <UserList users={USERS} />
         </Grid>
       </Grid>
       <RoomConfigureDialog

@@ -15,7 +15,7 @@ import Admin from './Admin';
 import { closeMessage } from '../store/messages/actions';
 import Text from './Text';
 
-const Lobby = lazy(() => import('./Lobby'));
+const Lobby = lazy(() => import('./Lobby/index'));
 const Room = lazy(() => import('./Room/index'));
 const Profile = lazy(() => import('./common/Profile'));
 
