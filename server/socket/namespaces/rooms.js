@@ -304,6 +304,13 @@ module.exports = (io, middlewares) => {
         });
       }
 
+      if (options.type === 'grand_prix') {
+        return cb({
+          statusCode: 403,
+          message: 'Not allowed to make a Grand Prix Room',
+        });
+      }
+
       const newRoom = new Room({
         name: options.name,
         type: options.type,
@@ -490,6 +497,11 @@ module.exports = (io, middlewares) => {
 
     socket.on(Protocol.EDIT_ROOM, async (options) => {
       if (!checkAdmin()) {
+        return;
+      }
+
+      if (options.type === 'grand_prix') {
+        logger.error(`${socket.id} attempted to edit room to grand_prix`);
         return;
       }
 
