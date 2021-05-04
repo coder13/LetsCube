@@ -14,7 +14,12 @@ const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 
 // Data for people not in room
 const roomMask = (room) => ({
   ..._.partial(_.pick, _, publicRoomKeys)(room),
-  users: room.private ? undefined : room.usersInRoom.map((user) => user.displayName),
+  users: room.private
+    ? undefined
+    : room.usersInRoom.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+    })),
   registeredUsers: room.users.filter((user) => room.registered.get(user.id.toString())).length,
 });
 
@@ -121,24 +126,24 @@ module.exports = (io, middlewares) => {
       });
     });
 
-  ns().on('connection', (socket) => {
+  async function updateClientsWithUsers() {
+    const sockets = [...await ns().adapter.allRooms([])]
+      .filter((room) => room.indexOf('user/') > -1)
+      .map((user) => +user.split('/')[1]);
+
+    const users = (await User.find({
+      id: {
+        $in: sockets,
+      },
+    })).map((user) => user.toJSON()).filter((user) => !!user.displayName);
+
+    ns().emit(Protocol.UPDATE_USERS_IN_LOBBY, {
+      users,
+    });
+  }
+
+  ns().on('connection', async (socket) => {
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
-
-    async function updateClientWithUsers() {
-      const sockets = [...await ns().adapter.allRooms([])]
-        .filter((room) => room.indexOf('user/') > -1)
-        .map((user) => +user.split('/')[1]);
-
-      const users = (await User.find({
-        id: {
-          $in: sockets,
-        },
-      })).map((user) => user.toJSON()).filter((user) => !!user.displayName);
-
-      ns().emit(Protocol.UPDATE_USERS_IN_LOBBY, {
-        users,
-      });
-    }
 
     socket.use(async (foo, next) => {
       if (socket.roomId) {
@@ -152,7 +157,7 @@ module.exports = (io, middlewares) => {
         socket.emit(Protocol.UPDATE_ROOMS, rooms);
       });
 
-    updateClientWithUsers();
+    updateClientsWithUsers();
 
     function broadcast(...args) {
       socket.broadcast.to(socket.room.accessCode).emit(...args);
@@ -671,7 +676,7 @@ module.exports = (io, middlewares) => {
           await leaveRoom();
         }
 
-        updateClientWithUsers();
+        updateClientsWithUsers();
       } catch (err) {
         logger.error(err);
       }

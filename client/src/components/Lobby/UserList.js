@@ -7,6 +7,8 @@ import Toolbar from '@material-ui/core/Toolbar';
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
+import ListItemAvatar from '@material-ui/core/ListItemAvatar';
+import Avatar from '@material-ui/core/Avatar';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -33,7 +35,10 @@ function LobbyUserList({ users }) {
       >
         {users.map((user) => (
           <ListItem button key={user.id}>
-            <ListItemText primary={user.displayName} />
+            <ListItemAvatar>
+              <Avatar alt={user.displayName} src={user.avatar && user.avatar.thumb_url} />
+            </ListItemAvatar>
+            <ListItemText primary={user.displayName} secondary={user.inARoom && 'Occupied'} />
           </ListItem>
         ))}
       </List>
@@ -45,6 +50,7 @@ LobbyUserList.propTypes = {
   users: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number,
     displayName: PropTypes.string,
+    inARoom: PropTypes.boolean,
   })),
 };
 

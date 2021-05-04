@@ -94,6 +94,13 @@ function Lobby({
   const privateRooms = rooms.filter((room) => !!room.private && room.type === 'normal');
   const showAlert = !!user.id && !user.canJoinRoom;
 
+  const waitingUsers = users.map((u) => ({
+    id: u.id,
+    displayName: u.displayName,
+    inARoom: !!rooms.find((room) => room.users && room.users.find((i) => i.id === u.id)),
+    avatar: u.avatar,
+  }));
+
   const onCreateRoom = (options) => {
     dispatch(createRoom(options));
   };
@@ -176,7 +183,7 @@ function Lobby({
           </div>
         </Grid>
         <Grid item xs={3} className={classes.userList}>
-          <UserList users={users} />
+          <UserList users={waitingUsers} />
         </Grid>
       </Grid>
       <RoomConfigureDialog
