@@ -62,7 +62,7 @@ function RoomListItem({
   const [duration, setDuration] = React.useState(null);
   const [unixDuration, setUnixDuration] = React.useState(null);
 
-  const canDelete = +user.id === 8184 || user.id === room.admin.id;
+  const canDelete = +user.id === 8184 || (room.admin && user.id === room.admin.id);
 
   React.useEffect(() => {
     const startTime = room.startTime ? new Date(room.startTime) : null;
@@ -241,6 +241,9 @@ RoomListItem.defaultProps = {
     requireRevealedIdentity: false,
     registeredUsers: 0,
     twitchChannel: undefined,
+    admin: {
+      id: undefined,
+    },
   },
   user: {
     showWCAID: false,
