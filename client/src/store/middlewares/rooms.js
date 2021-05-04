@@ -46,6 +46,7 @@ import {
   roomUpdated as globalRoomUpdated,
   roomDeleted,
   roomsUpdated,
+  updateUsers,
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
@@ -187,6 +188,9 @@ const roomsNamespaceMiddleware = (store) => {
       },
       [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
         store.dispatch(nextSolveAt(dateTime));
+      },
+      [Protocol.UPDATE_USERS_IN_LOBBY]: ({ users }) => {
+        store.dispatch(updateUsers(users));
       },
     },
   });

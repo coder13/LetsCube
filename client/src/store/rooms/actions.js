@@ -8,6 +8,7 @@ export const ROOMS_UPDATED = 'rooms/updated';
 export const ROOM_CREATED = 'rooms/created';
 export const ROOM_DELETED = 'rooms/deleted';
 export const ROOM_UPDATED = 'rooms/room_updated';
+export const UPDATE_USERS = 'rooms/UPDATE_USERS';
 
 export const connectionChanged = (isConnected) => ({
   type: ROOMS_CONNECTION_CHANGED,
@@ -58,4 +59,9 @@ export const roomDeleted = (room) => ({
 export const createRoom = (options) => ({
   type: CREATE_ROOM,
   options,
+});
+
+export const updateUsers = (users) => ({
+  type: UPDATE_USERS,
+  users,
 });

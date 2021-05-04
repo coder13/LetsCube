@@ -83,91 +83,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const USERS = [{
-  id: 8184,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8185,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8186,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8187,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8188,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8189,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8190,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8191,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8192,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8193,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8194,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8195,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8196,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8197,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8198,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8199,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8200,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8201,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8202,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8203,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8204,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8205,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8206,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8207,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8208,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8209,
-  displayName: 'Caleb Hoover',
-}, {
-  id: 8210,
-  displayName: 'Caleb Hoover',
-}];
-
 function Lobby({
-  rooms, user,
+  rooms, user, users,
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -259,7 +176,7 @@ function Lobby({
           </div>
         </Grid>
         <Grid item xs={3} className={classes.userList}>
-          <UserList users={USERS} />
+          <UserList users={users} />
         </Grid>
       </Grid>
       <RoomConfigureDialog
@@ -280,6 +197,10 @@ Lobby.propTypes = {
     canJoinRoom: PropTypes.bool,
     showWCAID: PropTypes.bool,
   }),
+  users: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number,
+    displayName: PropTypes.string,
+  })),
 };
 
 Lobby.defaultProps = {
@@ -289,12 +210,14 @@ Lobby.defaultProps = {
     canJoinRoom: false,
     showWCAID: false,
   },
+  users: [],
 };
 
 const mapStateToProps = (state) => ({
   rooms: state.roomList.rooms,
   user: state.user,
   userCount: state.server.userCount,
+  users: state.roomList.users,
 });
 
 export default connect(mapStateToProps)(Lobby);

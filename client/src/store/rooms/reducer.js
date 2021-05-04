@@ -6,10 +6,12 @@ import {
   ROOM_CREATED,
   ROOM_DELETED,
   ROOM_UPDATED,
+  UPDATE_USERS,
 } from './actions';
 
 const INITIAL_STATE = {
   rooms: [],
+  users: [],
   connected: false,
   connectionStatus: 'connecting',
 };
@@ -49,6 +51,10 @@ const reducers = {
   [ROOM_UPDATED]: (state, action) => ({
     ...state,
     rooms: state.rooms.map((i) => (i._id === action.room._id ? action.room : i)),
+  }),
+  [UPDATE_USERS]: (state, action) => ({
+    ...state,
+    users: action.users,
   }),
 };
 

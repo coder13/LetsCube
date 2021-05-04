@@ -4,7 +4,7 @@ const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
-const { Room } = require('../../models');
+const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 
@@ -124,6 +124,22 @@ module.exports = (io, middlewares) => {
   ns().on('connection', (socket) => {
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
+    async function updateClientWithUsers() {
+      const sockets = [...await ns().adapter.allRooms([])]
+        .filter((room) => room.indexOf('user/') > -1)
+        .map((user) => +user.split('/')[1]);
+
+      const users = (await User.find({
+        id: {
+          $in: sockets,
+        },
+      })).map((user) => user.toJSON()).filter((user) => !!user.displayName);
+
+      ns().emit(Protocol.UPDATE_USERS_IN_LOBBY, {
+        users,
+      });
+    }
+
     socket.use(async (foo, next) => {
       if (socket.roomId) {
         socket.room = await fetchRoom(socket.roomId);
@@ -135,6 +151,8 @@ module.exports = (io, middlewares) => {
       .then((rooms) => {
         socket.emit(Protocol.UPDATE_ROOMS, rooms);
       });
+
+    updateClientWithUsers();
 
     function broadcast(...args) {
       socket.broadcast.to(socket.room.accessCode).emit(...args);
@@ -652,6 +670,8 @@ module.exports = (io, middlewares) => {
         if (socket.user && socket.room) {
           await leaveRoom();
         }
+
+        updateClientWithUsers();
       } catch (err) {
         logger.error(err);
       }
