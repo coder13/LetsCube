@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { connect, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
@@ -13,7 +14,11 @@ import ListItemIcon from '@material-ui/core/ListItemIcon';
 import Button from '@material-ui/core/Button';
 import Alert from '@material-ui/lab/Alert';
 import ListSubheader from '@material-ui/core/ListSubheader';
+import BottomNavigation from '@material-ui/core/BottomNavigation';
+import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
 import AddIcon from '@material-ui/icons/Add';
+import DynamicFeedIcon from '@material-ui/icons/DynamicFeed';
+import PeopleIcon from '@material-ui/icons/People';
 import RoomConfigureDialog from '../RoomConfigureDialog';
 import RoomListItem from '../RoomListItem';
 import EventListItem from '../common/EventListItem';
@@ -81,14 +86,36 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexGrow: 1,
   },
+  bottomNav: {
+    width: '100%',
+    height: '4em',
+    flexGrow: 0,
+    [theme.breakpoints.up('md')]: {
+      display: 'none',
+    },
+  },
+  hiddenOnMobile: {
+    [theme.breakpoints.down('sm')]: {
+      display: 'none',
+    },
+  },
 }));
+
+const panels = [{
+  name: 'Rooms',
+  icon: <DynamicFeedIcon />,
+}, {
+  name: 'Users',
+  icon: <PeopleIcon />,
+}];
 
 function Lobby({
   rooms, user, users,
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [createRoomDialogOpen, setCreateRoomDialogOpen] = React.useState(false);
+  const [createRoomDialogOpen, setCreateRoomDialogOpen] = useState(false);
+  const [currentPanel, setCurrentPanel] = useState(0);
   const events = rooms.filter((room) => room.type !== 'normal');
   const publicRooms = rooms.filter((room) => !room.private && room.type === 'normal');
   const privateRooms = rooms.filter((room) => !!room.private && room.type === 'normal');
@@ -113,8 +140,11 @@ function Lobby({
       >
         <Grid
           item
-          xs={9}
-          className={classes.roomList}
+          md={9}
+          sm={12}
+          className={clsx(classes.roomList, {
+            [classes.hiddenOnMobile]: currentPanel !== 0,
+          })}
         >
           <div
             className={classes.roomListContainer}
@@ -182,10 +212,33 @@ function Lobby({
             </Container>
           </div>
         </Grid>
-        <Grid item xs={3} className={classes.userList}>
+        <Grid
+          item
+          md={3}
+          sm={12}
+          className={clsx(classes.userList, {
+            [classes.hiddenOnMobile]: currentPanel !== 1,
+          })}
+        >
           <UserList users={waitingUsers} />
         </Grid>
       </Grid>
+      <BottomNavigation
+        value={currentPanel}
+        showLabels
+        onChange={(e, v) => setCurrentPanel(v)}
+        className={classes.bottomNav}
+      >
+        {panels.map((panel, index) => (
+          <BottomNavigationAction
+            key={panel.name}
+            className={classes.bottomNavItem}
+            label={panel.name}
+            value={index}
+            icon={panel.icon}
+          />
+        ))}
+      </BottomNavigation>
       <RoomConfigureDialog
         open={createRoomDialogOpen}
         onSave={onCreateRoom}
