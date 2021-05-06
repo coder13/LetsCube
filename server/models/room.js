@@ -3,7 +3,6 @@ const moment = require('moment');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const uuidv4 = require('uuid/v4');
-const User = require('./user');
 const { Events } = require('../../client/src/lib/events');
 
 // const lengths = {
@@ -58,7 +57,7 @@ const Room = new mongoose.Schema({
     type: [Attempt],
     default: [],
   },
-  users: [User],
+  users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // userIds waiting for till next round.
   waitingFor: {
     type: Map,
@@ -85,8 +84,8 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
-  admin: User,
-  owner: User,
+  admin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   type: {
     type: String,
     enum: ['normal', 'grand_prix'],

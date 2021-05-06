@@ -21,17 +21,9 @@ const roomMask = (room) => ({
 // Data for people in room
 const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
 
-const fetchRoom = async (id) => {
-  if (id) {
-    try {
-      return await Room.findById({ _id: id });
-    } catch (e) {
-      logger.error(e, { roomId: id });
-    }
-  }
-};
+const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
 
-const getRooms = (userId) => Room.find()
+const getRooms = (userId) => Room.find().populate('users').populate('admin').populate('owner')
   .then((rooms) => rooms.filter((room) => (
     userId ? !room.banned.get(userId.toString()) : true
   )).map(roomMask));
@@ -72,7 +64,7 @@ module.exports = (io, middlewares) => {
     }
 
     const newSolve = () => {
-      Room.findById(room._id).then(async (r) => {
+      fetchRoom(room._id).then(async (r) => {
         if (!r) {
           return;
         }
@@ -105,7 +97,7 @@ module.exports = (io, middlewares) => {
     });
 
     setTimeout(() => {
-      Room.findById(room._id).then((r) => {
+      fetchRoom(room._id).then((r) => {
         r.start().then((rr) => {
           ns().in(rr.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(rr));
           startTimer(rr);
@@ -252,7 +244,7 @@ module.exports = (io, middlewares) => {
     // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, async ({ id, spectating, password }, cb) => {
       try {
-        const room = await Room.findById(id);
+        const room = await fetchRoom(id);
         if (!room) {
           return cb({
             statusCode: 404,
