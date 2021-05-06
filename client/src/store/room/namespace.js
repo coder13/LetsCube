@@ -221,8 +221,6 @@ const roomsNamespaceMiddleware = (store) => {
             severity: 'error',
             text: err.message,
           }));
-        } else {
-          store.dispatch(push('/'));
         }
       });
     },
@@ -322,7 +320,6 @@ const roomsNamespaceMiddleware = (store) => {
     },
     [FETCH_ADMIN_DATA]: () => {
       namespace.emit(Protocol.ADMIN, (data) => {
-        console.log(326, data);
         store.dispatch(setAdminData(data));
       });
     },
