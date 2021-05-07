@@ -9,32 +9,14 @@ import {
 } from '../default/actions';
 import {
   userCountUpdated,
-  updateReconnectAttempts,
-  updateReconnectError,
-  updateReconnecting,
 } from '../server/actions';
 import { USER_CHANGED } from '../user/actions';
-import manager from './manager';
+import { manager } from './manager';
 
 const defaultNamespaceMiddleware = (store) => {
-  const { port } = store.getState().router.location.query;
-
-  manager.on('reconnect_attempt', (attempt) => {
-    store.dispatch(updateReconnectAttempts(attempt));
-  });
-
-  manager.on('reconnect_error', (error) => {
-    store.dispatch(updateReconnectError(error));
-  });
-
-  manager.on('reconnect', () => {
-    store.dispatch(updateReconnecting(false));
-  });
-
   const namespace = new Namespace({
     manager,
     namespace: '/',
-    port,
     onChange: (isConnected) => {
       store.dispatch(connectionChanged(isConnected));
     },

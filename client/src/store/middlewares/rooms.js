@@ -54,11 +54,9 @@ import {
   FETCH_ADMIN_DATA,
   setAdminData,
 } from '../admin/actions';
-import manager from './manager';
+import { manager } from './manager';
 
 const roomsNamespaceMiddleware = (store) => {
-  const { port } = store.getState().router.location.query;
-
   const reconnectToRoom = () => {
     if (store.getState().room.accessCode) {
       store.dispatch(joinRoom({
@@ -71,7 +69,6 @@ const roomsNamespaceMiddleware = (store) => {
   const namespace = new Namespace({
     manager,
     namespace: '/rooms',
-    port,
     onChange: (isConnected) => {
       store.dispatch(connectionChanged(isConnected));
     },

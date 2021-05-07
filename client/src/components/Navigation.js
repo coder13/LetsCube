@@ -82,7 +82,7 @@ function Navigation({
 
       <div className={classes.container}>
         <Header />
-        {!connected && (
+        {(!connected || server.reconnecting) && (
           <Alert severity="error">
             Disconnected from server.
             { (server.reconnecting || server.reconnectAttempts > 0) && (

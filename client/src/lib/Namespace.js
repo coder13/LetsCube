@@ -1,13 +1,6 @@
 // import io from 'socket.io-client';
 import * as Protocol from './protocol';
 
-// const dev = process.env.NODE_ENV === 'development';
-// const protocol = () => (dev ? 'http' : 'https');
-const origin = () => process.env.REACT_APP_SOCKETIO_ORIGIN;
-const makeURI = (port, namespace) => (
-  `${origin()}${port ? `:${port}` : ''}${namespace}`
-);
-
 Error.stackTraceLimit = Infinity;
 
 // Socket manager
@@ -31,13 +24,12 @@ export default class Namespace {
     this.namespace = props.namespace;
     this.events = props.events;
     this.socket = null;
-    this.port = props.port;
   }
 
   // attempt to connect to server
   connect = () => {
     // Connect
-    this.URI = makeURI(this.port || process.env.REACT_APP_SOCKETIO_PORT || '', this.namespace);
+    // this.URI = makeURI(this.port || process.env.REACT_APP_SOCKETIO_PORT || '', this.namespace);
 
     this.socket = this.manager.socket(this.namespace);
 

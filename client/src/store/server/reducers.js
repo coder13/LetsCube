@@ -30,10 +30,12 @@ const reducers = {
   [UPDATE_RECONNECT_ATTEMPTS]: (state, action) => ({
     ...state,
     reconnectAttempts: action.reconnectAttempts,
+    reconnecting: true,
   }),
   [UPDATE_RECONNECTION_ERROR]: (state, action) => ({
     ...state,
     reconnectError: action.reconnectError,
+    reconnecting: true,
   }),
   [UPDATE_RECONNECTING]: (state, action) => ({
     ...state,
