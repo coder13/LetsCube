@@ -15,8 +15,16 @@ const INITIAL_STATE = {
 };
 
 const reducers = {
-  [ROOMS_CONNECTED]: (state, action) => ({ ...state, connected: true, URI: action.URI }),
-  [ROOMS_DISCONNECTED]: (state) => ({ ...state, connected: false, URI: null }),
+  [ROOMS_CONNECTED]: (state, action) => ({
+    ...state,
+    connected: true,
+    URI: action.URI,
+  }),
+  [ROOMS_DISCONNECTED]: (state) => ({
+    ...state,
+    connected: false,
+    URI: null,
+  }),
   [ROOMS_CONNECTION_CHANGED]: (state, action) => ({
     ...state,
     connected: action.connected,

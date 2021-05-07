@@ -6,7 +6,7 @@ import {
 } from './actions';
 
 const INITIAL_STATE = {
-  connected: false,
+  connected: true,
   URI: null,
   userCount: 0,
 };

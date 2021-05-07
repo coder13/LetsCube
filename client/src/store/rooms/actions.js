@@ -13,6 +13,7 @@ export const connectionChanged = (isConnected) => ({
   type: ROOMS_CONNECTION_CHANGED,
   connected: isConnected,
   isError: false,
+  reconnecting: false,
 });
 
 export const connectSocket = () => ({

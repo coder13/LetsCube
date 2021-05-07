@@ -34,7 +34,7 @@ import {
   updateAdmin,
   updateCompetingForUser,
   nextSolveAt,
-} from './actions';
+} from '../room/actions';
 import {
   ROOMS_CONNECT,
   ROOMS_DISCONNECT,
@@ -54,13 +54,9 @@ import {
   FETCH_ADMIN_DATA,
   setAdminData,
 } from '../admin/actions';
+import manager from './manager';
 
 const roomsNamespaceMiddleware = (store) => {
-  // The socket's connection state changed
-  const onChange = (isConnected) => {
-    store.dispatch(connectionChanged(isConnected));
-  };
-
   const { port } = store.getState().router.location.query;
 
   const reconnectToRoom = () => {
@@ -73,9 +69,12 @@ const roomsNamespaceMiddleware = (store) => {
   };
 
   const namespace = new Namespace({
+    manager,
     namespace: '/rooms',
     port,
-    onChange,
+    onChange: (isConnected) => {
+      store.dispatch(connectionChanged(isConnected));
+    },
     onConnected: () => {
       store.dispatch(connected(namespace.URI));
       reconnectToRoom();
@@ -211,8 +210,9 @@ const roomsNamespaceMiddleware = (store) => {
       }
     },
     [USER_CHANGED]: () => {
-      namespace.disconnect();
-      namespace.connect();
+      // TODO: improve
+      manager.disconnect();
+      manager.connect();
     },
     [DELETE_ROOM]: ({ id }) => {
       namespace.emit(Protocol.DELETE_ROOM, id, (err) => {

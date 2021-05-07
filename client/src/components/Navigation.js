@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import { connect, useDispatch } from 'react-redux';
-import Backdrop from '@material-ui/core/Backdrop';
+// import Backdrop from '@material-ui/core/Backdrop';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Snackbar from '@material-ui/core/Snackbar';
 import Alert from '@material-ui/lab/Alert';
@@ -13,6 +13,7 @@ import Footer from './Footer';
 import WCARedirect from './WCARedirect';
 import Admin from './Admin';
 import { closeMessage } from '../store/messages/actions';
+import Text from './Text';
 
 const RoomList = lazy(() => import('./RoomList'));
 const Room = lazy(() => import('./Room/index'));
@@ -45,7 +46,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Navigation({
-  room, connected, user, messages,
+  room, connected, user, messages, server,
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -73,17 +74,31 @@ function Navigation({
 
   return (
     <div className={classes.root}>
-      <Backdrop className={classes.backdrop} open={!connected}>
+      {/* <Backdrop className={classes.backdrop} open={!connected}>
         <CircularProgress color="inherit" />
         <Snackbar open anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-          <Alert severity="error">
-            Disconnected from server.
-          </Alert>
         </Snackbar>
-      </Backdrop>
+      </Backdrop> */}
 
       <div className={classes.container}>
         <Header />
+        {!connected && (
+          <Alert severity="error">
+            Disconnected from server.
+            { (server.reconnecting || server.reconnectAttempts > 0) && (
+              ` Reconnecting...${server.reconnectAttempts} attempts`
+            )}
+            { server.reconnectError && (
+              <p>
+                <Text as="p">
+                  Error:
+                  {' '}
+                  {server.reconnectError.message}
+                </Text>
+              </p>
+            )}
+          </Alert>
+        )}
         <main className={classes.content}>
           <Suspense fallback={Loading}>
             {!user.fetching && (
@@ -131,6 +146,11 @@ Navigation.propTypes = {
   room: PropTypes.shape({
     _id: PropTypes.string,
   }),
+  server: PropTypes.shape({
+    reconnecting: PropTypes.bool,
+    reconnectAttempts: PropTypes.number,
+    reconnectError: PropTypes.object,
+  }),
 };
 
 Navigation.defaultProps = {
@@ -139,10 +159,16 @@ Navigation.defaultProps = {
   room: {
     id: undefined,
   },
+  server: {
+    reconnecting: false,
+    reconnectAttempts: 0,
+    reconnectError: undefined,
+  },
 };
 
 const mapStateToProps = (state) => ({
   connected: state.socket.connected,
+  server: state.server,
   user: state.user,
   messages: state.messages.messages,
   room: state.room,
