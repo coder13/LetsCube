@@ -19,10 +19,9 @@ export const disconnectSocket = () => ({
   type: DISCONNECT,
 });
 
-export const connected = (URI) => ({
+export const connected = () => ({
   type: CONNECTED,
   connected: true,
-  URI,
 });
 
 export const disconnected = () => ({

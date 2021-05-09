@@ -6,13 +6,13 @@ import {
   updateReconnecting,
 } from '../server/actions';
 
-const origin = () => process.env.REACT_APP_SOCKETIO_ORIGIN;
-
 export const CONNECT = 'manager/connect';
 
 const queryParams = qs.parse(window.location.search, { ignoreQueryPrefix: true });
 const port = queryParams.port || 9000;
-export const manager = new Manager(`${origin()}:${port}`, {
+export const URI = `${process.env.REACT_APP_SOCKETIO_ORIGIN}:${port}`;
+
+export const manager = new Manager(URI, {
   withCredentials: true,
 });
 

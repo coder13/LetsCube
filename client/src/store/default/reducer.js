@@ -7,19 +7,32 @@ import {
 
 const INITIAL_STATE = {
   connected: true,
-  URI: null,
+  connectionStatus: 'connecting',
   userCount: 0,
 };
 
 const reducers = {
-  [CONNECTED]: (state, action) => ({ ...state, connected: true, URI: action.URI }),
-  [DISCONNECTED]: (state) => ({ ...state, connected: false, URI: null }),
+  /* Namespace events: */
+  [CONNECTED]: (state) => ({
+    ...state,
+    connected: true,
+    connectionStatus: 'connected',
+  }),
+  [DISCONNECTED]: (state) => ({
+    ...state,
+    connected: false,
+    connectionStatus: 'disconnected',
+  }),
   [CONNECTION_CHANGED]: (state, action) => ({
     ...state,
     connected: action.connected,
-    error: false,
+    connectionStatus: action.connected ? 'connected' : 'disconnected',
   }),
-  [USER_COUNT_UPDATED]: (state, action) => ({ ...state, userCount: action.userCount }),
+  /* Other Events */
+  [USER_COUNT_UPDATED]: (state, action) => ({
+    ...state,
+    userCount: action.userCount,
+  }),
 };
 
 function socketReducer(state = INITIAL_STATE, action) {

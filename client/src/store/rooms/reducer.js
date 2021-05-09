@@ -11,25 +11,28 @@ import {
 const INITIAL_STATE = {
   rooms: [],
   connected: false,
-  URI: null,
+  connectionStatus: 'connecting',
 };
 
 const reducers = {
-  [ROOMS_CONNECTED]: (state, action) => ({
+  /* Namespace events: */
+  [ROOMS_CONNECTED]: (state) => ({
     ...state,
     connected: true,
-    URI: action.URI,
+    connectionStatus: 'connected',
   }),
   [ROOMS_DISCONNECTED]: (state) => ({
     ...state,
     connected: false,
-    URI: null,
+    connectionStatus: 'disconnected',
   }),
   [ROOMS_CONNECTION_CHANGED]: (state, action) => ({
     ...state,
     connected: action.connected,
-    error: false,
+    connectionStatus: action.connected ? 'connected' : 'disconnected',
   }),
+
+  /* Other Events */
   [ROOMS_UPDATED]: (state, action) => ({
     ...state,
     fetching: false,
@@ -44,6 +47,7 @@ const reducers = {
     rooms: state.rooms.filter((room) => room._id !== action.room),
   }),
   [ROOM_UPDATED]: (state, action) => ({
+    ...state,
     rooms: state.rooms.map((i) => (i._id === action.room._id ? action.room : i)),
   }),
 };

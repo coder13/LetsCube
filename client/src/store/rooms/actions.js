@@ -24,10 +24,9 @@ export const disconnectSocket = () => ({
   type: ROOMS_DISCONNECT,
 });
 
-export const connected = (URI) => ({
+export const connected = () => ({
   type: ROOMS_CONNECTED,
   connected: true,
-  URI,
 });
 
 export const disconnected = () => ({

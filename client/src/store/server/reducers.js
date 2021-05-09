@@ -5,13 +5,16 @@ import {
   UPDATE_RECONNECT_ATTEMPTS,
   UPDATE_RECONNECTION_ERROR,
   UPDATE_RECONNECTING,
+  UPDATE_URI,
 } from './actions';
+import { URI } from '../middlewares/manager';
 
 const INITIAL_STATE = {
   userCount: 0,
   reconnectAttempts: 0,
   reconnecting: false,
   reconnectError: null,
+  URI,
 };
 
 const reducers = {
@@ -40,6 +43,10 @@ const reducers = {
   [UPDATE_RECONNECTING]: (state, action) => ({
     ...state,
     reconnecting: action.reconnecting,
+  }),
+  [UPDATE_URI]: (state, action) => ({
+    ...state,
+    URI: action.URI,
   }),
 };
 

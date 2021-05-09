@@ -73,7 +73,7 @@ const roomsNamespaceMiddleware = (store) => {
       store.dispatch(connectionChanged(isConnected));
     },
     onConnected: () => {
-      store.dispatch(connected(namespace.URI));
+      store.dispatch(connected());
       reconnectToRoom();
     },
     onDisconnected: () => {

@@ -4,6 +4,7 @@ export const UPDATE_CONNECTED = 'server/update_connected';
 export const UPDATE_RECONNECT_ATTEMPTS = 'server/update_reconnect_attempts';
 export const UPDATE_RECONNECTION_ERROR = 'server/update_reconnection_error';
 export const UPDATE_RECONNECTING = 'server/update_reconnecting';
+export const UPDATE_URI = 'server/update_uri';
 
 export const userCountUpdated = (userCount) => ({
   type: USER_COUNT_UPDATED,
@@ -23,4 +24,9 @@ export const updateReconnectError = (reconnectError) => ({
 export const updateReconnecting = (reconnecting) => ({
   type: UPDATE_RECONNECTING,
   reconnecting,
+});
+
+export const updateURI = (URI) => ({
+  type: UPDATE_URI,
+  URI,
 });

@@ -21,17 +21,12 @@ const defaultNamespaceMiddleware = (store) => {
       store.dispatch(connectionChanged(isConnected));
     },
     onConnected: () => {
-      store.dispatch(connected(namespace.URI));
+      store.dispatch(connected());
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
     },
     events: {
-      [Protocol.RECONNECT]: () => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO] reconnected to /!');
-        store.dispatch(userCountUpdated(0));
-      },
       [Protocol.UPDATE_USER_COUNT]: (userCount) => {
         store.dispatch(userCountUpdated(userCount));
       },
