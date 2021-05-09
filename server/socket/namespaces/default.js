@@ -25,6 +25,7 @@ module.exports = (io, middlewares) => {
     updateUsersOnline();
 
     socket.on(Protocol.DISCONNECT, () => {
+      logger.info(`socket ${socket.id} disconnected from default;`);
       updateUsersOnline();
     });
   });
