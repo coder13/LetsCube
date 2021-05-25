@@ -81,6 +81,14 @@ const roomsNamespaceMiddleware = (store) => {
       store.dispatch(disconnected());
     },
     events: {
+      [Protocol.ERROR]: (error) => {
+        // eslint-disable-next-line no-console
+        console.error(error);
+        store.dispatch(createMessage({
+          severity: 'error',
+          text: error.message,
+        }));
+      },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
         store.dispatch(roomsUpdated(rooms));
       },

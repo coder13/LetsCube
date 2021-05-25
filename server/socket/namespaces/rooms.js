@@ -155,6 +155,13 @@ module.exports = (io, middlewares) => {
     getRooms(socket.userId)
       .then((rooms) => {
         socket.emit(Protocol.UPDATE_ROOMS, rooms);
+      })
+      .catch((e) => {
+        logger.error(e);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 500,
+          message: 'Failed to fetch rooms',
+        });
       });
 
     updateClientsWithUsers();
