@@ -34,20 +34,6 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     overflowY: 'scroll',
     height: '0px',
-    '&:scrollbar': {
-      width: 200,
-    },
-    '&::-webkit-scrollbar': {
-      width: '0.2em',
-    },
-    '&::-webkit-scrollbar-track': {
-      boxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
-      webkitBoxShadow: `inset 0 0 6px ${theme.palette.background.paper}`,
-    },
-    '&::-webkit-scrollbar-thumb': {
-      backgroundColor: 'rgba(0,0,0,.1)',
-      outline: `1px solid ${theme.palette.divider}`,
-    },
   },
   tr: {
     display: 'flex',

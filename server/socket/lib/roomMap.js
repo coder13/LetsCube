@@ -2,7 +2,7 @@ const { Room } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 
 module.exports = async (ns) => {
-  const rooms = await Room.find();
+  const rooms = await Room.find().populate('users').populate('admin').populate('owner');
 
   return Promise.all(rooms.map(async (room) => {
     const sockets = await ns().adapter.sockets(new Set([room.accessCode]));

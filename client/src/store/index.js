@@ -15,8 +15,9 @@ import chatReducer from './chat/reducer';
 import serverReducer from './server/reducers';
 import adminReducer from './admin/reducers';
 
-import defaultNamespaceMiddleware from './default/namespace';
-import roomNamespaceMiddleware from './room/namespace';
+import roomNamespaceMiddleware from './middlewares/rooms';
+import defaultNamespaceMiddleware from './middlewares/default';
+import { socketIOManagerMiddleware } from './middlewares/manager';
 
 const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
@@ -54,6 +55,7 @@ const rootReducer = combineReducers({
 const middlewares = [
   routerMiddleware(history),
   thunkMiddleware,
+  socketIOManagerMiddleware,
   defaultNamespaceMiddleware,
   roomNamespaceMiddleware,
 ];

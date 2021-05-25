@@ -40,6 +40,8 @@ const useStyles = withStyles((theme) => ({
     padding: '.5em',
     textAlign: 'center',
     justifyContent: 'center',
+    width: '80%',
+    margin: 'auto',
   },
 }));
 
