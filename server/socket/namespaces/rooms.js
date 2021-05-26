@@ -143,7 +143,7 @@ module.exports = (io, middlewares) => {
   }
 
   ns().on('connection', async (socket) => {
-    logger.info(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+    logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     socket.use(async (foo, next) => {
       if (socket.roomId) {
