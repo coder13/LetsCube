@@ -43,7 +43,7 @@ function RoomListItem({
   const [menuOpen, setMenuOpen] = React.useState(false);
   const anchorRef = React.useRef(null);
   const userText = room.usersLength === 0 ? ' empty'
-    : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.join(', ')}` : ''}`;
+    : ` ${room.usersLength} user${room.usersLength > 1 ? 's' : ''}${room.users ? `: ${room.users.map((u) => u.displayName).join(', ')}` : ''}`;
   const [disabled, reason] = canUserJoinRoom(user, room);
   const [duration, setDuration] = React.useState(null);
   const [unixDuration, setUnixDuration] = React.useState(null);

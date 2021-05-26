@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme) => ({
     margin: 'auto',
     width: '100%',
     [theme.breakpoints.up('lg')]: {
-      width: '83.333333%',
+      width: `${((10 / 12) * 100).toString()}%`,
     },
   },
   bottomNav: {
@@ -47,6 +47,7 @@ const useStyles = makeStyles((theme) => ({
   },
   container: {
     flexGrow: 1,
+    flexWrap: 'nowrap',
   },
   panel: {
     flexGrow: 1,
@@ -96,7 +97,9 @@ export const NormalRoom = ({ room, user }) => {
           className={clsx(classes.panel, {
             [classes.hiddenOnMobile]: currentPanel !== 0,
           })}
-          md={8}
+          style={{
+            flexGrow: 1,
+          }}
         >
           <Main />
         </Grid>
@@ -105,7 +108,6 @@ export const NormalRoom = ({ room, user }) => {
           className={clsx(classes.panel, {
             [classes.hiddenOnMobile]: currentPanel !== 1,
           })}
-          md={4}
         >
           <Chat />
         </Grid>

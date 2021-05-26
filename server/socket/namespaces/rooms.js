@@ -4,7 +4,7 @@ const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
-const { Room } = require('../../models');
+const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 
@@ -14,24 +14,21 @@ const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 
 // Data for people not in room
 const roomMask = (room) => ({
   ..._.partial(_.pick, _, publicRoomKeys)(room),
-  users: room.private ? undefined : room.usersInRoom.map((user) => user.displayName),
+  users: room.private
+    ? undefined
+    : room.usersInRoom.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+    })),
   registeredUsers: room.users.filter((user) => room.registered.get(user.id.toString())).length,
 });
 
 // Data for people in room
 const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
 
-const fetchRoom = async (id) => {
-  if (id) {
-    try {
-      return await Room.findById({ _id: id });
-    } catch (e) {
-      logger.error(e, { roomId: id });
-    }
-  }
-};
+const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
 
-const getRooms = (userId) => Room.find()
+const getRooms = (userId) => Room.find().populate('users').populate('admin').populate('owner')
   .then((rooms) => rooms.filter((room) => (
     userId ? !room.banned.get(userId.toString()) : true
   )).map(roomMask));
@@ -72,7 +69,7 @@ module.exports = (io, middlewares) => {
     }
 
     const newSolve = () => {
-      Room.findById(room._id).then(async (r) => {
+      fetchRoom(room._id).then(async (r) => {
         if (!r) {
           return;
         }
@@ -105,7 +102,7 @@ module.exports = (io, middlewares) => {
     });
 
     setTimeout(() => {
-      Room.findById(room._id).then((r) => {
+      fetchRoom(room._id).then((r) => {
         r.start().then((rr) => {
           ns().in(rr.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(rr));
           startTimer(rr);
@@ -129,8 +126,24 @@ module.exports = (io, middlewares) => {
       });
     });
 
-  ns().on('connection', (socket) => {
-    logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
+  async function updateClientsWithUsers() {
+    const sockets = [...await ns().adapter.allRooms([])]
+      .filter((room) => room.indexOf('user/') > -1)
+      .map((user) => +user.split('/')[1]);
+
+    const users = (await User.find({
+      id: {
+        $in: sockets,
+      },
+    })).map((user) => user.toJSON()).filter((user) => !!user.displayName);
+
+    ns().emit(Protocol.UPDATE_USERS_IN_LOBBY, {
+      users,
+    });
+  }
+
+  ns().on('connection', async (socket) => {
+    logger.info(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     socket.use(async (foo, next) => {
       if (socket.roomId) {
@@ -142,7 +155,16 @@ module.exports = (io, middlewares) => {
     getRooms(socket.userId)
       .then((rooms) => {
         socket.emit(Protocol.UPDATE_ROOMS, rooms);
+      })
+      .catch((e) => {
+        logger.error(e);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 500,
+          message: 'Failed to fetch rooms',
+        });
       });
+
+    updateClientsWithUsers();
 
     function broadcast(...args) {
       socket.broadcast.to(socket.room.accessCode).emit(...args);
@@ -252,7 +274,7 @@ module.exports = (io, middlewares) => {
     // Socket wants to join room.
     socket.on(Protocol.JOIN_ROOM, async ({ id, spectating, password }, cb) => {
       try {
-        const room = await Room.findById(id);
+        const room = await fetchRoom(id);
         if (!room) {
           return cb({
             statusCode: 404,
@@ -655,11 +677,13 @@ module.exports = (io, middlewares) => {
           socket.room = await fetchRoom(socket.roomId);
         }
 
-        logger.debug(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
+        logger.info(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
 
         if (socket.user && socket.room) {
           await leaveRoom();
         }
+
+        updateClientsWithUsers();
       } catch (err) {
         logger.error(err);
       }

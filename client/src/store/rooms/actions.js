@@ -8,11 +8,13 @@ export const ROOMS_UPDATED = 'rooms/updated';
 export const ROOM_CREATED = 'rooms/created';
 export const ROOM_DELETED = 'rooms/deleted';
 export const ROOM_UPDATED = 'rooms/room_updated';
+export const UPDATE_USERS = 'rooms/UPDATE_USERS';
 
 export const connectionChanged = (isConnected) => ({
   type: ROOMS_CONNECTION_CHANGED,
   connected: isConnected,
   isError: false,
+  reconnecting: false,
 });
 
 export const connectSocket = () => ({
@@ -23,10 +25,9 @@ export const disconnectSocket = () => ({
   type: ROOMS_DISCONNECT,
 });
 
-export const connected = (URI) => ({
+export const connected = () => ({
   type: ROOMS_CONNECTED,
   connected: true,
-  URI,
 });
 
 export const disconnected = () => ({
@@ -58,4 +59,9 @@ export const roomDeleted = (room) => ({
 export const createRoom = (options) => ({
   type: CREATE_ROOM,
   options,
+});
+
+export const updateUsers = (users) => ({
+  type: UPDATE_USERS,
+  users,
 });

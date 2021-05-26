@@ -77,6 +77,9 @@ class ManualTimer extends React.Component {
         /* inspectionDNF: false, */
         /* DNF: false, */
         /* AUF: false, */
+        AUF: false,
+        DNF: false,
+        inspection: false,
       },
     };
 
@@ -210,7 +213,11 @@ class ManualTimer extends React.Component {
       inspection: 0,
       timeInput: '',
       started: 0,
-      penalties: {},
+      penalties: {
+        AUF: false,
+        DNF: false,
+        inspection: false,
+      },
     });
     this.setStatus(STATUS.RESTING);
   }

@@ -34,7 +34,7 @@ import {
   updateAdmin,
   updateCompetingForUser,
   nextSolveAt,
-} from './actions';
+} from '../room/actions';
 import {
   ROOMS_CONNECT,
   ROOMS_DISCONNECT,
@@ -46,6 +46,7 @@ import {
   roomUpdated as globalRoomUpdated,
   roomDeleted,
   roomsUpdated,
+  updateUsers,
 } from '../rooms/actions';
 import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
@@ -54,15 +55,9 @@ import {
   FETCH_ADMIN_DATA,
   setAdminData,
 } from '../admin/actions';
+import { manager } from './manager';
 
 const roomsNamespaceMiddleware = (store) => {
-  // The socket's connection state changed
-  const onChange = (isConnected) => {
-    store.dispatch(connectionChanged(isConnected));
-  };
-
-  const { port } = store.getState().router.location.query;
-
   const reconnectToRoom = () => {
     if (store.getState().room.accessCode) {
       store.dispatch(joinRoom({
@@ -73,17 +68,27 @@ const roomsNamespaceMiddleware = (store) => {
   };
 
   const namespace = new Namespace({
+    manager,
     namespace: '/rooms',
-    port,
-    onChange,
+    onChange: (isConnected) => {
+      store.dispatch(connectionChanged(isConnected));
+    },
     onConnected: () => {
-      store.dispatch(connected(namespace.URI));
+      store.dispatch(connected());
       reconnectToRoom();
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
     },
     events: {
+      [Protocol.ERROR]: (error) => {
+        // eslint-disable-next-line no-console
+        console.error(error);
+        store.dispatch(createMessage({
+          severity: 'error',
+          text: error.message,
+        }));
+      },
       [Protocol.UPDATE_ROOMS]: (rooms) => {
         store.dispatch(roomsUpdated(rooms));
       },
@@ -192,6 +197,9 @@ const roomsNamespaceMiddleware = (store) => {
       [Protocol.NEXT_SOLVE_AT]: (dateTime) => {
         store.dispatch(nextSolveAt(dateTime));
       },
+      [Protocol.UPDATE_USERS_IN_LOBBY]: ({ users }) => {
+        store.dispatch(updateUsers(users));
+      },
     },
   });
 
@@ -211,8 +219,9 @@ const roomsNamespaceMiddleware = (store) => {
       }
     },
     [USER_CHANGED]: () => {
-      namespace.disconnect();
-      namespace.connect();
+      // TODO: improve
+      manager.disconnect();
+      manager.connect();
     },
     [DELETE_ROOM]: ({ id }) => {
       namespace.emit(Protocol.DELETE_ROOM, id, (err) => {

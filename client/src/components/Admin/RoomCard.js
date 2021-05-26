@@ -13,24 +13,7 @@ import MoreVertIcon from '@material-ui/icons/MoreVert';
 import { useConfirm } from 'material-ui-confirm';
 import { deleteRoom } from '../../store/room/actions';
 import { createMessage } from '../../store/messages/actions';
-
-const Text = ({ children }) => (
-  <span
-    style={{
-      WebkitUserSelect: 'text',
-    }}
-  >
-    {children}
-  </span>
-);
-
-Text.propTypes = {
-  children: PropTypes.string,
-};
-
-Text.defaultProps = {
-  children: '',
-};
+import Text from '../Text';
 
 const useStyles = makeStyles(() => ({
   root: {

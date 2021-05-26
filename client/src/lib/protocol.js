@@ -36,6 +36,7 @@ module.exports = {
   UPDATE_STATUS: 'update_status',
   UPDATE_COMPETING: 'update_competing',
   UPDATE_USER_COUNT: 'user_count',
+  UPDATE_USERS_IN_LOBBY: 'update_users_in_lobby',
   KICK_USER: 'kick_user',
   BAN_USER: 'ban_user',
   UNBAN_USER: 'unban_user',

@@ -6,34 +6,27 @@ import {
   connectionChanged,
   connected,
   disconnected,
-} from './actions';
-import { userCountUpdated } from '../server/actions';
+} from '../default/actions';
+import {
+  userCountUpdated,
+} from '../server/actions';
 import { USER_CHANGED } from '../user/actions';
+import { manager } from './manager';
 
 const defaultNamespaceMiddleware = (store) => {
-  // The socket's connection state changed
-  const onChange = (isConnected) => {
-    store.dispatch(connectionChanged(isConnected));
-  };
-
-  const { port } = store.getState().router.location.query;
-
   const namespace = new Namespace({
+    manager,
     namespace: '/',
-    port,
-    onChange,
+    onChange: (isConnected) => {
+      store.dispatch(connectionChanged(isConnected));
+    },
     onConnected: () => {
-      store.dispatch(connected(namespace.URI));
+      store.dispatch(connected());
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
     },
     events: {
-      [Protocol.RECONNECT]: () => {
-        // eslint-disable-next-line no-console
-        console.log('[SOCKET.IO] reconnected to /!');
-        store.dispatch(userCountUpdated(0));
-      },
       [Protocol.UPDATE_USER_COUNT]: (userCount) => {
         store.dispatch(userCountUpdated(userCount));
       },
@@ -48,8 +41,8 @@ const defaultNamespaceMiddleware = (store) => {
       namespace.disconnect();
     },
     [USER_CHANGED]: () => {
-      namespace.disconnect();
-      namespace.connect();
+      // namespace.disconnect();
+      // namespace.connect();
     },
   };
 
