@@ -18,7 +18,6 @@ function Panel({
   toolbar, children, className, ...props
 }) {
   const classes = useStyles();
-  console.log(22, className);
 
   return (
     <Paper {...props} className={clsx(classes.root, className)} variant="outlined" square>
