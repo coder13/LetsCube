@@ -82,7 +82,7 @@ export default function (_attempts, users) {
 
     let wins = 0;
     for (let i = 0; i < attempts.length; i += 1) {
-      if (attempts[i][user.id]
+      if (attempts[i][user.id] && !attempts[i][user.id].penalties?.DNF
           && Math.round(attempts[i][user.id].time) === Math.round(bests[i])) {
         wins += 1;
       }

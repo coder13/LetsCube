@@ -23,6 +23,8 @@ module.exports = async (ns) => {
       expireAt: room.expireAt,
       admin: room.admin,
       owner: room.owner,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
       userSocketsInRoom,
       sockets,
     };

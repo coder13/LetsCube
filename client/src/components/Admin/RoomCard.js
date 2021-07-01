@@ -114,6 +114,8 @@ function RoomCard({ room }) {
             ))
             : <Typography>None</Typography>}
         </div>
+        <Typography>{`CreatedAt at: ${room.createdAt}`}</Typography>
+        <Typography>{`UpdatedAt at: ${room.updatedAt}`}</Typography>
         <Typography>{`Expires at: ${room.expireAt}`}</Typography>
       </CardContent>
       <Menu
@@ -147,6 +149,8 @@ RoomCard.propTypes = {
     admin: PropTypes.shape(),
     users: PropTypes.arrayOf(PropTypes.shape()),
     userSocketsInRoom: PropTypes.arrayOf(PropTypes.shape()),
+    createdAt: PropTypes.string,
+    updatedAt: PropTypes.string,
     expireAt: PropTypes.string,
   }),
 };
@@ -164,6 +168,8 @@ RoomCard.defaultProps = {
     },
     admin: undefined,
     expireAt: null,
+    createdAt: null,
+    updatedAt: null,
     userSocketsInRoom: [],
   },
 };

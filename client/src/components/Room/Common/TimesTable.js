@@ -207,7 +207,8 @@ function TimesTable({
                     solveNum={attempts.length - index}
                     attempt={attempt.results[u.id]}
                     highlight={attempt.results[u.id]
-                      && Math.round(attempt.results[u.id].time)
+                         && !attempt.results[u.id].penalties?.DNF
+                         && Math.round(attempt.results[u.id].time)
                         === Math.round(stats.bests[reversedI])}
                     userId={u.id}
                     editable={u.id === userId || userId === room.admin.id}
