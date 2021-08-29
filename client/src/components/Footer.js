@@ -19,7 +19,7 @@ import { useToggleTheme } from '../theme';
 
 const Links = [{
   text: 'Donate',
-  url: 'https://ko-fi.com/klebh',
+  url: 'https://calebhoover.com/donate',
 }, {
   text: 'Contribute Idea',
   url: 'https://docs.google.com/forms/d/1YgroYi7_VRj2VrTxNa2ytV099MaVV9rGbC8KVH0tdx0/edit#responses',
