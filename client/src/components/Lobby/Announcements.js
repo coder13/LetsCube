@@ -27,9 +27,7 @@ function Announcements() {
       .then((data) => {
         setAnnouncements(data);
       })
-      .catch((err) => {
-        throw err;
-      });
+      .catch(() => {});
   }, []);
 
   if (!announcements) {
