@@ -18,7 +18,7 @@
     "moment": "2.24.0",
     "mongoose": "^5.8.3",
     "morgan": "^1.9.1",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "passport": "^0.4.1",
     "passport-custom": "^1.1.1",
     "passport-local": "^1.0.0",
