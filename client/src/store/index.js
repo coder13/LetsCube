@@ -22,7 +22,7 @@ import { socketIOManagerMiddleware } from './middlewares/manager';
 const composeEnhancer = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
 if (process.env.NODE_ENV === 'production') {
-  ReactGA.initialize('UA-143761187-3', {
+  ReactGA.initialize('G-RZQ3J1CF6Q', {
     debug: false,
   });
 }
