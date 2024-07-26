@@ -1,4 +1,4 @@
-const banned = [47162];
+const banned = [47162, 106505];
 
 module.exports = (req, res, next) => {
   if (!req.isAuthenticated()) {
