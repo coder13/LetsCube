@@ -109,6 +109,10 @@ const Room = new mongoose.Schema({
     type: Date,
     default: undefined,
   },
+  hiddenAt: {
+    type: Date,
+    default: undefined,
+  },
   twitchChannel: {
     type: String,
     default: undefined,
@@ -118,10 +122,18 @@ const Room = new mongoose.Schema({
 });
 
 Room.index({
-  expireAt: 1,
-}, {
-  expireAfterSeconds: 0,
+  hiddenAt: 1,
 });
+
+Room.statics.visibleQuery = function visibleQuery(now = new Date()) {
+  return {
+    $or: [
+      { hiddenAt: { $exists: false } },
+      { hiddenAt: null },
+      { hiddenAt: { $gt: now } },
+    ],
+  };
+};
 
 Room.virtual('scrambler').get(function () {
   return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
@@ -147,6 +159,10 @@ Room.virtual('latestAttempt').get(function () {
   return this.attempts[this.attempts.length - 1];
 });
 
+Room.methods.isHidden = function isHidden(now = new Date()) {
+  return this.hiddenAt && this.hiddenAt <= now;
+};
+
 Room.methods.start = function () {
   this.started = true;
 
@@ -166,12 +182,22 @@ Room.methods.pause = function () {
 };
 
 Room.methods.updateStale = function updateStale(stale) {
+  this.expireAt = null;
+
   if (stale) {
-    this.expireAt = moment().add(10, 'minutes');
+    if (!this.hiddenAt) {
+      this.hiddenAt = moment().add(10, 'minutes').toDate();
+    }
   } else {
-    this.expireAt = null;
+    this.hiddenAt = null;
   }
 
+  return this.save();
+};
+
+Room.methods.hide = function hide() {
+  this.expireAt = null;
+  this.hiddenAt = new Date();
   return this.save();
 };
 

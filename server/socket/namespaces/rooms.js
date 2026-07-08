@@ -5,7 +5,6 @@ const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
 const { Room, User } = require('../../models');
-const { persistSolve } = require('../../services/solveArchive');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 
@@ -29,12 +28,13 @@ const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
 
 const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
 
-const getRooms = (userId) => Room.find().populate('users').populate('admin').populate('owner')
+const getRooms = (userId) => Room.find(Room.visibleQuery()).populate('users').populate('admin').populate('owner')
   .then((rooms) => rooms.filter((room) => (
     userId ? !room.banned.get(userId.toString()) : true
   )).map(roomMask));
 
 const roomTimerObj = {};
+const roomHideTimerObj = {};
 
 module.exports = (io, middlewares) => {
   const ns = () => io.of('/rooms');
@@ -52,6 +52,36 @@ module.exports = (io, middlewares) => {
     return [...sockets].some((socketId) => socketId !== currentSocketId);
   };
 
+  function clearRoomHideTimer(roomId) {
+    clearTimeout(roomHideTimerObj[roomId]);
+    delete roomHideTimerObj[roomId];
+  }
+
+  function scheduleRoomHide(room) {
+    if (!room.hiddenAt) {
+      clearRoomHideTimer(room._id);
+      return;
+    }
+
+    clearRoomHideTimer(room._id);
+
+    const time = new Date(room.hiddenAt).getTime() - Date.now();
+
+    roomHideTimerObj[room._id] = setTimeout(async () => {
+      try {
+        const r = await fetchRoom(room._id);
+
+        if (r && r.isHidden()) {
+          ns().emit(Protocol.ROOM_DELETED, r._id.toString());
+        }
+      } catch (err) {
+        logger.error(err);
+      } finally {
+        clearRoomHideTimer(room._id);
+      }
+    }, Math.max(time, 0));
+  }
+
   async function markNormalRoomsStaleOnStartup() {
     const rooms = await Room.find({ type: 'normal' })
       .populate('users')
@@ -65,7 +95,8 @@ module.exports = (io, middlewares) => {
       });
 
       room.admin = null;
-      await room.updateStale(true);
+      const r = await room.updateStale(true);
+      scheduleRoomHide(r);
     }));
 
     logger.info('Marked normal rooms stale on socket startup', {
@@ -256,6 +287,7 @@ module.exports = (io, middlewares) => {
 
         broadcast(Protocol.USER_LEFT, socket.user.id);
         ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        scheduleRoomHide(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -295,6 +327,7 @@ module.exports = (io, middlewares) => {
       }
 
       socket.room = r;
+      clearRoomHideTimer(r._id);
       socket.emit(Protocol.JOIN, joinRoomMask(r));
       cb(null, joinRoomMask(r));
 
@@ -312,6 +345,13 @@ module.exports = (io, middlewares) => {
       try {
         const room = await fetchRoom(id);
         if (!room) {
+          return cb({
+            statusCode: 404,
+            message: `Could not find room with id ${id}`,
+          });
+        }
+
+        if (room.isHidden()) {
           return cb({
             statusCode: 404,
             message: `Could not find room with id ${id}`,
@@ -409,15 +449,24 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      Room.deleteOne({ _id: id }).then((res) => {
-        if (res.deletedCount > 0) {
-          socket.room = undefined;
-          cb(null);
-          ns().emit(Protocol.ROOM_DELETED, id);
-        } else if (res.deletedCount > 1) {
-          logger.error(168, 'big problemo');
+      try {
+        const room = await Room.findById(id);
+
+        if (!room) {
+          return cb({
+            statusCode: 404,
+            message: `Could not find room with id ${id}`,
+          });
         }
-      });
+
+        await room.hide();
+        clearRoomHideTimer(room._id);
+        socket.room = undefined;
+        cb(null);
+        ns().emit(Protocol.ROOM_DELETED, id);
+      } catch (e) {
+        logger.error(e);
+      }
     });
 
     // Register user for room they are currently in
@@ -481,7 +530,6 @@ module.exports = (io, middlewares) => {
         socket.room.waitingFor.set(socket.user.id.toString(), false);
 
         const r = await socket.room.save();
-        await persistSolve(r, id, socket.user.id, result, socket.user.id);
 
         ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
           id,
@@ -526,7 +574,6 @@ module.exports = (io, middlewares) => {
         socket.room.attempts[result.id].results.set(userId.toString(), result.result);
 
         const r = await socket.room.save();
-        await persistSolve(r, result.id, userId, result.result, socket.user.id);
 
         ns().in(r.accessCode).emit(Protocol.EDIT_RESULT, {
           ...result,
@@ -624,6 +671,7 @@ module.exports = (io, middlewares) => {
 
         ns().in(socket.room.accessCode).emit(Protocol.USER_LEFT, userId);
         ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        scheduleRoomHide(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -657,6 +705,7 @@ module.exports = (io, middlewares) => {
 
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
         ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        scheduleRoomHide(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
