@@ -1,6 +1,6 @@
 const config = require('getconfig');
 const session = require('express-session');
-const MongoStore = require('connect-mongo')(session);
+const MongoStore = require('connect-mongo');
 
 module.exports = (mongoose) => session({
   secret: config.auth.secret,
@@ -12,7 +12,7 @@ module.exports = (mongoose) => session({
     secure: process.env.NODE_ENV === 'prod',
     sameSite: 'strict',
   },
-  store: new MongoStore({
-    mongooseConnection: mongoose.connection,
+  store: MongoStore.create({
+    client: mongoose.connection.getClient(),
   }),
 });

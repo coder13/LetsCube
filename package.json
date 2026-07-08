@@ -8,5 +8,8 @@
       "pre-commit": "cd client/ && npm run lint && cd ../server/ && npm run lint && cd ../client/ && CI=true npm run test"
     }
   },
-  "dependencies": {}
+  "engines": {
+    "node": ">=18 <19",
+    "npm": ">=9"
+  }
 }

@@ -1,7 +1,8 @@
 const http = require('http');
 const config = require('getconfig');
 const socketIO = require('socket.io');
-const redis = require('socket.io-redis');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 const expressSocketSession = require('express-socket.io-session');
 const session = require('../middlewares/session');
 const { connect } = require('../database');
@@ -48,10 +49,14 @@ const init = async () => {
 
   const mongoose = await connect();
 
-  io.adapter(redis({
-    host: 'localhost',
-    port: 6379,
-  }));
+  const pubClient = createClient({ url: 'redis://localhost:6379' });
+  const subClient = pubClient.duplicate();
+
+  pubClient.on('error', logSocketError('redis pub client'));
+  subClient.on('error', logSocketError('redis sub client'));
+
+  await Promise.all([pubClient.connect(), subClient.connect()]);
+  io.adapter(createAdapter(pubClient, subClient));
 
   const middlewares = [
     expressSocketSession(session(mongoose), {
