@@ -1,6 +1,7 @@
 [build]
-  command = "if [ -d client ]; then cd client; fi && npm install --ignore-scripts && if node -e \"process.exit(Number(process.versions.node.split('.')[0]) >= 17 ? 0 : 1)\"; then NODE_OPTIONS=--openssl-legacy-provider npm run build; else npm run build; fi"
-  publish = "client/build"
+  base = "client"
+  command = "npm install --ignore-scripts && if node -e \"process.exit(Number(process.versions.node.split('.')[0]) >= 17 ? 0 : 1)\"; then NODE_OPTIONS=--openssl-legacy-provider npm run build; else npm run build; fi"
+  publish = "build"
 
 [build.environment]
   NODE_VERSION = "14.21.3"
