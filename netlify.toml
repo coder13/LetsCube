@@ -1,5 +1,5 @@
 [build]
-  command = "cd client && npm install && npm run build"
+  command = "cd client && npm install --ignore-scripts && if node -e \"process.exit(Number(process.versions.node.split('.')[0]) >= 17 ? 0 : 1)\"; then NODE_OPTIONS=--openssl-legacy-provider npm run build; else npm run build; fi"
   publish = "client/build"
 
 [build.environment]
