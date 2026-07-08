@@ -5,6 +5,7 @@ const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
 const { Room, User } = require('../../models');
+const { persistSolve } = require('../../services/solveArchive');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 
@@ -480,6 +481,7 @@ module.exports = (io, middlewares) => {
         socket.room.waitingFor.set(socket.user.id.toString(), false);
 
         const r = await socket.room.save();
+        await persistSolve(r, id, socket.user.id, result, socket.user.id);
 
         ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
           id,
@@ -524,6 +526,7 @@ module.exports = (io, middlewares) => {
         socket.room.attempts[result.id].results.set(userId.toString(), result.result);
 
         const r = await socket.room.save();
+        await persistSolve(r, result.id, userId, result.result, socket.user.id);
 
         ns().in(r.accessCode).emit(Protocol.EDIT_RESULT, {
           ...result,
