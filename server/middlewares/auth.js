@@ -6,8 +6,8 @@ module.exports = (req, res, next) => {
     res.send(
       JSON.stringify({
         code: 403,
-        message: "Unauthorized",
-      })
+        message: 'Unauthorized',
+      }),
     );
     res.end();
   } else if (req && req.user && req.user.id && banned.includes(req.user.id)) {
@@ -15,8 +15,8 @@ module.exports = (req, res, next) => {
     res.send(
       JSON.stringify({
         code: 403,
-        message: "Unauthorized",
-      })
+        message: 'Unauthorized',
+      }),
     );
     res.end();
   } else {

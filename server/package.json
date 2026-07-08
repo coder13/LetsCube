@@ -38,7 +38,8 @@
     "start:server": "nodemon index.js",
     "start:socket": "nodemon socket/",
     "lint": "eslint ./",
-    "lint:fix": "eslint --fix ./"
+    "lint:fix": "eslint --fix ./",
+    "test": "jest --passWithNoTests"
   },
   "devDependencies": {
     "eslint": "6.8.0",
