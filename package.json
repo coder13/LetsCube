@@ -1,12 +1,16 @@
 {
   "private": true,
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
+  },
   "devDependencies": {
+    "cypress": "^13.17.0",
     "husky": "4.2.5"
   },
   "husky": {
     "hooks": {
       "pre-commit": "cd client/ && npm run lint && cd ../server/ && npm run lint && cd ../client/ && CI=true npm run test"
     }
-  },
-  "dependencies": {}
+  }
 }
