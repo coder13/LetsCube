@@ -240,7 +240,11 @@ module.exports = (io, middlewares) => {
     // Only deals with removing authenticated users from a room
     async function leaveRoom() {
       try {
-        const hasOtherSockets = await hasOtherSocketsForUserRoom(socket.userId, socket.roomId, socket.id);
+        const hasOtherSockets = await hasOtherSocketsForUserRoom(
+          socket.userId,
+          socket.roomId,
+          socket.id,
+        );
         if (hasOtherSockets) {
           return;
         }
