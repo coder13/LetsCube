@@ -46,6 +46,36 @@ module.exports = (io, middlewares) => {
     new Set([encodeUserRoom(userId, roomId)]),
   );
 
+  const hasOtherSocketsForUserRoom = async (userId, roomId, currentSocketId) => {
+    const sockets = await socketsForUserRoom(userId, roomId);
+    return [...sockets].some((socketId) => socketId !== currentSocketId);
+  };
+
+  async function markNormalRoomsStaleOnStartup() {
+    const rooms = await Room.find({ type: 'normal' })
+      .populate('users')
+      .populate('admin')
+      .populate('owner');
+
+    await Promise.all(rooms.map(async (room) => {
+      room.users.forEach((user) => {
+        room.inRoom.set(user.id.toString(), false);
+        room.waitingFor.set(user.id.toString(), false);
+      });
+
+      room.admin = null;
+      await room.updateStale(true);
+    }));
+
+    logger.info('Marked normal rooms stale on socket startup', {
+      rooms: rooms.length,
+    });
+  }
+
+  const normalRoomsReady = markNormalRoomsStaleOnStartup().catch((err) => {
+    logger.error(err);
+  });
+
   function sendNewScramble(room) {
     return room.newAttempt().then((r) => {
       logger.debug('Sending new scramble to room', { roomId: room.id });
@@ -143,6 +173,8 @@ module.exports = (io, middlewares) => {
   }
 
   ns().on('connection', async (socket) => {
+    await normalRoomsReady;
+
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     socket.use(async (foo, next) => {
@@ -208,9 +240,8 @@ module.exports = (io, middlewares) => {
     // Only deals with removing authenticated users from a room
     async function leaveRoom() {
       try {
-        const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
-
-        if (sockets.size > 0) {
+        const hasOtherSockets = await hasOtherSocketsForUserRoom(socket.userId, socket.roomId, socket.id);
+        if (hasOtherSockets) {
           return;
         }
 
@@ -691,15 +722,12 @@ module.exports = (io, middlewares) => {
 
     socket.on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
-        socket.leave(socket.room.accessCode);
-
         if (socket.user) {
+          await leaveRoom();
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
-          const sockets = await socketsForUserRoom(socket.userId, socket.roomId);
-          if (sockets.size === 0) {
-            await leaveRoom();
-          }
         }
+
+        socket.leave(socket.room.accessCode);
       }
 
       delete socket.room;
