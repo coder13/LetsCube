@@ -4,6 +4,14 @@ const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 
+const PREFERENCE_KEYS = new Set([
+  'showWCAID',
+  'preferRealName',
+  'useInspection',
+  'timerType',
+  'muteTimer',
+]);
+
 module.exports = () => {
   const sendError = (res, err) => {
     res.status(err.statusCode || 500).send({
@@ -60,13 +68,26 @@ module.exports = () => {
   });
 
   router.put('/updatePreference', auth, async (req, res) => {
-    Object.keys(req.body).forEach((key) => {
-      req.user[key] = req.body[key];
-    });
+    const unknownPreference = Object.keys(req.body)
+      .find((key) => !PREFERENCE_KEYS.has(key));
+    if (unknownPreference) {
+      return sendError(res, {
+        statusCode: 400,
+        message: `Invalid preference: ${unknownPreference}`,
+      });
+    }
 
-    const user = await req.user.save();
+    try {
+      Object.keys(req.body).forEach((key) => {
+        req.user[key] = req.body[key];
+      });
 
-    res.json(user.toObject());
+      const user = await req.user.save();
+
+      return res.json(user.toObject());
+    } catch (err) {
+      return sendError(res, err);
+    }
   });
 
   return router;

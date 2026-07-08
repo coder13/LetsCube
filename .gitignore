@@ -12,6 +12,7 @@ node_modules
 /client/build
 
 logs
+/bug-audit/
 
 # misc
 .DS_Store

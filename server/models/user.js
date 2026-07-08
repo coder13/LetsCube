@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+const redactUser = (doc, ret) => {
+  delete ret.email;
+  delete ret.accessToken;
+  if (!doc.showWCAID) {
+    delete ret.wcaId;
+    if (!doc.preferRealName) {
+      delete ret.name;
+    }
+    ret.avatar = {};
+  }
+
+  delete ret.__v;
+};
+
 const schema = new mongoose.Schema({
   id: {
     type: Number,
@@ -50,22 +64,11 @@ const schema = new mongoose.Schema({
   versionKey: false,
   toJSON: {
     getters: true,
-    transform(doc, ret) {
-      delete ret.email;
-      delete ret.accessToken;
-      if (!doc.showWCAID) {
-        delete ret.wcaId;
-        if (!doc.preferRealName) {
-          delete ret.name;
-        }
-        ret.avatar = {};
-      }
-
-      delete ret.__v;
-    },
+    transform: redactUser,
   },
   toObject: {
     getters: true,
+    transform: redactUser,
   },
 });
 
