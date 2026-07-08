@@ -16,7 +16,7 @@
     "getconfig": "^4.5.0",
     "lodash": "^4.17.21",
     "moment": "2.24.0",
-    "mongoose": "^5.8.3",
+    "mongoose": "^6.13.9",
     "morgan": "^1.9.1",
     "node-fetch": "^2.6.1",
     "passport": "^0.4.1",
