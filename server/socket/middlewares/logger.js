@@ -10,5 +10,9 @@ module.exports = (socket, next) => {
     });
   });
 
+  socket.on('error', (err) => {
+    logger.error(err);
+  });
+
   next();
 };
