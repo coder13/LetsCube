@@ -149,7 +149,9 @@ Navigation.propTypes = {
   server: PropTypes.shape({
     reconnecting: PropTypes.bool,
     reconnectAttempts: PropTypes.number,
-    reconnectError: PropTypes.object,
+    reconnectError: PropTypes.shape({
+      message: PropTypes.string,
+    }),
   }),
 };
 

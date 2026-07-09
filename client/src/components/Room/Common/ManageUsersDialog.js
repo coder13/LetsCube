@@ -192,7 +192,9 @@ function MangeUsersDialog({
 
 MangeUsersDialog.propTypes = {
   room: PropTypes.shape({
-    users: PropTypes.array,
+    users: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.number,
+    })),
   }),
   self: PropTypes.shape({
     id: PropTypes.number,

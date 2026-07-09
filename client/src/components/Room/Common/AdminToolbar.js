@@ -155,7 +155,7 @@ function AdminToolbar({ room }) {
 AdminToolbar.propTypes = {
   room: PropTypes.shape({
     _id: PropTypes.string,
-    attempts: PropTypes.array,
+    attempts: PropTypes.arrayOf(PropTypes.shape()),
     event: PropTypes.string,
     started: PropTypes.bool,
     type: PropTypes.oneOf(['normal', 'grand_prix']),
