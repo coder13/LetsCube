@@ -41,8 +41,8 @@ install_dependencies() {
 
 build_client() {
   if [ -f "$APP_DIR/yarn.lock" ]; then
-    cd "$APP_DIR"
-    yarn workspace letscube-client build
+    cd "$APP_DIR/client"
+    node scripts/build.js
   else
     cd "$APP_DIR/client"
     npm run build
