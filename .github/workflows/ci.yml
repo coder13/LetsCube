@@ -79,7 +79,7 @@ jobs:
           node-version: 22.17.0
 
       - name: Start backing services
-        run: docker compose up -d
+        run: docker compose -f compose.yml -f compose.dev.yml up -d mongo redis
 
       - name: Start server
         run: LETSCUBE_TEST_AUTH=true yarn workspace letscube-server node index.js > server.log 2>&1 &
@@ -107,7 +107,7 @@ jobs:
                 cat server.log || true
                 echo "--- socket.log"
                 cat socket.log || true
-                docker compose ps
+                docker compose -f compose.yml -f compose.dev.yml ps
                 exit 1
               fi
 
@@ -127,4 +127,4 @@ jobs:
           cat server.log || true
           echo "--- socket.log"
           cat socket.log || true
-          docker compose ps || true
+          docker compose -f compose.yml -f compose.dev.yml ps || true
