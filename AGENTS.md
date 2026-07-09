@@ -14,8 +14,7 @@ to miss when making changes here.
 ## Runtime Setup
 
 - Local development needs MongoDB and Redis.
-- Install from the repo root with `yarn install --ignore-engines`; Cypress 15
-  requires Node 20, while the current client path still targets Node 18.
+- The repo targets Node 22. Install from the repo root with `yarn install`.
 - The backend is two separate processes:
   - `yarn start:server` starts Express/static/auth/API on port `8080`.
   - `yarn start:socket` starts Socket.IO on port `9000`.
@@ -26,9 +25,9 @@ to miss when making changes here.
 ## Dependency Age
 
 - The stack is old: React 16, Webpack 4, Material UI v4, Socket.IO v3,
-  Mongoose 6, and `node-sass`.
-- Be cautious with modern Node/npm changes. `node-sass` and the old CRA/Webpack
-  toolchain are likely to be the first things to break.
+  Mongoose 6, and a customized CRA/Webpack toolchain.
+- Be cautious with modern Node/npm changes. The old CRA/Webpack toolchain is
+  likely to be the first thing to break.
 
 ## Socket.IO
 

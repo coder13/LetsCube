@@ -11,7 +11,7 @@ Make sure Node.JS and Docker are installed. Docker Compose starts the local Mong
 ```
 git clone https://github.com/coder13/letscube.git
 cd letscube
-yarn install --ignore-engines # Cypress requires Node 20, but the client still targets Node 18
+yarn install
 docker compose up -d
 ```
 
