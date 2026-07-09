@@ -12,6 +12,20 @@ const canDeleteRoom = (userId, room) => {
   return [room.owner, room.admin].some((user) => user && +user.id === +userId);
 };
 
+const canAccessRoom = (userId, room) => {
+  if (!room) {
+    return false;
+  }
+
+  if (!userId) {
+    return true;
+  }
+
+  const userKey = userId.toString();
+  return !!room.inRoom.get(userKey) && !room.banned.get(userKey);
+};
+
 module.exports = {
+  canAccessRoom,
   canDeleteRoom,
 };

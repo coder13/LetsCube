@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-const { canDeleteRoom } = require('./roomAuthorization');
+const { canAccessRoom, canDeleteRoom } = require('./roomAuthorization');
 
 describe('canDeleteRoom', () => {
   const room = {
@@ -20,5 +20,23 @@ describe('canDeleteRoom', () => {
 
   it('allows the global administrator', () => {
     expect(canDeleteRoom(8184, null)).toBe(true);
+  });
+});
+
+describe('canAccessRoom', () => {
+  const room = ({ inRoom = true, banned = false } = {}) => ({
+    inRoom: new Map([['101', inRoom]]),
+    banned: new Map([['101', banned]]),
+  });
+
+  it('allows anonymous spectators and active room users', () => {
+    expect(canAccessRoom(null, room())).toBe(true);
+    expect(canAccessRoom(101, room())).toBe(true);
+  });
+
+  it('rejects missing rooms, removed users, and banned users', () => {
+    expect(canAccessRoom(101, null)).toBe(false);
+    expect(canAccessRoom(101, room({ inRoom: false }))).toBe(false);
+    expect(canAccessRoom(101, room({ banned: true }))).toBe(false);
   });
 });
