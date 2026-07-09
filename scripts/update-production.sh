@@ -7,7 +7,7 @@ BRANCH="${BRANCH:-master}"
 AUTO_STASH="${AUTO_STASH:-0}"
 FORCE_DEPLOY="${FORCE_DEPLOY:-0}"
 LOCK_FILE="${LOCK_FILE:-/tmp/letscube-production-update.lock}"
-NODE_VERSION="${NODE_VERSION:-16.20.2}"
+NODE_VERSION="${NODE_VERSION:-22.13.1}"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 
 exec 9>"$LOCK_FILE"
