@@ -8,6 +8,7 @@ x-app-environment: &app-environment
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}
   DATABASE_URL: ${DATABASE_URL:-}
+  DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:-}
   PGHOST: ${PGHOST:-postgres}
   PGPORT: ${PGPORT:-5432}
   PGDATABASE: ${PGDATABASE:-letscube}
@@ -25,6 +26,16 @@ x-app-environment: &app-environment
   CORS_ORIGINS: ${CORS_ORIGINS:-https://letscube.net,https://www.letscube.net}
 
 services:
+  migrate:
+    image: letscube-app:${APP_IMAGE_TAG:-local}
+    command: ["./node_modules/.bin/prisma", "migrate", "deploy", "--config", "server/prisma.config.mjs"]
+    environment:
+      <<: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     image: letscube-app:${APP_IMAGE_TAG:-local}
     command: ["node", "server/index.js"]

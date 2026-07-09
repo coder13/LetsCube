@@ -1,6 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS analytics;
+CREATE SCHEMA IF NOT EXISTS app;
 
-CREATE TABLE IF NOT EXISTS app.users (
+CREATE TABLE app.users (
   id uuid PRIMARY KEY,
   wca_user_id bigint NOT NULL UNIQUE,
   email text,
@@ -14,11 +15,11 @@ CREATE TABLE IF NOT EXISTS app.users (
   ingested_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS users_username_lower_idx
+CREATE INDEX users_username_lower_idx
   ON app.users (lower(username))
   WHERE username IS NOT NULL AND username <> '';
 
-CREATE TABLE IF NOT EXISTS app.rooms (
+CREATE TABLE app.rooms (
   id uuid PRIMARY KEY,
   mongo_id text NOT NULL UNIQUE,
   name text NOT NULL,
@@ -40,7 +41,7 @@ CREATE TABLE IF NOT EXISTS app.rooms (
   ingested_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS app.room_participants (
+CREATE TABLE app.room_participants (
   room_id uuid NOT NULL REFERENCES app.rooms(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
   competing boolean NOT NULL DEFAULT false,
@@ -53,23 +54,27 @@ CREATE TABLE IF NOT EXISTS app.room_participants (
   PRIMARY KEY (room_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS app.attempts (
+CREATE TABLE app.attempts (
   id uuid PRIMARY KEY,
+  mongo_id text NOT NULL CONSTRAINT attempts_mongo_id_unique UNIQUE,
   room_id uuid NOT NULL REFERENCES app.rooms(id) ON DELETE CASCADE,
   ordinal integer NOT NULL CHECK (ordinal >= 0),
+  cube_event text NOT NULL,
   scrambles jsonb NOT NULL,
   source_created_at timestamptz,
   source_updated_at timestamptz NOT NULL,
-  ingested_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (room_id, ordinal)
+  ingested_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS app.solves (
+CREATE INDEX attempts_room_ordinal_idx
+  ON app.attempts (room_id, ordinal);
+
+CREATE TABLE app.solves (
   id uuid PRIMARY KEY,
   attempt_id uuid NOT NULL REFERENCES app.attempts(id) ON DELETE CASCADE,
   room_id uuid NOT NULL REFERENCES app.rooms(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
-  time_ms integer NOT NULL CHECK (time_ms >= 0),
+  time_ms integer NOT NULL CHECK (time_ms >= -1),
   penalties jsonb NOT NULL DEFAULT '{}'::jsonb,
   source_created_at timestamptz,
   source_updated_at timestamptz NOT NULL,
@@ -77,13 +82,10 @@ CREATE TABLE IF NOT EXISTS app.solves (
   UNIQUE (attempt_id, user_id)
 );
 
-CREATE INDEX IF NOT EXISTS solves_user_created_idx
+CREATE INDEX solves_user_created_idx
   ON app.solves (user_id, source_created_at DESC);
 
-CREATE INDEX IF NOT EXISTS attempts_room_ordinal_idx
-  ON app.attempts (room_id, ordinal);
-
-CREATE TABLE IF NOT EXISTS analytics.events (
+CREATE TABLE analytics.events (
   id uuid PRIMARY KEY,
   event_name text NOT NULL,
   occurred_at timestamptz NOT NULL,
@@ -94,12 +96,12 @@ CREATE TABLE IF NOT EXISTS analytics.events (
   ingested_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS analytics_events_name_time_idx
+CREATE INDEX analytics_events_name_time_idx
   ON analytics.events (event_name, occurred_at DESC);
 
-CREATE INDEX IF NOT EXISTS analytics_events_room_time_idx
+CREATE INDEX analytics_events_room_time_idx
   ON analytics.events (room_id, occurred_at DESC)
   WHERE room_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS analytics_events_expiry_idx
+CREATE INDEX analytics_events_expiry_idx
   ON analytics.events (expires_at);

@@ -1,13 +1,9 @@
-/* eslint-disable no-await-in-loop, no-continue, no-restricted-syntax */
-const fs = require('fs');
-const path = require('path');
 const { Pool } = require('pg');
 
 const config = require('../runtimeConfig');
 const logger = require('../logger');
 
 const RETRY_DELAY_MS = 30 * 1000;
-const MIGRATION_LOCK_NAME = 'letscube-postgres-migrations';
 
 const poolConfig = config.postgres.connectionString
   ? { connectionString: config.postgres.connectionString }
@@ -41,49 +37,6 @@ let initialized = false;
 let initializationPromise;
 let lastFailureAt = 0;
 
-const migrationFiles = () => fs.readdirSync(path.join(__dirname, 'migrations'))
-  .filter((file) => file.endsWith('.sql'))
-  .sort();
-
-const runMigrations = async (client) => {
-  await client.query('SELECT pg_advisory_lock(hashtext($1))', [MIGRATION_LOCK_NAME]);
-  try {
-    await client.query('CREATE SCHEMA IF NOT EXISTS app');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS app.schema_migrations (
-        filename text PRIMARY KEY,
-        applied_at timestamptz NOT NULL DEFAULT now()
-      )
-    `);
-
-    const applied = new Set((await client.query(
-      'SELECT filename FROM app.schema_migrations',
-    )).rows.map(({ filename }) => filename));
-
-    for (const filename of migrationFiles()) {
-      if (applied.has(filename)) {
-        continue;
-      }
-
-      const sql = fs.readFileSync(path.join(__dirname, 'migrations', filename), 'utf8');
-      await client.query('BEGIN');
-      try {
-        await client.query(sql);
-        await client.query(
-          'INSERT INTO app.schema_migrations (filename) VALUES ($1)',
-          [filename],
-        );
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      }
-    }
-  } finally {
-    await client.query('SELECT pg_advisory_unlock(hashtext($1))', [MIGRATION_LOCK_NAME]);
-  }
-};
-
 const initializePostgres = async () => {
   if (!config.postgres.enabled) {
     return false;
@@ -99,15 +52,10 @@ const initializePostgres = async () => {
   }
 
   initializationPromise = (async () => {
-    const client = await pool.connect();
-    try {
-      await runMigrations(client);
-      initialized = true;
-      logger.info('[POSTGRES] Connected and migrations are current');
-      return true;
-    } finally {
-      client.release();
-    }
+    await pool.query('SELECT 1');
+    initialized = true;
+    logger.info('[POSTGRES] Connected');
+    return true;
   })().catch((err) => {
     lastFailureAt = Date.now();
     logger.error(err);

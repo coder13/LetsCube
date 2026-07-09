@@ -44,7 +44,10 @@ ENV PORT=8080
 ENV SOCKETIO_PORT=9000
 
 WORKDIR /app
-RUN groupadd --system letscube \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system letscube \
   && useradd --system --gid letscube --home-dir /app --shell /usr/sbin/nologin letscube
 
 COPY --chown=letscube:letscube server ./server

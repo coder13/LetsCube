@@ -19,12 +19,19 @@ docker compose -f docker-compose.yml up -d
 
 The local PostgreSQL service is exposed on port `55433` to avoid collisions
 with other projects. MongoDB remains the source of truth while PostgreSQL is a
-non-blocking dual-write target. PostgreSQL migrations run automatically when
-either backend process starts, or manually with:
+non-blocking dual-write target. Prisma owns the PostgreSQL schema and migration
+history. Apply committed migrations locally with:
 
 ```bash
 yarn workspace letscube-server postgres:migrate
 ```
+
+Create schema changes during development with
+`yarn workspace letscube-server postgres:migrate:dev`. Production Compose runs
+`prisma migrate deploy` as a separate one-shot service, keeping schema changes
+out of the API and Socket.IO startup paths. CI applies every committed migration
+to PostgreSQL 17 and checks the resulting database for drift from
+`server/prisma/schema.prisma`.
 
 **Server**
 
@@ -71,7 +78,9 @@ so retries and future backfills are idempotent.
 
 Set `POSTGRES_ENABLED=false` to disable mirroring. Production should set
 `PGHOST`, `PGDATABASE`, `PGUSER`, and `POSTGRES_PASSWORD`, or provide a
-`DATABASE_URL`. External TLS connections can set `PGSSL=true` and provide a CA
-with `PGSSL_CA`; certificate verification is enabled by default. PostgreSQL
-failures are logged but do not fail the corresponding MongoDB-backed
-application operation during this migration phase.
+`DATABASE_URL`. When runtime traffic uses a pooled connection, set
+`DIRECT_DATABASE_URL` to the direct connection used by Prisma Migrate. External
+TLS connections can set `PGSSL=true` and provide a CA with `PGSSL_CA`;
+certificate verification is enabled by default. PostgreSQL failures are logged
+but do not fail the corresponding MongoDB-backed application operation during
+this migration phase.
