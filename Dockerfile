@@ -52,6 +52,7 @@ COPY --chown=letscube:letscube server ./server
 COPY --from=server-deps --chown=letscube:letscube /app/node_modules ./node_modules
 COPY --from=server-deps --chown=letscube:letscube /app/server/node_modules ./server/node_modules
 COPY --from=client-build --chown=letscube:letscube /app/client/build ./client/build
+COPY --from=client-build --chown=letscube:letscube /app/client/src/lib ./client/src/lib
 
 USER letscube
 EXPOSE 8080 9000
