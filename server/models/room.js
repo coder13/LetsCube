@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
-const uuidv4 = require('uuid/v4');
+const { v4: uuidv4 } = require('uuid');
 const { Events } = require('../../client/src/lib/events');
 
 // const lengths = {
