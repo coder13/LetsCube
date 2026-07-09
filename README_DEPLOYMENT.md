@@ -10,7 +10,7 @@ This repo supports running LetsCube with Docker Compose on one VPS. The intended
 - MongoDB was previously read from `server/config/*.json` as `mongodb://127.0.0.1/letscube`; containers should use `MONGO_URL=mongodb://mongo:27017/letscube`.
 - Redis was previously hardcoded to `localhost:6379` in the socket process; it is now env-driven with `REDIS_URL=redis://redis:6379`.
 - Required production secrets are `AUTH_SECRET`, `WCA_CLIENT_ID`, and `WCA_CLIENT_SECRET`. The client build also needs `REACT_APP_WCA_CLIENT_ID`.
-- The target Node runtime is Node `22.17.0`. The current frontend build still needs `NODE_OPTIONS=--openssl-legacy-provider`.
+- The target Node runtime is Node `22.17.0`, and the frontend is built with Vite.
 - No separate background workers or queues were found. Redis is used by Socket.IO for coordination.
 
 ## Development

@@ -1,6 +1,5 @@
 const express = require('express');
 const CustomStrategy = require('passport-custom').Strategy;
-const fetch = require('node-fetch');
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
 

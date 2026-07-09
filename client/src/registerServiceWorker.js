@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { Workbox } from "workbox-window";
+import { Workbox } from 'workbox-window';
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost'
@@ -46,7 +46,7 @@ export function register(config) {
 }
 
 function registerValidSW(swUrl, config) {
-  const wb = new Workbox('/custom-service-worker.js');
+  const wb = new Workbox(swUrl);
 
   wb.register();
   // navigator.serviceWorker

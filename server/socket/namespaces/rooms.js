@@ -14,6 +14,8 @@ const {
   optionalAcknowledgment,
 } = require('../lib/socketHandler');
 
+const PASSWORD_SALT_ROUNDS = 10;
+
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
 
@@ -358,7 +360,7 @@ module.exports = (io, middlewares) => {
           }, roomMask(room));
         }
 
-        if (room.private && !room.authenticate(password)) {
+        if (room.private && !(await room.authenticate(password))) {
           return acknowledgment({
             statusCode: 403,
             message: 'Invalid password',
@@ -420,7 +422,7 @@ module.exports = (io, middlewares) => {
       });
 
       if (options.password) {
-        newRoom.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+        newRoom.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
       }
 
       newRoom.owner = socket.user;

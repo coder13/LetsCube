@@ -4,7 +4,6 @@ services:
     working_dir: /app
     command: sh -c "corepack enable && yarn install --frozen-lockfile && yarn workspace letscube-client start"
     environment:
-      NODE_OPTIONS: --openssl-legacy-provider
       HOST: 0.0.0.0
       PORT: 3000
       REACT_APP_API_ORIGIN: ${REACT_APP_API_ORIGIN:-http://localhost:8080}

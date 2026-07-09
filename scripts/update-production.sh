@@ -40,11 +40,9 @@ install_dependencies() {
 }
 
 build_client() {
-  export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--openssl-legacy-provider"
-
   if [ -f "$APP_DIR/yarn.lock" ]; then
-    cd "$APP_DIR/client"
-    node scripts/build.js
+    cd "$APP_DIR"
+    yarn workspace letscube-client build
   else
     cd "$APP_DIR/client"
     npm run build

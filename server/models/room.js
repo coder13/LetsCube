@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
-const moment = require('moment');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const { Events } = require('../../client/src/lib/events');
+
+const PASSWORD_SALT_ROUNDS = 10;
+const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
 
 // const lengths = {
 
@@ -167,7 +169,7 @@ Room.methods.pause = function () {
 
 Room.methods.updateStale = function updateStale(stale) {
   if (stale) {
-    this.expireAt = moment().add(10, 'minutes');
+    this.expireAt = new Date(Date.now() + STALE_ROOM_LIFETIME_MS);
   } else {
     this.expireAt = null;
   }
@@ -242,12 +244,12 @@ Room.set('toJSON', {
   virtuals: true,
 });
 
-Room.methods.authenticate = function (password) {
+Room.methods.authenticate = async function (password) {
   if (!this.password) {
     return false;
   }
 
-  return bcrypt.compareSync(password, this.password);
+  return bcrypt.compare(password, this.password);
 };
 
 Room.methods.doneWithScramble = function () {
@@ -290,10 +292,10 @@ Room.methods.changeEvent = function (event) {
   return this.newAttempt();
 };
 
-Room.methods.edit = function (options) {
+Room.methods.edit = async function (options) {
   this.name = options.name;
   if (options.private) {
-    this.password = bcrypt.hashSync(options.password, bcrypt.genSaltSync(5));
+    this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
   } else {
     this.password = null;
   }
