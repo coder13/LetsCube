@@ -5,6 +5,14 @@ APP_DIR="${APP_DIR:-/home/www/letscube}"
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-master}"
 AUTO_STASH="${AUTO_STASH:-0}"
+FORCE_DEPLOY="${FORCE_DEPLOY:-0}"
+LOCK_FILE="${LOCK_FILE:-/tmp/letscube-production-update.lock}"
+
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "Another production update is already running."
+  exit 0
+fi
 
 cd "$APP_DIR"
 
@@ -21,26 +29,27 @@ fi
 before="$(git rev-parse HEAD)"
 
 git fetch "$REMOTE" "$BRANCH"
-git merge --no-edit "$REMOTE/$BRANCH"
+
+remote_ref="$REMOTE/$BRANCH"
+if [ "$FORCE_DEPLOY" != "1" ] && git merge-base --is-ancestor "$remote_ref" HEAD; then
+  echo "Already up to date."
+  exit 0
+fi
+
+git merge --no-edit "$remote_ref"
 
 after="$(git rev-parse HEAD)"
 changed_files="$(git diff --name-only "$before" "$after" || true)"
 
-if [ "$before" = "$after" ]; then
-  echo "Already up to date."
-else
-  echo "Updated from $before to $after."
+echo "Updated from $before to $after."
+
+cd "$APP_DIR/client"
+
+if echo "$changed_files" | grep -q '^client/package'; then
+  npm ci --no-audit || npm install --no-audit
 fi
 
-if echo "$changed_files" | grep -q '^client/'; then
-  cd "$APP_DIR/client"
-
-  if echo "$changed_files" | grep -q '^client/package'; then
-    npm ci --no-audit || npm install --no-audit
-  fi
-
-  npm run build
-fi
+npm run build
 
 if echo "$changed_files" | grep -q '^server/package'; then
   cd "$APP_DIR/server"
