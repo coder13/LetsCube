@@ -22,6 +22,17 @@ describe('local app stack', () => {
     });
   });
 
+  it('renders markdown announcements in the lobby', () => {
+    cy.intercept('GET', '**/api/announcements', '[Docs](https://example.com)').as('announcements');
+
+    cy.visit('/');
+    cy.wait('@announcements');
+
+    cy.contains('a', 'Docs')
+      .should('have.attr', 'href', 'https://example.com')
+      .and('have.attr', 'target', '_blank');
+  });
+
   it('logs in and exposes the test user through the API', () => {
     login();
 

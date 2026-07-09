@@ -38,10 +38,9 @@ function Announcements() {
 
   return (
     <Paper className={classes.root}>
-      <ReactMarkdown
-        linkTarget="_blank"
-        source={announcements}
-      />
+      <ReactMarkdown linkTarget="_blank">
+        {announcements}
+      </ReactMarkdown>
     </Paper>
   );
 }
