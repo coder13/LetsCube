@@ -1,5 +1,6 @@
 {
   "private": true,
+  "packageManager": "yarn@1.22.22",
   "scripts": {
     "cypress:open": "cypress open",
     "cypress:run": "cypress run"
@@ -10,7 +11,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "cd client/ && npm run lint && cd ../server/ && npm run lint && cd ../client/ && CI=true npm run test"
+      "pre-commit": "cd client/ && yarn lint && cd ../server/ && yarn lint && cd ../client/ && CI=true yarn test"
     }
   }
 }

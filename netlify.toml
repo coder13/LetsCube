@@ -1,7 +1,8 @@
 [build]
   base = "client"
-  command = "npm ci --ignore-scripts --production=false && if node -e \"process.exit(Number(process.versions.node.split('.')[0]) >= 17 ? 0 : 1)\"; then NODE_OPTIONS=--openssl-legacy-provider npm run build; else npm run build; fi"
+  command = "yarn install --frozen-lockfile --production=false && yarn build"
   publish = "build"
 
 [build.environment]
-  NODE_VERSION = "14.21.3"
+  NODE_VERSION = "18.18.2"
+  YARN_VERSION = "1.22.22"
