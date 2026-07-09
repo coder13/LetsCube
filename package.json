@@ -5,7 +5,7 @@
     "cypress:run": "cypress run"
   },
   "devDependencies": {
-    "cypress": "^13.17.0",
+    "cypress": "^15.18.1",
     "husky": "4.2.5"
   },
   "husky": {
