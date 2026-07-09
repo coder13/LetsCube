@@ -7,6 +7,8 @@ const logger = require('../../logger');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
+const { canDeleteRoom } = require('../lib/roomAuthorization');
+const { removeUserFromRoomSockets } = require('../lib/roomSockets');
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
@@ -401,22 +403,40 @@ module.exports = (io, middlewares) => {
 
     /* Admin Actions */
     socket.on(Protocol.DELETE_ROOM, async (id, cb) => {
-      if (!checkAdmin() && +socket.userId !== 8184) {
-        return cb({
-          statusCode: 401,
-          message: 'Must be admin to delete room',
-        });
-      }
+      try {
+        const room = await fetchRoom(id);
+        if (!room) {
+          return cb({
+            statusCode: 404,
+            message: 'Could not find room to delete',
+          });
+        }
 
-      Room.deleteOne({ _id: id }).then((res) => {
+        if (!canDeleteRoom(socket.userId, room)) {
+          return cb({
+            statusCode: 403,
+            message: 'Must be the room owner or admin to delete room',
+          });
+        }
+
+        const res = await Room.deleteOne({ _id: room._id });
         if (res.deletedCount > 0) {
           socket.room = undefined;
           cb(null);
           ns().emit(Protocol.ROOM_DELETED, id);
-        } else if (res.deletedCount > 1) {
-          logger.error(168, 'big problemo');
+        } else {
+          cb({
+            statusCode: 404,
+            message: 'Could not find room to delete',
+          });
         }
-      });
+      } catch (err) {
+        logger.error(err);
+        cb({
+          statusCode: 500,
+          message: 'Failed to delete room',
+        });
+      }
     });
 
     // Register user for room they are currently in
@@ -604,14 +624,8 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await socketsForUserRoom(userId, socket.roomId);
-
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
-
-        sockets.forEach((sId) => {
-          ns().adapter.remoteLeave(sId, socket.room.accessCode);
-          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
-        });
+        removeUserFromRoomSockets(ns(), userId, socket.room);
 
         const room = await socket.room.dropUser({ id: userId });
 
@@ -637,14 +651,8 @@ module.exports = (io, middlewares) => {
       }
 
       try {
-        const sockets = await socketsForUserRoom(userId, socket.roomId);
-
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
-
-        sockets.forEach((sId) => {
-          ns().adapter.remoteLeave(sId, socket.room.accessCode);
-          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
-        });
+        removeUserFromRoomSockets(ns(), userId, socket.room);
 
         const room = await socket.room.banUser(userId);
 
