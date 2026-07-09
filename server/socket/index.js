@@ -1,7 +1,8 @@
 const http = require('http');
 const config = require('getconfig');
-const socketIO = require('socket.io');
-const redis = require('socket.io-redis');
+const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const Redis = require('ioredis');
 const expressSocketSession = require('express-socket.io-session');
 const session = require('../middlewares/session');
 const { connect } = require('../database');
@@ -29,7 +30,7 @@ const watchNamespaceErrors = (io, namespace) => {
 
 const init = async () => {
   const server = http.createServer();
-  const io = socketIO(server, {
+  const io = new Server(server, {
     cors: {
       origin: true,
       // config.cors.origin.map((o) => new RegExp(o)),
@@ -48,10 +49,16 @@ const init = async () => {
 
   const mongoose = await connect();
 
-  io.adapter(redis({
+  const pubClient = new Redis({
     host: 'localhost',
     port: 6379,
-  }));
+  });
+  const subClient = pubClient.duplicate();
+
+  pubClient.on('error', logSocketError('redis pub client'));
+  subClient.on('error', logSocketError('redis sub client'));
+
+  io.adapter(createAdapter(pubClient, subClient));
 
   const middlewares = [
     expressSocketSession(session(mongoose), {
