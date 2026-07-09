@@ -1,4 +1,4 @@
-import { formatTime, parseTime } from './utils';
+import { formatTime, parseTime, uuid } from './utils';
 
 test('Handles DNF input', () => {
   expect(formatTime(undefined)).toBe('DNF');
@@ -45,4 +45,8 @@ test('Parses stopwatch time', () => {
 test('Parser handles wrong input', () => {
   expect(parseTime()).toBe(undefined);
   expect(parseTime('a')).toBe(undefined);
+});
+
+test('Generates v4 UUIDs', () => {
+  expect(uuid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });

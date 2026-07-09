@@ -1,9 +1,9 @@
 import { push } from 'connected-react-router';
-import { v4 as uuid } from 'uuid';
 import UIfx from 'uifx';
 import notificationAsset from '../../assets/notification.mp3';
 import * as Protocol from '../../lib/protocol';
 import Namespace from '../../lib/Namespace';
+import { uuid } from '../../lib/utils';
 import {
   DELETE_ROOM,
   JOIN_ROOM,

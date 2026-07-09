@@ -81,7 +81,6 @@
     "ts-pnp": "1.1.5",
     "uifx": "^2.0.7",
     "url-loader": "2.3.0",
-    "uuid": "7.0.3",
     "webpack": "4.41.2",
     "webpack-dev-server": "^3.11.2",
     "webpack-manifest-plugin": "2.2.0",
