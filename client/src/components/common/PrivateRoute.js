@@ -4,17 +4,17 @@ import { Route, Redirect } from 'react-router-dom';
 import { connect } from 'react-redux';
 
 const PrivateRoute = ({
-  user, children, isCalebRoute, ...rest
+  user, children, isAdminRoute, ...rest
 }) => {
   const { fetching, id } = user;
   const loggedIn = !fetching && id;
-  const caleb = loggedIn && +id === 8184;
+  const cailyn = loggedIn && +id === 8184;
 
   if (!loggedIn) {
     return (<Redirect to="/" />);
   }
 
-  if (isCalebRoute && !caleb) {
+  if (isAdminRoute && !cailyn) {
     return (<Redirect to="/" />);
   }
 
@@ -28,13 +28,13 @@ PrivateRoute.propTypes = {
     PropTypes.arrayOf(PropTypes.node),
     PropTypes.node,
   ]),
-  isCalebRoute: PropTypes.bool,
+  isAdminRoute: PropTypes.bool,
   user: PropTypes.shape(),
 };
 
 PrivateRoute.defaultProps = {
   children: [],
-  isCalebRoute: false,
+  isAdminRoute: false,
   user: {
   },
 };

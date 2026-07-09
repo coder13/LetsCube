@@ -106,7 +106,7 @@ function Navigation({
                 <Route exact path="/" component={Lobby} />
                 { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
                 <PrivateRoute exact path="/profile" component={Profile} user={user} />
-                <PrivateRoute path="/admin" isCalebRoute component={Admin} />
+                <PrivateRoute path="/admin" isAdminRoute component={Admin} />
                 <Route path="/wca-redirect" component={WCARedirect} />
                 <Redirect to="/" />
               </Switch>
