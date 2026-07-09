@@ -6,13 +6,16 @@ This project consists of a client and a server.
 
 ## Development:
 
-Make sure Node.JS, MongoDB, and redis are installed.
+Make sure Node.JS and Docker are installed. Docker Compose starts the local MongoDB and Redis services used by the app.
 
 ```
 git clone https://github.com/coder13/letscube.git
 cd letscube
 npm install # installs pre-commit hook
+docker compose up -d
 ```
+
+If MongoDB or Redis are already running locally on their default ports, stop them or skip Docker Compose.
 
 **Server**
 
@@ -27,7 +30,7 @@ npm run start:server # Starts the file server (not used for dev), auth, and some
 npm run start:socket # Run this in a separate terminal; Starts the socket.io server for all the realtime socket requests
 ```
 
-**Server**
+**Client**
 
 ```cd client && npm install && npm run start```
 
