@@ -39,7 +39,7 @@ const init = async () => {
       credentials: true,
     },
     cookie: {
-      name: config.auth.secret,
+      name: 'io',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'prod',
     },

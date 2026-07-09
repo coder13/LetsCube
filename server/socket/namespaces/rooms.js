@@ -7,6 +7,12 @@ const logger = require('../../logger');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
+const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const { removeUserFromRoomSockets } = require('../lib/roomSockets');
+const {
+  createSafeSocketHandler,
+  optionalAcknowledgment,
+} = require('../lib/socketHandler');
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
@@ -175,13 +181,38 @@ module.exports = (io, middlewares) => {
   ns().on('connection', async (socket) => {
     await normalRoomsReady;
 
+    const on = createSafeSocketHandler(socket, logger, Protocol.ERROR);
+
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
-    socket.use(async (foo, next) => {
-      if (socket.roomId) {
-        socket.room = await fetchRoom(socket.roomId);
+    socket.use(async ([event], next) => {
+      try {
+        if (socket.roomId) {
+          const room = await fetchRoom(socket.roomId);
+          if (!canAccessRoom(socket.userId, room)) {
+            logger.info('Rejecting room event from a removed or banned user', {
+              event,
+              roomId: socket.roomId,
+              userId: socket.userId,
+            });
+
+            if (room) {
+              socket.leave(room.accessCode);
+              if (socket.userId) {
+                socket.leave(encodeUserRoom(socket.userId, socket.roomId));
+              }
+            }
+
+            delete socket.room;
+            delete socket.roomId;
+            return next(new Error('Socket is no longer authorized for this room'));
+          }
+          socket.room = room;
+        }
+        return next();
+      } catch (err) {
+        return next(err);
       }
-      next();
     });
 
     getRooms(socket.userId)
@@ -307,25 +338,28 @@ module.exports = (io, middlewares) => {
     }
 
     // Socket wants to join room.
-    socket.on(Protocol.JOIN_ROOM, async ({ id, spectating, password }, cb) => {
+    on(Protocol.JOIN_ROOM, async (payload = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+      const { id, spectating, password } = payload || {};
+
       try {
         const room = await fetchRoom(id);
         if (!room) {
-          return cb({
+          return acknowledgment({
             statusCode: 404,
             message: `Could not find room with id ${id}`,
           });
         }
 
         if (room.private && !password) {
-          return cb({
+          return acknowledgment({
             statusCode: 403,
             message: 'Room requires password to join',
           }, roomMask(room));
         }
 
         if (room.private && !room.authenticate(password)) {
-          return cb({
+          return acknowledgment({
             statusCode: 403,
             message: 'Invalid password',
           }, roomMask(room));
@@ -333,36 +367,42 @@ module.exports = (io, middlewares) => {
 
         if (socket.userId && room.banned.get(socket.userId.toString())) {
           logger.debug(`Banned user ${socket.user.id} is trying to join room ${room._id}`);
-          return cb({
+          return acknowledgment({
             statusCode: 401,
             message: 'Banned',
             banned: true,
           }, roomMask(room));
         }
 
-        if (room.requireRevealedIdentity && !socket.user.showWCAID) {
-          return cb({
+        if (room.requireRevealedIdentity && (!socket.user || !socket.user.showWCAID)) {
+          return acknowledgment({
             statusCode: 403,
             message: 'Must be showing WCA Identity to join room.',
           }, roomMask(room));
         }
 
-        joinRoom(room, cb, spectating);
+        return await joinRoom(room, acknowledgment, spectating);
       } catch (e) {
         logger.error(e);
+        return acknowledgment({
+          statusCode: 500,
+          message: 'Failed to join room',
+        });
       }
     });
 
-    socket.on(Protocol.CREATE_ROOM, async (options, cb) => {
+    on(Protocol.CREATE_ROOM, async (options = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+
       if (!isLoggedIn()) {
-        return cb({
+        return acknowledgment({
           statusCode: 401,
           message: 'Must be logged in to create a room',
         });
       }
 
       if (options.type === 'grand_prix') {
-        return cb({
+        return acknowledgment({
           statusCode: 403,
           message: 'Not allowed to make a Grand Prix Room',
         });
@@ -387,12 +427,12 @@ module.exports = (io, middlewares) => {
 
       const room = await newRoom.save();
       ns().emit(Protocol.ROOM_CREATED, roomMask(room));
-      joinRoom(room, (err, r) => {
+      return joinRoom(room, (err, r) => {
         if (err) {
-          return cb(err, r);
+          return acknowledgment(err, r);
         }
 
-        cb(null, r);
+        acknowledgment(null, r);
         if (r.type === 'grand_prix' && !r.started && r.startTime) {
           awaitRoomStart(r);
         }
@@ -400,27 +440,47 @@ module.exports = (io, middlewares) => {
     });
 
     /* Admin Actions */
-    socket.on(Protocol.DELETE_ROOM, async (id, cb) => {
-      if (!checkAdmin() && +socket.userId !== 8184) {
-        return cb({
-          statusCode: 401,
-          message: 'Must be admin to delete room',
-        });
-      }
+    on(Protocol.DELETE_ROOM, async (id, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
 
-      Room.deleteOne({ _id: id }).then((res) => {
+      try {
+        const room = await fetchRoom(id);
+        if (!room) {
+          return acknowledgment({
+            statusCode: 404,
+            message: 'Could not find room to delete',
+          });
+        }
+
+        if (!canDeleteRoom(socket.userId, room)) {
+          return acknowledgment({
+            statusCode: 403,
+            message: 'Must be the room owner or admin to delete room',
+          });
+        }
+
+        const res = await Room.deleteOne({ _id: room._id });
         if (res.deletedCount > 0) {
           socket.room = undefined;
-          cb(null);
+          acknowledgment(null);
           ns().emit(Protocol.ROOM_DELETED, id);
-        } else if (res.deletedCount > 1) {
-          logger.error(168, 'big problemo');
+        } else {
+          acknowledgment({
+            statusCode: 404,
+            message: 'Could not find room to delete',
+          });
         }
-      });
+      } catch (err) {
+        logger.error(err);
+        acknowledgment({
+          statusCode: 500,
+          message: 'Failed to delete room',
+        });
+      }
     });
 
     // Register user for room they are currently in
-    socket.on(Protocol.UPDATE_REGISTRATION, async (registration) => {
+    on(Protocol.UPDATE_REGISTRATION, async (registration) => {
       if (!isLoggedIn() || !isInRoom()) {
         return;
       }
@@ -435,7 +495,7 @@ module.exports = (io, middlewares) => {
     });
 
     // Register user for room they are currently in
-    socket.on(Protocol.UPDATE_USER, async ({ userId, competing, registered }) => {
+    on(Protocol.UPDATE_USER, async ({ userId, competing, registered }) => {
       if (!checkAdmin()) {
         return;
       }
@@ -457,7 +517,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.SUBMIT_RESULT, async ({ id, result }) => {
+    on(Protocol.SUBMIT_RESULT, async ({ id, result }) => {
       if (!socket.user || !socket.roomId) {
         return;
       }
@@ -496,7 +556,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.SEND_EDIT_RESULT, async (result) => {
+    on(Protocol.SEND_EDIT_RESULT, async (result) => {
       if (!socket.user || !socket.roomId) {
         return;
       }
@@ -534,7 +594,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.REQUEST_SCRAMBLE, async () => {
+    on(Protocol.REQUEST_SCRAMBLE, async () => {
       if (!checkAdmin()) {
         return;
       }
@@ -542,7 +602,7 @@ module.exports = (io, middlewares) => {
       sendNewScramble(socket.room);
     });
 
-    socket.on(Protocol.CHANGE_EVENT, async (event) => {
+    on(Protocol.CHANGE_EVENT, async (event) => {
       if (!checkAdmin()) {
         return;
       }
@@ -552,7 +612,7 @@ module.exports = (io, middlewares) => {
       }).catch(logger.error);
     });
 
-    socket.on(Protocol.EDIT_ROOM, async (options) => {
+    on(Protocol.EDIT_ROOM, async (options) => {
       if (!checkAdmin()) {
         return;
       }
@@ -574,7 +634,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.START_ROOM, async () => {
+    on(Protocol.START_ROOM, async () => {
       if (!checkAdmin()) {
         return;
       }
@@ -588,7 +648,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.PAUSE_ROOM, async () => {
+    on(Protocol.PAUSE_ROOM, async () => {
       if (!checkAdmin()) {
         return;
       }
@@ -598,22 +658,16 @@ module.exports = (io, middlewares) => {
       ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
     });
 
-    socket.on(Protocol.KICK_USER, async (userId) => {
+    on(Protocol.KICK_USER, async (userId) => {
       if (!checkAdmin()) {
         return;
       }
 
       try {
-        const sockets = await socketsForUserRoom(userId, socket.roomId);
+        const room = await socket.room.dropUser({ id: userId });
 
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
-
-        sockets.forEach((sId) => {
-          ns().adapter.remoteLeave(sId, socket.room.accessCode);
-          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
-        });
-
-        const room = await socket.room.dropUser({ id: userId });
+        removeUserFromRoomSockets(ns(), userId, socket.room);
 
         if (!room) {
           logger.debug('User kick failed for some reason');
@@ -631,22 +685,16 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.BAN_USER, async (userId) => {
+    on(Protocol.BAN_USER, async (userId) => {
       if (!checkAdmin()) {
         return;
       }
 
       try {
-        const sockets = await socketsForUserRoom(userId, socket.roomId);
+        const room = await socket.room.banUser(userId);
 
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
-
-        sockets.forEach((sId) => {
-          ns().adapter.remoteLeave(sId, socket.room.accessCode);
-          ns().adapter.remoteLeave(sId, encodeUserRoom(userId, socket.room._id));
-        });
-
-        const room = await socket.room.banUser(userId);
+        removeUserFromRoomSockets(ns(), userId, socket.room);
 
         if (!room) {
           logger.debug('User ban failed for some reason');
@@ -664,7 +712,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.UNBAN_USER, async (userId) => {
+    on(Protocol.UNBAN_USER, async (userId) => {
       if (!checkAdmin()) {
         return;
       }
@@ -684,7 +732,7 @@ module.exports = (io, middlewares) => {
     });
 
     // Simplest event here. Just echo the message to everyone else.
-    socket.on(Protocol.MESSAGE, (message) => {
+    on(Protocol.MESSAGE, (message) => {
       if (!isLoggedIn() || !isInRoom()) {
         return;
       }
@@ -698,7 +746,7 @@ module.exports = (io, middlewares) => {
     });
 
     // Simplest event here. Just echo the message to everyone else.
-    socket.on(Protocol.UPDATE_STATUS, (status) => {
+    on(Protocol.UPDATE_STATUS, (status) => {
       if (!isLoggedIn() || !isInRoom()) {
         return;
       }
@@ -706,7 +754,7 @@ module.exports = (io, middlewares) => {
       broadcast(Protocol.UPDATE_STATUS, status);
     });
 
-    socket.on(Protocol.DISCONNECT, async () => {
+    on(Protocol.DISCONNECT, async () => {
       try {
         if (socket.roomId) {
           socket.room = await fetchRoom(socket.roomId);
@@ -724,7 +772,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.LEAVE_ROOM, async () => {
+    on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
         if (socket.user) {
           await leaveRoom();
@@ -739,7 +787,7 @@ module.exports = (io, middlewares) => {
     });
 
     // option is a true or false value of whether or not they're kibitzing
-    socket.on(Protocol.UPDATE_COMPETING, async (competing) => {
+    on(Protocol.UPDATE_COMPETING, async (competing) => {
       if (!isLoggedIn() || !isInRoom()) {
         return;
       }
@@ -780,7 +828,7 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    socket.on(Protocol.ADMIN, (cb) => {
+    on(Protocol.ADMIN, (cb) => {
       if (!socket.userId || +socket.userId !== 8184) {
         return;
       }
