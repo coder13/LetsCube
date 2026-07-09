@@ -1,0 +1,78 @@
+services:
+  client:
+    image: node:22-bookworm
+    working_dir: /app
+    command: sh -c "corepack enable && yarn install --frozen-lockfile && yarn workspace letscube-client start"
+    environment:
+      NODE_OPTIONS: --openssl-legacy-provider
+      HOST: 0.0.0.0
+      PORT: 3000
+      REACT_APP_API_ORIGIN: ${REACT_APP_API_ORIGIN:-http://localhost:8080}
+      REACT_APP_SOCKETIO_ORIGIN: ${REACT_APP_SOCKETIO_ORIGIN:-http://localhost}
+      REACT_APP_WCA_ORIGIN: ${REACT_APP_WCA_ORIGIN:-https://staging.worldcubeassociation.org}
+      REACT_APP_WCA_CLIENT_ID: ${REACT_APP_WCA_CLIENT_ID:-example-application-id}
+    volumes:
+      - .:/app
+      - client-node-modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+      - socket
+
+  api:
+    image: node:22-bookworm
+    working_dir: /app
+    command: sh -c "corepack enable && yarn install --frozen-lockfile && yarn workspace letscube-server start:server"
+    environment:
+      NODE_ENV: dev
+      PORT: ${PORT:-8080}
+      SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-secret}
+      AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-http://localhost:8080/auth/callback}
+      WCA_SOURCE: ${WCA_SOURCE:-https://staging.worldcubeassociation.org}
+      WCA_CLIENT_ID: ${WCA_CLIENT_ID:-example-application-id}
+      WCA_CLIENT_SECRET: ${WCA_CLIENT_SECRET:-example-secret}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    volumes:
+      - .:/app
+      - api-node-modules:/app/node_modules
+    ports:
+      - "8080:8080"
+
+  socket:
+    image: node:22-bookworm
+    working_dir: /app
+    command: sh -c "corepack enable && yarn install --frozen-lockfile && yarn workspace letscube-server start:socket"
+    environment:
+      NODE_ENV: dev
+      PORT: ${PORT:-8080}
+      SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-secret}
+      AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-http://localhost:8080/auth/callback}
+      WCA_SOURCE: ${WCA_SOURCE:-https://staging.worldcubeassociation.org}
+      WCA_CLIENT_ID: ${WCA_CLIENT_ID:-example-application-id}
+      WCA_CLIENT_SECRET: ${WCA_CLIENT_SECRET:-example-secret}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    volumes:
+      - .:/app
+      - socket-node-modules:/app/node_modules
+    ports:
+      - "9000:9000"
+
+  mongo:
+    ports:
+      - "127.0.0.1:27017:27017"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  client-node-modules:
+  api-node-modules:
+  socket-node-modules:

@@ -17,6 +17,8 @@ logs
 # misc
 .DS_Store
 .env.local
+.env.dev
+.env.prod
 .env.development.local
 .env.test.local
 .env.production.local
@@ -34,3 +36,10 @@ server/.turbo/
 /server/announcements
 
 client/config/.env.development
+
+# Local Netlify folder
+.netlify
+
+# Local build/worktree scratch
+.turbo
+.worktrees

@@ -1,5 +1,5 @@
 const http = require('http');
-const config = require('getconfig');
+const config = require('../runtimeConfig');
 const socketIO = require('socket.io');
 const redis = require('socket.io-redis');
 const expressSocketSession = require('express-socket.io-session');
@@ -49,8 +49,11 @@ const init = async () => {
   const mongoose = await connect();
 
   io.adapter(redis({
-    host: 'localhost',
-    port: 6379,
+    host: config.redis.host,
+    port: config.redis.port,
+    password: config.redis.password,
+    auth_pass: config.redis.password,
+    db: config.redis.db,
   }));
 
   const middlewares = [

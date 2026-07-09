@@ -1,4 +1,4 @@
-const config = require('getconfig');
+const config = require('./runtimeConfig');
 const mongoose = require('mongoose');
 const logger = require('./logger');
 
