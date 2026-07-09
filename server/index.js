@@ -7,6 +7,7 @@ const passport = require('passport');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
+const { initializePostgres, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
@@ -25,6 +26,8 @@ const init = async () => {
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
   const mongoose = await connect();
+  await initializePostgres();
+  startPostgresMaintenance();
 
   /* Logging */
 

@@ -4,6 +4,8 @@ const Protocol = require('../../../client/src/lib/protocol');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');
+const metrics = require('../../metrics');
+const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
@@ -271,7 +273,7 @@ module.exports = (io, middlewares) => {
     }
 
     // Only deals with removing authenticated users from a room
-    async function leaveRoom() {
+    async function leaveRoom(leaveReason) {
       try {
         const hasOtherSockets = await hasOtherSocketsForUserRoom(
           socket.userId,
@@ -284,6 +286,14 @@ module.exports = (io, middlewares) => {
 
         const room = await socket.room.dropUser(socket.user, (_room) => {
           ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+        });
+
+        await metrics.endRoomVisit({
+          room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          leaveReason,
+          activeUserCount: room.usersLength,
         });
 
         broadcast(Protocol.USER_LEFT, socket.user.id);
@@ -301,6 +311,12 @@ module.exports = (io, middlewares) => {
     async function joinRoom(room, cb, spectating) {
       if (socket.roomId) {
         logger.debug('Socket is already in room', { roomId: socket.room._id });
+        await metrics.recordRoomJoinFailure({
+          room: socket.room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          failureReason: 'already_in_room',
+        });
         return cb({
           statusCode: 400,
           message: 'Socket is already in room',
@@ -312,6 +328,12 @@ module.exports = (io, middlewares) => {
 
       if (!socket.user) {
         logger.debug('Socket is not authenticated but joining anyways', { roomId: room._id, userId: socket.userId });
+        socket.room = room;
+        await metrics.beginRoomVisit({
+          room,
+          connectionId: socket.id,
+          activeUserCount: room.usersLength,
+        });
         return cb(null, joinRoomMask(room));
       }
 
@@ -323,10 +345,24 @@ module.exports = (io, middlewares) => {
 
       if (!r) {
         // Join the socket to the room anyways but don't add them
+        socket.room = room;
+        await metrics.beginRoomVisit({
+          room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          activeUserCount: room.usersLength,
+        });
         return cb(null, joinRoomMask(room));
       }
 
       socket.room = r;
+      await metrics.beginRoomVisit({
+        room: r,
+        userId: socket.userId,
+        connectionId: socket.id,
+        activeUserCount: r.usersLength,
+        replaceActive: true,
+      });
       socket.emit(Protocol.JOIN, joinRoomMask(r));
       cb(null, joinRoomMask(r));
 
@@ -344,49 +380,59 @@ module.exports = (io, middlewares) => {
       const acknowledgment = optionalAcknowledgment(cb);
       const { id, spectating, password } = payload || {};
 
+      const rejectJoin = async (failureReason, error, room) => {
+        await metrics.recordRoomJoinFailure({
+          room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          failureReason,
+        });
+        return acknowledgment(error, room ? roomMask(room) : undefined);
+      };
+
       try {
         const room = await fetchRoom(id);
         if (!room) {
-          return acknowledgment({
+          return rejectJoin('not_found', {
             statusCode: 404,
             message: `Could not find room with id ${id}`,
           });
         }
 
         if (room.private && !password) {
-          return acknowledgment({
+          return rejectJoin('password_required', {
             statusCode: 403,
             message: 'Room requires password to join',
-          }, roomMask(room));
+          }, room);
         }
 
         if (room.private && !(await room.authenticate(password))) {
-          return acknowledgment({
+          return rejectJoin('invalid_password', {
             statusCode: 403,
             message: 'Invalid password',
-          }, roomMask(room));
+          }, room);
         }
 
         if (socket.userId && room.banned.get(socket.userId.toString())) {
           logger.debug(`Banned user ${socket.user.id} is trying to join room ${room._id}`);
-          return acknowledgment({
+          return rejectJoin('banned', {
             statusCode: 401,
             message: 'Banned',
             banned: true,
-          }, roomMask(room));
+          }, room);
         }
 
         if (room.requireRevealedIdentity && (!socket.user || !socket.user.showWCAID)) {
-          return acknowledgment({
+          return rejectJoin('identity_required', {
             statusCode: 403,
             message: 'Must be showing WCA Identity to join room.',
-          }, roomMask(room));
+          }, room);
         }
 
         return await joinRoom(room, acknowledgment, spectating);
       } catch (e) {
         logger.error(e);
-        return acknowledgment({
+        return rejectJoin('internal_error', {
           statusCode: 500,
           message: 'Failed to join room',
         });
@@ -428,6 +474,10 @@ module.exports = (io, middlewares) => {
       newRoom.owner = socket.user;
 
       const room = await newRoom.save();
+      await metrics.recordRoomCreated({
+        room,
+        userId: socket.userId,
+      });
       ns().emit(Protocol.ROOM_CREATED, roomMask(room));
       return joinRoom(room, (err, r) => {
         if (err) {
@@ -463,6 +513,7 @@ module.exports = (io, middlewares) => {
 
         const res = await Room.deleteOne({ _id: room._id });
         if (res.deletedCount > 0) {
+          await markRoomDeleted(room._id);
           socket.room = undefined;
           acknowledgment(null);
           ns().emit(Protocol.ROOM_DELETED, id);
@@ -538,10 +589,18 @@ module.exports = (io, middlewares) => {
           result.penalties.DNF = result.penalties.DNF
             || id < socket.room.attempts.length - 1;
         }
+        const previousResult = socket.room.attempts[id].results.get(socket.user.id.toString());
         socket.room.attempts[id].results.set(socket.user.id.toString(), result);
         socket.room.waitingFor.set(socket.user.id.toString(), false);
 
         const r = await socket.room.save();
+
+        if (!previousResult) {
+          await metrics.recordRoomResult({
+            room: r,
+            userId: socket.userId,
+          });
+        }
 
         ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
           id,
@@ -668,6 +727,13 @@ module.exports = (io, middlewares) => {
       try {
         const room = await socket.room.dropUser({ id: userId });
 
+        await metrics.endRoomVisit({
+          room,
+          userId,
+          leaveReason: 'kick',
+          activeUserCount: room.usersLength,
+        });
+
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
         removeUserFromRoomSockets(ns(), userId, socket.room);
 
@@ -694,6 +760,13 @@ module.exports = (io, middlewares) => {
 
       try {
         const room = await socket.room.banUser(userId);
+
+        await metrics.endRoomVisit({
+          room,
+          userId,
+          leaveReason: 'ban',
+          activeUserCount: room.usersLength,
+        });
 
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
         removeUserFromRoomSockets(ns(), userId, socket.room);
@@ -765,7 +838,14 @@ module.exports = (io, middlewares) => {
         logger.info(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
 
         if (socket.user && socket.room) {
-          await leaveRoom();
+          await leaveRoom('disconnect');
+        } else if (socket.room) {
+          await metrics.endRoomVisit({
+            room: socket.room,
+            connectionId: socket.id,
+            leaveReason: 'disconnect',
+            activeUserCount: socket.room.usersLength,
+          });
         }
 
         updateClientsWithUsers();
@@ -777,8 +857,15 @@ module.exports = (io, middlewares) => {
     on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
         if (socket.user) {
-          await leaveRoom();
+          await leaveRoom('explicit');
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
+        } else {
+          await metrics.endRoomVisit({
+            room: socket.room,
+            connectionId: socket.id,
+            leaveReason: 'explicit',
+            activeUserCount: socket.room.usersLength,
+          });
         }
 
         socket.leave(socket.room.accessCode);

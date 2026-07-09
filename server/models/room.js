@@ -3,6 +3,7 @@ const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const { Events } = require('../../client/src/lib/events');
+const { mirrorRoom } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
@@ -325,6 +326,11 @@ Room.methods.updateAdminIfNeeded = function (cb) {
     return this.save().then(cb);
   }
 };
+
+Room.post('save', (room) => {
+  // Mirror complete snapshots so retries and later backfills remain idempotent.
+  mirrorRoom(room);
+});
 
 module.exports.Attempt = Attempt;
 module.exports.Room = Room;
