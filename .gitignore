@@ -25,6 +25,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+.netlify/
+
 /server/config/prod.json
 /server/announcements
 
