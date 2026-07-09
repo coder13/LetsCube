@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS app.users (
   ingested_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_unique
+CREATE INDEX IF NOT EXISTS users_username_lower_idx
   ON app.users (lower(username))
   WHERE username IS NOT NULL AND username <> '';
 
