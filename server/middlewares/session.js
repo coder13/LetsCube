@@ -1,6 +1,7 @@
-const config = require('../runtimeConfig');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
+
+const config = require('../runtimeConfig');
 
 module.exports = (mongoose) => session({
   secret: config.auth.secret,

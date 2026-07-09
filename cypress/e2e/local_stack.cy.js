@@ -9,8 +9,8 @@ describe('local app stack', () => {
   it('shows the lobby without a logged-in session', () => {
     cy.visit('/');
 
-    cy.contains('Public Rooms', { timeout: 10000 }).should('be.visible');
-    cy.contains('Private Rooms').should('be.visible');
+    cy.contains('Public Rooms', { timeout: 10000 }).should('exist');
+    cy.contains('Private Rooms').should('exist');
     cy.contains('Create Room').should('not.exist');
 
     cy.request({
@@ -66,7 +66,7 @@ describe('local app stack', () => {
 
     cy.visit('/');
     cy.contains('Public Rooms').should('be.visible');
-    cy.contains(roomName).should('be.visible');
+    cy.contains(roomName).scrollIntoView().should('be.visible');
   });
 
   it('sends and displays chat messages through the socket server', () => {

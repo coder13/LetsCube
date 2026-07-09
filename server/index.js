@@ -1,10 +1,11 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
-const config = require('./runtimeConfig');
 const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
+
+const config = require('./runtimeConfig');
 const { connect } = require('./database');
 const session = require('./middlewares/session');
 const logger = require('./logger');

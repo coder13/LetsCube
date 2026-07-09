@@ -1,5 +1,6 @@
-const config = require('./runtimeConfig');
 const mongoose = require('mongoose');
+
+const config = require('./runtimeConfig');
 const logger = require('./logger');
 
 module.exports.connect = async () => {
