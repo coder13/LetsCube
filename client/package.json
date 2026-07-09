@@ -19,7 +19,6 @@
     "babel-loader": "8.0.6",
     "babel-plugin-named-asset-import": "^0.3.7",
     "babel-preset-react-app": "^9.1.2",
-    "body-parser": "1.19.0",
     "camelcase": "^5.3.1",
     "case-sensitive-paths-webpack-plugin": "2.2.0",
     "clsx": "1.1.0",
