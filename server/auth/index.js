@@ -114,9 +114,14 @@ module.exports = (app, passport) => {
       })(req, res, next);
     });
 
-  router.get('/logout', (req, res) => {
-    req.logout();
-    res.redirect(req.query.redirect);
+  router.get('/logout', (req, res, next) => {
+    req.logout((err) => {
+      if (err) {
+        return next(err);
+      }
+
+      return res.redirect(req.query.redirect);
+    });
   });
 
   return router;
