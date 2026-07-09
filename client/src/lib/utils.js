@@ -102,3 +102,51 @@ export const clearInterval = (interval) => {
 export const now = () => (window.performance && window.performance.now
   ? window.performance.now.bind(window.performance)
   : Date.now)();
+
+const uuidByteToHex = Array.from(
+  { length: 256 },
+  (_, index) => (index + 0x100).toString(16).slice(1),
+);
+
+export const uuid = () => {
+  const crypto = window.crypto || window.msCrypto;
+
+  if (crypto && crypto.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+
+    /* eslint-disable no-bitwise */
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    /* eslint-enable no-bitwise */
+
+    return [
+      uuidByteToHex[bytes[0]],
+      uuidByteToHex[bytes[1]],
+      uuidByteToHex[bytes[2]],
+      uuidByteToHex[bytes[3]],
+      '-',
+      uuidByteToHex[bytes[4]],
+      uuidByteToHex[bytes[5]],
+      '-',
+      uuidByteToHex[bytes[6]],
+      uuidByteToHex[bytes[7]],
+      '-',
+      uuidByteToHex[bytes[8]],
+      uuidByteToHex[bytes[9]],
+      '-',
+      uuidByteToHex[bytes[10]],
+      uuidByteToHex[bytes[11]],
+      uuidByteToHex[bytes[12]],
+      uuidByteToHex[bytes[13]],
+      uuidByteToHex[bytes[14]],
+      uuidByteToHex[bytes[15]],
+    ].join('');
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : ((random % 4) + 8);
+    return value.toString(16);
+  });
+};
