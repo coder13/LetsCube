@@ -60,21 +60,92 @@ jobs:
         run: CI=true npm test -- --watchAll=false --passWithNoTests
 
   cypress:
-    name: Cypress
+    name: Cypress full-stack smoke
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node for client
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16.20.2
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Start client
+        working-directory: client
+        run: BROWSER=none npm start > ../client.log 2>&1 &
+
+      - name: Set up Node for server and Cypress
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
       - name: Install root dependencies
         run: npm ci
 
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Start backing services
+        run: docker compose up -d
+
+      - name: Start server
+        working-directory: server
+        run: LETSCUBE_TEST_AUTH=true node index.js > ../server.log 2>&1 &
+
+      - name: Start socket server
+        working-directory: server
+        run: node socket/ > ../socket.log 2>&1 &
+
+      - name: Wait for local stack
+        run: |
+          for url in \
+            http://localhost:3000/ \
+            http://localhost:8080/api/announcements \
+            "http://localhost:9000/socket.io/?EIO=4&transport=polling"
+          do
+            for i in {1..60}; do
+              if curl --fail --silent --output /dev/null "$url"; then
+                break
+              fi
+
+              if [ "$i" -eq 60 ]; then
+                echo "Timed out waiting for $url"
+                echo "--- client.log"
+                cat client.log || true
+                echo "--- server.log"
+                cat server.log || true
+                echo "--- socket.log"
+                cat socket.log || true
+                docker compose ps
+                exit 1
+              fi
+
+              sleep 2
+            done
+          done
+
       - name: Run Cypress
         run: npm run cypress:run
+
+      - name: Print app logs on failure
+        if: failure()
+        run: |
+          echo "--- client.log"
+          cat client.log || true
+          echo "--- server.log"
+          cat server.log || true
+          echo "--- socket.log"
+          cat socket.log || true
+          docker compose ps || true
