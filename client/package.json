@@ -2,7 +2,6 @@
   "name": "letscube-client",
   "version": "2.0.0",
   "private": true,
-  "packageManager": "yarn@1.22.22",
   "dependencies": {
     "@babel/core": "7.7.4",
     "@material-ui/core": "^4.11.2",
@@ -93,6 +92,7 @@
     "start": "node --openssl-legacy-provider scripts/start.js",
     "build": "node --openssl-legacy-provider scripts/build.js",
     "test": "node scripts/test.js",
+    "test:ci": "CI=true node scripts/test.js --watchAll=false --passWithNoTests",
     "lint": "eslint ./src/",
     "lint:fix": "eslint --fix ./src/"
   },
@@ -169,9 +169,6 @@
     "presets": [
       "react-app"
     ]
-  },
-  "resolutions": {
-    "cheerio": "1.0.0-rc.12"
   },
   "devDependencies": {
     "eslint-config-airbnb": "18.1.0",

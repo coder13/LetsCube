@@ -10,35 +10,6 @@ jobs:
   server:
     name: Server lint and unit tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: yarn
-          cache-dependency-path: server/yarn.lock
-
-      - name: Install server dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Run server lint
-        run: yarn lint
-
-      - name: Run server unit tests
-        run: yarn test
-
-  client:
-    name: Client lint and unit tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -48,16 +19,39 @@ jobs:
         with:
           node-version: 18.18.2
           cache: yarn
-          cache-dependency-path: client/yarn.lock
+          cache-dependency-path: yarn.lock
 
-      - name: Install client dependencies
-        run: yarn install --frozen-lockfile
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      - name: Run server lint
+        run: yarn turbo run lint --filter=letscube-server
+
+      - name: Run server unit tests
+        run: yarn turbo run test:ci --filter=letscube-server
+
+  client:
+    name: Client lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.18.2
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
 
       - name: Run client lint
-        run: yarn lint
+        run: yarn turbo run lint --filter=letscube-client
 
       - name: Run client unit tests
-        run: CI=true yarn test --watchAll=false --passWithNoTests
+        run: yarn turbo run test:ci --filter=letscube-client
 
   cypress:
     name: Cypress full-stack smoke
@@ -71,42 +65,27 @@ jobs:
         with:
           node-version: 18.18.2
           cache: yarn
-          cache-dependency-path: client/yarn.lock
+          cache-dependency-path: yarn.lock
 
-      - name: Install client dependencies
-        working-directory: client
-        run: yarn install --frozen-lockfile
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
 
       - name: Start client
-        working-directory: client
-        run: BROWSER=none yarn start > ../client.log 2>&1 &
+        run: BROWSER=none yarn workspace letscube-client start > client.log 2>&1 &
 
       - name: Set up Node for server and Cypress
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: |
-            yarn.lock
-            server/yarn.lock
-
-      - name: Install root dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Install server dependencies
-        working-directory: server
-        run: yarn install --frozen-lockfile
 
       - name: Start backing services
         run: docker compose up -d
 
       - name: Start server
-        working-directory: server
-        run: LETSCUBE_TEST_AUTH=true node index.js > ../server.log 2>&1 &
+        run: LETSCUBE_TEST_AUTH=true yarn workspace letscube-server node index.js > server.log 2>&1 &
 
       - name: Start socket server
-        working-directory: server
-        run: node socket/ > ../socket.log 2>&1 &
+        run: yarn workspace letscube-server node socket/ > socket.log 2>&1 &
 
       - name: Wait for local stack
         run: |

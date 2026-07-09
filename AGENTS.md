@@ -5,25 +5,28 @@ to miss when making changes here.
 
 ## Project Layout
 
-- This is a split Node app: `client/` and `server/` each have their own
-  `package.json` and `package-lock.json`.
-- The root `package.json` is only for Husky/pre-commit setup. Do not assume
-  root scripts start, build, lint, or test the app.
+- This is a Yarn classic workspace monorepo. `client/` and `server/` are
+  workspaces, and the root `yarn.lock` is the only dependency lockfile.
+- Root scripts are workspace-aware and mostly run through Turbo. Prefer root
+  commands like `yarn lint`, `yarn test`, and `yarn build` unless you need a
+  narrow workspace command.
 
 ## Runtime Setup
 
 - Local development needs MongoDB and Redis.
-- The backend is two separate processes from `server/`:
-  - `npm run start:server` starts Express/static/auth/API on port `8080`.
-  - `npm run start:socket` starts Socket.IO on port `9000`.
-- The client runs separately from `client/` with `npm start`.
+- Install from the repo root with `yarn install --ignore-engines`; Cypress 15
+  requires Node 20, while the current client path still targets Node 18.
+- The backend is two separate processes:
+  - `yarn start:server` starts Express/static/auth/API on port `8080`.
+  - `yarn start:socket` starts Socket.IO on port `9000`.
+- The client runs separately with `yarn start:client`.
 - Client env values live in `client/.env.development` and expect the API at
   `http://localhost:8080` and Socket.IO at `http://localhost:9000`.
 
 ## Dependency Age
 
 - The stack is old: React 16, Webpack 4, Material UI v4, Socket.IO v3,
-  Mongoose 5, and `node-sass`.
+  Mongoose 6, and `node-sass`.
 - Be cautious with modern Node/npm changes. `node-sass` and the old CRA/Webpack
   toolchain are likely to be the first things to break.
 
@@ -62,8 +65,10 @@ to miss when making changes here.
 
 ## Checks
 
-- Tests are sparse and client-only. The server has linting but no test script.
-- The root pre-commit hook lints client and server, then runs client tests.
+- Tests are sparse. The server test script currently passes when no tests exist.
+- The root pre-commit hook runs `yarn lint && yarn test`.
 - Useful focused checks:
-  - `cd client && npm run lint && npm test -- --watchAll=false`
-  - `cd server && npm run lint`
+  - `yarn turbo run lint --filter=letscube-client`
+  - `yarn turbo run test:ci --filter=letscube-client`
+  - `yarn turbo run lint --filter=letscube-server`
+  - `yarn turbo run test:ci --filter=letscube-server`

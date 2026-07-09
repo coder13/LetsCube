@@ -11,7 +11,7 @@ Make sure Node.JS and Docker are installed. Docker Compose starts the local Mong
 ```
 git clone https://github.com/coder13/letscube.git
 cd letscube
-npm install # installs pre-commit hook
+yarn install --ignore-engines # Cypress requires Node 20, but the client still targets Node 18
 docker compose up -d
 ```
 
@@ -19,19 +19,17 @@ If MongoDB or Redis are already running locally on their default ports, stop the
 
 **Server**
 
-The server is split across 2 files, you can run them individually from the server directory after installing modules
+The server is split across 2 processes:
 
 ```bash
-cd server && npm install
-```
-
-```
-npm run start:server # Starts the file server (not used for dev), auth, and some api requests
-npm run start:socket # Run this in a separate terminal; Starts the socket.io server for all the realtime socket requests
+yarn start:server # Starts the file server, auth, and API requests on port 8080
+yarn start:socket # Run this in a separate terminal for Socket.IO on port 9000
 ```
 
 **Client**
 
-```cd client && npm install && npm run start```
+```bash
+yarn start:client
+```
 
 For more on the internals and contributing, check out the [wiki](https://github.com/coder13/LetsCube/wiki)

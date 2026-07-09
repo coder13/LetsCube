@@ -1,17 +1,32 @@
 {
   "private": true,
   "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "resolutions": {
+    "cheerio": "1.0.0-rc.12"
+  },
   "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test:ci",
+    "test:ci": "turbo run test:ci",
+    "start:client": "yarn workspace letscube-client start",
+    "start:server": "yarn workspace letscube-server start:server",
+    "start:socket": "yarn workspace letscube-server start:socket",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run"
   },
   "devDependencies": {
     "cypress": "^15.18.1",
-    "husky": "4.2.5"
+    "husky": "4.2.5",
+    "turbo": "^2.10.4"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "cd client/ && yarn lint && cd ../server/ && yarn lint && cd ../client/ && CI=true yarn test"
+      "pre-commit": "yarn lint && yarn test"
     }
   }
 }

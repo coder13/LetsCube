@@ -2,7 +2,6 @@
   "name": "letscube-server",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "yarn@1.22.22",
   "dependencies": {
     "bcrypt": "5.0.0",
     "connect-mongo": "^3.2.0",
@@ -33,7 +32,8 @@
     "start:socket": "nodemon socket/",
     "lint": "eslint ./",
     "lint:fix": "eslint --fix ./",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:ci": "yarn test"
   },
   "devDependencies": {
     "eslint": "6.8.0",
