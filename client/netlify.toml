@@ -1,6 +1,10 @@
 [build]
-  command = "npm ci --ignore-scripts --production=false && if node -e \"process.exit(Number(process.versions.node.split('.')[0]) >= 17 ? 0 : 1)\"; then NODE_OPTIONS=--openssl-legacy-provider npm run build; else npm run build; fi"
+  command = "cd .. && yarn install --frozen-lockfile --production=false && yarn workspace letscube-client build"
   publish = "build"
 
 [build.environment]
-  NODE_VERSION = "14.21.3"
+  NODE_VERSION = "22.17.0"
+  YARN_VERSION = "1.22.22"
+
+[context.deploy-preview]
+  ignore = "exit 0"

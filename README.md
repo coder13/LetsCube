@@ -6,29 +6,30 @@ This project consists of a client and a server.
 
 ## Development:
 
-Make sure Node.JS, MongoDB, and redis are installed.
+Make sure Node.JS and Docker are installed. Docker Compose starts the local MongoDB and Redis services used by the app.
 
 ```
 git clone https://github.com/coder13/letscube.git
 cd letscube
-npm install # installs pre-commit hook
+yarn install
+docker compose up -d
 ```
+
+If MongoDB or Redis are already running locally on their default ports, stop them or skip Docker Compose.
 
 **Server**
 
-The server is split across 2 files, you can run them individually from the server directory after installing modules
+The server is split across 2 processes:
 
 ```bash
-cd server && npm install
+yarn start:server # Starts the file server, auth, and API requests on port 8080
+yarn start:socket # Run this in a separate terminal for Socket.IO on port 9000
 ```
 
-```
-npm run start:server # Starts the file server (not used for dev), auth, and some api requests
-npm run start:socket # Run this in a separate terminal; Starts the socket.io server for all the realtime socket requests
-```
+**Client**
 
-**Server**
-
-```cd client && npm install && npm run start```
+```bash
+yarn start:client
+```
 
 For more on the internals and contributing, check out the [wiki](https://github.com/coder13/LetsCube/wiki)

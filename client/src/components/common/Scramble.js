@@ -31,8 +31,8 @@ const useStyles = makeStyles((theme) => ({
 function Megaminx({ scramble }) {
   const classes = useStyles();
 
-  return scramble.split('\n').map((line, index) => (
-    <span key={index.toString()} className={classes.line}>
+  return scramble.split('\n').map((line) => (
+    <span key={line} className={classes.line}>
       {line}
       {line.length === 41 ? <>&nbsp;</> : ''}
     </span>
@@ -55,7 +55,7 @@ function Scramble({
           [classes[event]]: true,
         }, classes.scramble)}
       >
-        {scrambles.length ? scrambles.map((scramble) => (event === 'minx' ? <Megaminx scramble={scramble} /> : scramble)) : 'No Scrambles'}
+        {scrambles.length ? scrambles.map((scramble) => (event === 'minx' ? <Megaminx key={scramble} scramble={scramble} /> : scramble)) : 'No Scrambles'}
       </Typography>
     </div>
   );

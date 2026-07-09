@@ -180,7 +180,9 @@ RoomListItem.propTypes = {
     event: PropTypes.string,
     private: PropTypes.bool,
     usersLength: PropTypes.number,
-    users: PropTypes.array,
+    users: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.number,
+    })),
     startTime: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
     owner: PropTypes.shape({

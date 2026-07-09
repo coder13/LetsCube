@@ -28,6 +28,32 @@ module.exports = (app, passport) => {
       return;
     }
 
+    if (process.env.LETSCUBE_TEST_AUTH === 'true') {
+      try {
+        const user = await User.findOneAndUpdate({
+          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
+        }, {
+          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
+          name: 'Cypress Test User',
+          username: 'cypress',
+          email: 'cypress@example.com',
+          wcaId: '2026TEST01',
+          accessToken: `test-token-${code}`,
+          avatar: {},
+        }, {
+          upsert: true,
+          useFindAndModify: false,
+          new: true,
+        });
+
+        done(null, user.toObject());
+      } catch (e) {
+        done(e);
+      }
+
+      return;
+    }
+
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
     params.append('client_id', config.auth.clientID);
@@ -114,9 +140,14 @@ module.exports = (app, passport) => {
       })(req, res, next);
     });
 
-  router.get('/logout', (req, res) => {
-    req.logout();
-    res.redirect(req.query.redirect);
+  router.get('/logout', (req, res, next) => {
+    req.logout((err) => {
+      if (err) {
+        return next(err);
+      }
+
+      return res.redirect(req.query.redirect);
+    });
   });
 
   return router;

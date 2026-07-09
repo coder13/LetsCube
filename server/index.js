@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const config = require('getconfig');
 const cors = require('cors');
@@ -63,7 +64,14 @@ const init = async () => {
   app.use('/api', api(app, passport));
 
   app.get('/api/announcements', (req, res) => {
-    res.sendFile(path.join(__dirname, './announcements'));
+    const announcementsPath = path.join(__dirname, './announcements');
+
+    if (!fs.existsSync(announcementsPath)) {
+      res.type('text/plain').send('');
+      return;
+    }
+
+    res.sendFile(announcementsPath);
   });
 
   app.use('/*', (req, res) => {

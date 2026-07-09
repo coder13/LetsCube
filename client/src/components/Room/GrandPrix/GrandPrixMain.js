@@ -365,7 +365,7 @@ Main.propTypes = {
       id: PropTypes.number,
     })),
     competing: PropTypes.shape(),
-    waitingFor: PropTypes.array,
+    waitingFor: PropTypes.arrayOf(PropTypes.number),
     statuses: PropTypes.shape(),
     registered: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({

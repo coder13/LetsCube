@@ -25,6 +25,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+.netlify/
+.turbo/
+client/.turbo/
+server/.turbo/
+
 /server/config/prod.json
 /server/announcements
 
