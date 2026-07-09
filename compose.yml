@@ -1,0 +1,80 @@
+name: letscube
+
+x-app-environment: &app-environment
+  NODE_ENV: ${NODE_ENV:-prod}
+  PORT: ${PORT:-8080}
+  SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
+  MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  AUTH_SECRET: ${AUTH_SECRET:-change-me}
+  SESSION_SECRET: ${SESSION_SECRET:-}
+  AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-https://letscube.net/auth/callback}
+  WCA_SOURCE: ${WCA_SOURCE:-https://www.worldcubeassociation.org}
+  WCA_CLIENT_ID: ${WCA_CLIENT_ID:-}
+  WCA_CLIENT_SECRET: ${WCA_CLIENT_SECRET:-}
+  CORS_ORIGINS: ${CORS_ORIGINS:-https://letscube.net,https://www.letscube.net}
+
+services:
+  api:
+    image: letscube-app:${APP_IMAGE_TAG:-local}
+    command: ["node", "server/index.js"]
+    environment:
+      <<: *app-environment
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get({host:'127.0.0.1',port:process.env.PORT||8080,path:'/'},res=>process.exit(res.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  socket:
+    image: letscube-app:${APP_IMAGE_TAG:-local}
+    command: ["node", "server/socket/index.js"]
+    environment:
+      <<: *app-environment
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "9000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get({host:'127.0.0.1',port:process.env.SOCKETIO_PORT||9000,path:'/socket.io/?EIO=4&transport=polling'},res=>process.exit(res.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mongo:
+    image: mongo:6.0
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:
+  redis-data:

@@ -1,4 +1,4 @@
-const config = require('getconfig');
+const config = require('../runtimeConfig');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
 
