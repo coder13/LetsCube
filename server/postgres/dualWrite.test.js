@@ -11,6 +11,7 @@ const {
   markRoomDeleted,
   mirrorMetricEvent,
   mirrorRoom,
+  mirrorRoomChanges,
   mirrorUser,
   stableId,
 } = require('./dualWrite');
@@ -78,7 +79,7 @@ describe('PostgreSQL dual writer', () => {
         scrambles: ['R U R\''],
         results: new Map([['1234', {
           time: -1,
-          penalties: { plusTwo: false, DNF: true },
+          penalties: { DNF: true, inspection: true, AUF: false },
           createdAt: updatedAt,
           updatedAt,
         }]]),
@@ -101,8 +102,65 @@ describe('PostgreSQL dual writer', () => {
     expect(statements.some((sql) => sql.includes('INSERT INTO app.solves'))).toBe(true);
 
     const solveCall = client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO app.solves'));
-    expect(solveCall[1]).toContain(-1);
+    expect(solveCall[0]).toContain('inspection_penalty');
+    expect(solveCall[1].slice(4, 8)).toEqual([-1, true, true, false]);
     expect(solveCall[1]).not.toContain('room-access-code');
+  });
+
+  it('mirrors only explicitly changed attempts and results during live writes', async () => {
+    const updatedAt = new Date('2026-07-09T20:00:00.000Z');
+    const unrelatedUser = { id: 5678, name: 'Unchanged Solver' };
+    const room = {
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      event: '333',
+      accessCode: 'room-access-code',
+      type: 'normal',
+      owner: unrelatedUser,
+      admin: unrelatedUser,
+      users: [user, unrelatedUser],
+      competing: new Map([['1234', true], ['5678', true]]),
+      waitingFor: new Map([['1234', false], ['5678', true]]),
+      banned: new Map([['1234', false], ['5678', false]]),
+      inRoom: new Map([['1234', true], ['5678', true]]),
+      registered: new Map([['1234', true], ['5678', true]]),
+      attempts: [0, 1].map((id) => ({
+        _id: `507f1f77bcf86cd79943901${id + 2}`,
+        id,
+        scrambles: ['R U R\''],
+        results: new Map([['1234', {
+          time: 12000 + id,
+          penalties: {},
+          createdAt: updatedAt,
+          updatedAt,
+        }]]),
+        createdAt: updatedAt,
+        updatedAt,
+      })),
+      requireRevealedIdentity: false,
+      started: false,
+      createdAt: updatedAt,
+      updatedAt,
+    };
+
+    await mirrorRoomChanges(room, {
+      attempts: [{
+        attemptIndex: 1,
+        resultUserIds: ['1234'],
+        syncAllResults: false,
+      }],
+      participantUserIds: ['1234'],
+    });
+
+    const statements = client.query.mock.calls.map(([sql]) => sql);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.users'))).toHaveLength(1);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.room_participants')))
+      .toHaveLength(1);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.attempts'))).toHaveLength(1);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.solves'))).toHaveLength(1);
+    expect(statements.some((sql) => sql.includes('DELETE FROM app.attempts'))).toBe(false);
+    expect(client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO app.solves'))[1])
+      .toContain(12001);
   });
 
   it('mirrors sanitized metric events and soft-deletes rooms', async () => {

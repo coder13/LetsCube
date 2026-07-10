@@ -74,7 +74,14 @@ New MongoDB writes are mirrored into PostgreSQL without changing application
 reads. PostgreSQL receives users and preferences, rooms and participant state,
 attempts, durable solve results, and sanitized analytics events. OAuth access
 tokens are deliberately not copied. Writes use deterministic UUIDs and upserts,
-so retries and future backfills are idempotent.
+so retries and future backfills are idempotent. Live room saves mirror only the
+attempts and results changed by that save; complete room snapshots are reserved
+for explicit backfills. Changing a room event explicitly replaces that room's
+PostgreSQL attempts so removed MongoDB attempts do not remain queryable.
+
+Solve penalties use dedicated boolean columns rather than JSON so histories and
+statistics remain compact and index-friendly. User solve history is indexed by
+creation time and solve ID for stable cursor pagination.
 
 Set `POSTGRES_ENABLED=false` to disable mirroring. Production should set
 `PGHOST`, `PGDATABASE`, `PGUSER`, and `POSTGRES_PASSWORD`, or provide a
