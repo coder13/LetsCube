@@ -3,8 +3,8 @@ const { User } = require('../../models');
 const { encodeUser } = require('../utils');
 
 module.exports = async (socket, next) => {
-  const userId = socket.handshake.session.passport
-    ? socket.handshake.session.passport.user : null;
+  const userId = socket.request.session.passport
+    ? socket.request.session.passport.user : null;
 
   if (!userId) {
     return next();

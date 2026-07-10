@@ -11,6 +11,7 @@
     "cheerio": "1.0.0-rc.12"
   },
   "scripts": {
+    "prepare": "husky",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test:ci",
@@ -23,12 +24,7 @@
   },
   "devDependencies": {
     "cypress": "^15.18.1",
-    "husky": "4.2.5",
+    "husky": "^9.1.7",
     "turbo": "^2.10.4"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "yarn lint && yarn test"
-    }
   }
 }

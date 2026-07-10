@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import './css/index.css';
 import App from './components/App';
 import * as serviceWorker from './registerServiceWorker';
@@ -13,10 +13,8 @@ store.dispatch(connectToRooms());
 store.dispatch(fetchUser());
 
 /* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */
-ReactDOM.render(
-  <App />,
-  document.querySelector('#root'),
-);
+const root = createRoot(document.querySelector('#root'));
+root.render(<App />);
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.

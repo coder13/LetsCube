@@ -1,19 +1,19 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
-import { withStyles } from '@material-ui/core/styles';
-import Box from '@material-ui/core/Box';
-import Typography from '@material-ui/core/Typography';
-import Button from '@material-ui/core/Button';
-import Checkbox from '@material-ui/core/Checkbox';
-import FormGroup from '@material-ui/core/FormGroup';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
+import { withStyles } from '@mui/styles';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import {
   formatTime, setInterval, clearInterval, now,
 } from '../../lib/utils';
 import styles from './styles';
 
-const useStyles = withStyles(styles);
+const withComponentStyles = withStyles(styles);
 
 /*
   Complicated beast.
@@ -475,4 +475,4 @@ Timer.defaultProps = {
   onPriming: () => {},
 };
 
-export default useStyles(Timer);
+export default withComponentStyles(Timer);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { shallow } from 'enzyme';
-import Alert from '@material-ui/lab/Alert';
-import Button from '@material-ui/core/Button';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Timer from '../../Timer/index';
 import ScramblePreview from '../../common/ScramblePreview';
 import { Main } from './Main';

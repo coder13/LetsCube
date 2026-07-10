@@ -3,22 +3,20 @@ import { connect, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Paper from '@material-ui/core/Paper';
-import Container from '@material-ui/core/Container';
-import Grid from '@material-ui/core/Grid';
-import Divider from '@material-ui/core/Divider';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import Button from '@material-ui/core/Button';
-import Alert from '@material-ui/lab/Alert';
-import ListSubheader from '@material-ui/core/ListSubheader';
-import BottomNavigation from '@material-ui/core/BottomNavigation';
-import BottomNavigationAction from '@material-ui/core/BottomNavigationAction';
-import AddIcon from '@material-ui/icons/Add';
-import DynamicFeedIcon from '@material-ui/icons/DynamicFeed';
-import PeopleIcon from '@material-ui/icons/People';
+import { makeStyles } from '@mui/styles';
+import Paper from '@mui/material/Paper';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
+import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import ListSubheader from '@mui/material/ListSubheader';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+import AddIcon from '@mui/icons-material/Add';
+import DynamicFeedIcon from '@mui/icons-material/DynamicFeed';
+import PeopleIcon from '@mui/icons-material/People';
 import RoomConfigureDialog from '../RoomConfigureDialog';
 import RoomListItem from '../RoomListItem';
 import EventListItem from '../common/EventListItem';
@@ -56,7 +54,7 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
-    height: 0,
+    minHeight: 0,
     overflowY: 'auto',
   },
   eventList: {
@@ -172,19 +170,16 @@ function Lobby({
               )}
 
               {user.id && (
-                <ListItem
-                  button
+                <Button
+                  fullWidth
                   className={classes.createRoom}
                   variant="contained"
                   color="primary"
-                  component={Button}
+                  startIcon={<AddIcon />}
                   onClick={() => setCreateRoomDialogOpen(true)}
                 >
-                  <ListItemIcon>
-                    <AddIcon />
-                  </ListItemIcon>
                   Create Room
-                </ListItem>
+                </Button>
               )}
 
               <div className={classes.eventList}>

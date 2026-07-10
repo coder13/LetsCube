@@ -1,17 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import { makeStyles } from '@material-ui/core/styles';
-import Avatar from '@material-ui/core/Avatar';
-import Button from '@material-ui/core/Button';
-import Divider from '@material-ui/core/Divider';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemAvatar from '@material-ui/core/ListItemAvatar';
-import ListItemText from '@material-ui/core/ListItemText';
-import Popover from '@material-ui/core/Popover';
-import Typography from '@material-ui/core/Typography';
-import NotificationsNoneIcon from '@material-ui/icons/NotificationsNone';
+import { makeStyles } from '@mui/styles';
+import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import ListItemText from '@mui/material/ListItemText';
+import Popover from '@mui/material/Popover';
+import Typography from '@mui/material/Typography';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import notificationPresentation from './registry';
 
 const useStyles = makeStyles((theme) => ({

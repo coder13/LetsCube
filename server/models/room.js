@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const { generateScramble } = require('letscube-scrambles');
 const { mirrorRoomChanges } = require('../postgres/dualWrite');
+const Events = require('../../client/src/lib/events.json');
 
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;

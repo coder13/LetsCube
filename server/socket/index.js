@@ -2,7 +2,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
-const expressSocketSession = require('express-socket.io-session');
 
 const config = require('../runtimeConfig');
 const session = require('../middlewares/session');
@@ -14,6 +13,7 @@ const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
 const { registerSocialEventSubscriber } = require('../realtime/socialEvents');
 const { isFeatureEnabled } = require('../features');
+const wrapExpressMiddleware = require('./middlewares/wrapExpressMiddleware');
 const initRooms = require('./namespaces/rooms');
 const initDefault = require('./namespaces/default');
 
@@ -103,9 +103,7 @@ const init = async () => {
   });
 
   const middlewares = [
-    expressSocketSession(session(mongoose), {
-      autoSave: true,
-    }),
+    wrapExpressMiddleware(session),
     authenticateMiddleware,
     loggerMiddleware,
   ];

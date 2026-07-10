@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
     base,
     define,
     plugins: [
-      react({ jsxRuntime: 'classic' }),
+      react({ jsxRuntime: 'automatic' }),
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

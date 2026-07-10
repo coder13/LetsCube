@@ -1,4 +1,4 @@
-import { push } from 'connected-react-router';
+import history from '../../lib/history';
 import UIfx from 'uifx';
 import notificationAsset from '../../assets/notification.mp3';
 import Protocol from '../../lib/protocol';
@@ -445,7 +445,7 @@ export const createRoomsNamespaceMiddleware = ({
         forgetRoomPassword(room);
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room._id) {
-          store.dispatch(push('/'));
+          history.push('/');
           store.dispatch(resetRoom());
         }
       },
@@ -461,14 +461,14 @@ export const createRoomsNamespaceMiddleware = ({
         }));
       },
       [Protocol.FORCE_JOIN]: (room) => {
-        store.dispatch(push(`/rooms/${room._id}`));
+        history.push(`/rooms/${room._id}`);
       },
       [Protocol.KICKED]: () => {
-        store.dispatch(push('/'));
+        history.push('/');
         store.dispatch(resetRoom());
       },
       [Protocol.BANNED]: () => {
-        store.dispatch(push('/'));
+        history.push('/');
         store.dispatch(resetRoom());
       },
       [Protocol.USER_JOIN]: (user) => {
@@ -616,7 +616,7 @@ export const createRoomsNamespaceMiddleware = ({
           }
 
           if (err.banned) {
-            store.dispatch(push('/'));
+            history.push('/');
           }
 
           store.dispatch(roomJoinFailed(err));
@@ -669,7 +669,7 @@ export const createRoomsNamespaceMiddleware = ({
           password: room.private ? options.password : null,
         }));
         joinedRoomId = room._id;
-        store.dispatch(push(`/rooms/${room._id}`));
+        history.push(`/rooms/${room._id}`);
         flushPendingResult();
       });
     },

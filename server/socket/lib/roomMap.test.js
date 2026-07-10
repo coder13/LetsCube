@@ -1,4 +1,3 @@
-/* eslint-env jest */
 
 jest.mock('../../models', () => ({
   Room: {

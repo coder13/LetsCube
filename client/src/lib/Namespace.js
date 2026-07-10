@@ -50,7 +50,7 @@ export default class Namespace {
     if (this.onConnected) {
       this.onConnected();
     }
-  }
+  };
 
   // Received disconnect event from socket
   _onDisconnected = () => {
@@ -59,7 +59,7 @@ export default class Namespace {
     if (this.onDisconnected) {
       this.onDisconnected();
     }
-  }
+  };
 
   // Close the socket
   disconnect = () => this.socket.close();
