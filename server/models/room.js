@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const { Events } = require('../../client/src/lib/events');
+const Events = require('../../client/src/lib/events.json');
 const { mirrorRoomChanges } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;

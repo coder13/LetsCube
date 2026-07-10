@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const bcrypt = require('bcrypt');
-const Protocol = require('../../../client/src/lib/protocol');
+const Protocol = require('../../../client/src/lib/protocol.json');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
 const logger = require('../../logger');

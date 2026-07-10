@@ -1,5 +1,5 @@
 const logger = require('../../logger');
-const Protocol = require('../../../client/src/lib/protocol');
+const Protocol = require('../../../client/src/lib/protocol.json');
 
 module.exports = (io, middlewares) => {
   const ns = io.of('/');

@@ -1,7 +1,7 @@
 import { push } from 'connected-react-router';
 import UIfx from 'uifx';
 import notificationAsset from '../../assets/notification.mp3';
-import * as Protocol from '../../lib/protocol';
+import Protocol from '../../lib/protocol';
 import Namespace from '../../lib/Namespace';
 import { uuid } from '../../lib/utils';
 import {
