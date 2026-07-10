@@ -112,6 +112,22 @@ Keep the grace shorter than the time in which an abandoned room should appear
 active. Explicit leaves, kicks, and bans remain immediate and do not use the
 grace window.
 
+### Health Checks
+
+The API and socket processes expose dependency-aware health endpoints. A
+healthy response has HTTP status `200`; an unavailable MongoDB, PostgreSQL, or
+Redis dependency returns `503` with the failing check marked `error`.
+
+```bash
+curl -sS https://letscube.net/health/api
+curl -sS https://letscube.net/health/socket
+```
+
+The default Socket.IO namespace also accepts a `health_check` event. It returns
+the socket health report through the acknowledgment callback, or emits
+`health_status` when no callback is provided. This tests a real Socket.IO
+connection in addition to the HTTP readiness endpoint.
+
 ## Backups And Restore
 
 Run a MongoDB backup:

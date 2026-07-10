@@ -7,7 +7,8 @@ const passport = require('passport');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
-const { initializePostgres, startPostgresMaintenance } = require('./postgres');
+const { createHealthHandler, createHealthReporter } = require('./health');
+const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
@@ -27,6 +28,21 @@ const init = async () => {
   const mongoose = await connect();
   await initializePostgres();
   startPostgresMaintenance();
+
+  const reportHealth = createHealthReporter({
+    service: 'api',
+    checks: {
+      mongodb: () => mongoose.connection.readyState === 1,
+      postgres: async () => {
+        if (config.postgres.enabled) {
+          await pool.query('SELECT 1');
+        }
+        return true;
+      },
+    },
+  });
+
+  app.get('/health/api', createHealthHandler(reportHealth));
 
   /* Logging */
 

@@ -5,6 +5,8 @@
   "CONNECT_ERR": "connect_error",
   "RECONNECT_ERR": "reconnect_error",
   "RECONNECT": "reconnect",
+  "HEALTH_CHECK": "health_check",
+  "HEALTH_STATUS": "health_status",
   "ERROR": "errorrr",
   "UPDATE_ROOMS": "update_rooms",
   "UPDATE_ROOM": "update_room",

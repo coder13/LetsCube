@@ -7,7 +7,8 @@ const expressSocketSession = require('express-socket.io-session');
 const config = require('../runtimeConfig');
 const session = require('../middlewares/session');
 const { connect } = require('../database');
-const { initializePostgres } = require('../postgres');
+const { createHealthHandler, createHealthReporter } = require('../health');
+const { initializePostgres, pool } = require('../postgres');
 const logger = require('../logger');
 const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
@@ -65,6 +66,28 @@ const init = async () => {
 
   io.adapter(createAdapter(pubClient, subClient));
 
+  const reportHealth = createHealthReporter({
+    service: 'socket',
+    checks: {
+      mongodb: () => mongoose.connection.readyState === 1,
+      postgres: async () => {
+        if (config.postgres.enabled) {
+          await pool.query('SELECT 1');
+        }
+        return true;
+      },
+      redis: async () => pubClient.status === 'ready'
+        && subClient.status === 'ready'
+        && (await pubClient.ping()) === 'PONG',
+    },
+  });
+  const handleHealth = createHealthHandler(reportHealth);
+  server.on('request', (req, res) => {
+    if (req.method === 'GET' && req.url.split('?')[0] === '/health/socket') {
+      handleHealth(req, res);
+    }
+  });
+
   const middlewares = [
     expressSocketSession(session(mongoose), {
       autoSave: true,
@@ -74,7 +97,7 @@ const init = async () => {
   ];
 
   initRooms(io, middlewares);
-  initDefault(io, middlewares);
+  initDefault(io, middlewares, reportHealth);
   watchNamespaceErrors(io, '/');
   watchNamespaceErrors(io, '/rooms');
 
