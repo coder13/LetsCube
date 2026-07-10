@@ -7,6 +7,7 @@ const expressSocketSession = require('express-socket.io-session');
 const config = require('../runtimeConfig');
 const session = require('../middlewares/session');
 const { connect } = require('../database');
+const { initializePostgres } = require('../postgres');
 const logger = require('../logger');
 const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
@@ -49,6 +50,7 @@ const init = async () => {
   io.on('error', logSocketError('server'));
 
   const mongoose = await connect();
+  await initializePostgres();
 
   const pubClient = new Redis(config.redis.url || {
     host: config.redis.host,

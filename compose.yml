@@ -6,6 +6,17 @@ x-app-environment: &app-environment
   SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
   MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}
+  DATABASE_URL: ${DATABASE_URL:-}
+  DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:-}
+  PGHOST: ${PGHOST:-postgres}
+  PGPORT: ${PGPORT:-5432}
+  PGDATABASE: ${PGDATABASE:-letscube}
+  PGUSER: ${PGUSER:-letscube}
+  PGPASSWORD: ${POSTGRES_PASSWORD:-change-me}
+  PGSSL: ${PGSSL:-false}
+  PGSSL_REJECT_UNAUTHORIZED: ${PGSSL_REJECT_UNAUTHORIZED:-true}
+  PGSSL_CA: ${PGSSL_CA:-}
   AUTH_SECRET: ${AUTH_SECRET:-change-me}
   SESSION_SECRET: ${SESSION_SECRET:-}
   AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-https://letscube.net/auth/callback}
@@ -15,6 +26,16 @@ x-app-environment: &app-environment
   CORS_ORIGINS: ${CORS_ORIGINS:-https://letscube.net,https://www.letscube.net}
 
 services:
+  migrate:
+    image: letscube-app:${APP_IMAGE_TAG:-local}
+    command: ["./node_modules/.bin/prisma", "migrate", "deploy", "--config", "server/prisma.config.mjs"]
+    environment:
+      <<: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     image: letscube-app:${APP_IMAGE_TAG:-local}
     command: ["node", "server/index.js"]
@@ -64,6 +85,21 @@ services:
       retries: 5
       start_period: 30s
 
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-letscube}
+      POSTGRES_USER: ${PGUSER:-letscube}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-letscube} -d ${PGDATABASE:-letscube}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   redis:
     image: redis:7.2-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -77,4 +113,5 @@ services:
 
 volumes:
   mongo-data:
+  postgres-data:
   redis-data:

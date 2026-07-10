@@ -7,6 +7,9 @@ x-app-build: &app-build
     REACT_APP_WCA_CLIENT_ID: ${REACT_APP_WCA_CLIENT_ID:-}
 
 services:
+  migrate:
+    build: *app-build
+
   api:
     build: *app-build
     restart: unless-stopped

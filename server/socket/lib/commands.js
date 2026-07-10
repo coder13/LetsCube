@@ -1,4 +1,4 @@
-const Protocol = require('../../../client/src/lib/protocol');
+const Protocol = require('../../../client/src/lib/protocol.json');
 const ChatMessage = require('./ChatMessage');
 
 const Commands = {

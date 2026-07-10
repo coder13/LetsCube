@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { mirrorUser } = require('../postgres/dualWrite');
 
 const redactUser = (doc, ret) => {
   delete ret.email;
@@ -82,5 +83,13 @@ schema.virtual('displayName').get(function () {
 schema.virtual('canJoinRoom').get(function () {
   return this.preferRealName || !!this.username;
 });
+
+const dualWriteUser = (user) => {
+  // PostgreSQL is a non-blocking secondary during the dual-write phase.
+  mirrorUser(user);
+};
+
+schema.post('save', dualWriteUser);
+schema.post('findOneAndUpdate', dualWriteUser);
 
 module.exports = schema;

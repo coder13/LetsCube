@@ -6,6 +6,13 @@
     "port": 9000
   },
   "mongodb": "mongodb://127.0.0.1/letscube",
+  "postgres": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "database": "letscube",
+    "user": "letscube",
+    "password": "letscube"
+  },
   "wcaSource": "https://staging.worldcubeassociation.org",
   "auth": {
     "secret": "",
