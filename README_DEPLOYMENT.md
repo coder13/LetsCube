@@ -87,6 +87,31 @@ Deploy latest code from the server checkout:
 APP_DIR=/opt/letscube scripts/deploy.sh
 ```
 
+The deploy script builds the new application image and applies PostgreSQL
+migrations before replacing either application process. It then replaces and
+health-checks `api` and `socket` one at a time. MongoDB, PostgreSQL, and Redis
+are started without recreating existing containers. nginx is gracefully
+reloaded after each application replacement so it resolves the new container
+without dropping unrelated connections.
+
+Socket clients may briefly reconnect while the `socket` container is replaced.
+Room membership, the current scramble, waiting/competing state, and room admin
+are preserved during `ROOM_RECONNECT_GRACE_MS` (60 seconds by default). A
+client that reconnects within that window resumes the existing room instead of
+leaving and rejoining it. Only users with no socket on any Socket.IO instance
+after the grace window are removed from the room.
+
+Set the grace window in `.env.prod` if production deploys or client reconnects
+need more time:
+
+```bash
+ROOM_RECONNECT_GRACE_MS=90000
+```
+
+Keep the grace shorter than the time in which an abandoned room should appear
+active. Explicit leaves, kicks, and bans remain immediate and do not use the
+grace window.
+
 ## Backups And Restore
 
 Run a MongoDB backup:

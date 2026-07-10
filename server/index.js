@@ -12,7 +12,6 @@ const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
-const { Room } = require('./models');
 
 Error.stackTraceLimit = 100;
 
@@ -101,26 +100,3 @@ try {
 } catch (e) {
   logger.error(e);
 }
-
-/* eslint-disable no-await-in-loop */
-async function asyncForEach(array, callback) {
-  for (let index = 0; index < array.length; index += 1) {
-    await callback(array[index], index, array);
-  }
-}
-
-process.on('SIGINT', () => {
-  Room.find().then(async (rooms) => {
-    try {
-      await asyncForEach(rooms, async (room) => {
-        await asyncForEach(room.users, async (user) => {
-          await room.dropUser(user);
-        });
-      });
-    } catch (e) {
-      logger.error(e);
-    }
-
-    process.exit(0);
-  });
-});

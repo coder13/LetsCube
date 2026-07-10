@@ -4,6 +4,7 @@ x-app-environment: &app-environment
   NODE_ENV: ${NODE_ENV:-prod}
   PORT: ${PORT:-8080}
   SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
+  ROOM_RECONNECT_GRACE_MS: ${ROOM_RECONNECT_GRACE_MS:-60000}
   MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}

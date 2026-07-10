@@ -18,6 +18,11 @@ const parsePositiveInteger = (value, fallback) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const parseNonNegativeInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+};
+
 const authSecret = process.env.AUTH_SECRET
   || process.env.SESSION_SECRET
   || baseConfig.auth.secret;
@@ -58,6 +63,10 @@ module.exports = {
   socketio: {
     ...baseConfig.socketio,
     port: parsePort(process.env.SOCKETIO_PORT, baseConfig.socketio.port),
+    reconnectGraceMs: parseNonNegativeInteger(
+      process.env.ROOM_RECONNECT_GRACE_MS,
+      baseConfig.socketio.reconnectGraceMs,
+    ),
   },
   mongodb: process.env.MONGO_URL || process.env.MONGODB_URI || baseConfig.mongodb,
   redis,

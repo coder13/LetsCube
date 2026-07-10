@@ -3,7 +3,8 @@
     "port": 8080
   },
   "socketio": {
-    "port": 9000
+    "port": 9000,
+    "reconnectGraceMs": 60000
   },
   "mongodb": "mongodb://127.0.0.1/letscube",
   "postgres": {

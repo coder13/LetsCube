@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const Protocol = require('../../../client/src/lib/protocol.json');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
+const config = require('../../runtimeConfig');
 const logger = require('../../logger');
 const metrics = require('../../metrics');
 const { markRoomDeleted } = require('../../postgres/dualWrite');
@@ -11,6 +12,7 @@ const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
+const { createReconnectGrace } = require('../lib/reconnectGrace');
 const {
   createSafeSocketHandler,
   optionalAcknowledgment,
@@ -61,30 +63,22 @@ module.exports = (io, middlewares) => {
     return [...sockets].some((socketId) => socketId !== currentSocketId);
   };
 
-  async function markNormalRoomsStaleOnStartup() {
-    const rooms = await Room.find({ type: 'normal' })
+  const hasActiveSocketsForUserRoom = async (userId, roomId) => (
+    (await socketsForUserRoom(userId, roomId)).size > 0
+  );
+
+  async function listActiveRoomUsers() {
+    const rooms = await Room.find()
       .populate('users')
       .populate('admin')
       .populate('owner');
 
-    await Promise.all(rooms.map(async (room) => {
-      room.users.forEach((user) => {
-        room.inRoom.set(user.id.toString(), false);
-        room.waitingFor.set(user.id.toString(), false);
-      });
-
-      room.admin = null;
-      await room.updateStale(true);
-    }));
-
-    logger.info('Marked normal rooms stale on socket startup', {
-      rooms: rooms.length,
-    });
+    return rooms.flatMap((room) => room.usersInRoom.map((user) => ({
+      roomId: room._id,
+      userId: user.id,
+      leaveReason: 'disconnect',
+    })));
   }
-
-  const normalRoomsReady = markNormalRoomsStaleOnStartup().catch((err) => {
-    logger.error(err);
-  });
 
   function sendNewScramble(room) {
     return room.newAttempt().then((r) => {
@@ -99,6 +93,49 @@ module.exports = (io, middlewares) => {
       logger.error(err);
     });
   }
+
+  async function finalizeUserDeparture({
+    roomId, userId, connectionId, leaveReason,
+  }) {
+    const room = await fetchRoom(roomId);
+    const userKey = userId.toString();
+
+    if (!room || !room.inRoom.get(userKey)) {
+      return false;
+    }
+
+    const updatedRoom = await room.dropUser({ id: userId }, (_room) => {
+      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+    });
+
+    await metrics.endRoomVisit({
+      room: updatedRoom,
+      userId,
+      connectionId,
+      leaveReason,
+      activeUserCount: updatedRoom.usersLength,
+    });
+
+    ns().in(updatedRoom.accessCode).emit(Protocol.USER_LEFT, userId);
+    ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(updatedRoom));
+
+    if (updatedRoom.doneWithScramble()) {
+      logger.debug('everyone done, sending new scramble');
+      sendNewScramble(updatedRoom);
+    }
+
+    return true;
+  }
+
+  const reconnectGrace = createReconnectGrace({
+    graceMs: config.socketio.reconnectGraceMs,
+    hasActiveSockets: hasActiveSocketsForUserRoom,
+    finalizeDeparture: finalizeUserDeparture,
+    listActiveUsers: listActiveRoomUsers,
+    logger,
+  });
+
+  reconnectGrace.startReconciliation();
 
   const interval = 60 * 1000; // 30 seconds
 
@@ -183,8 +220,6 @@ module.exports = (io, middlewares) => {
   }
 
   ns().on('connection', async (socket) => {
-    await normalRoomsReady;
-
     const on = createSafeSocketHandler(socket, logger, Protocol.ERROR);
 
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
@@ -284,25 +319,13 @@ module.exports = (io, middlewares) => {
           return;
         }
 
-        const room = await socket.room.dropUser(socket.user, (_room) => {
-          ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
-        });
-
-        await metrics.endRoomVisit({
-          room,
+        reconnectGrace.cancel(socket.roomId, socket.userId);
+        await reconnectGrace.finalize({
+          roomId: socket.roomId,
           userId: socket.userId,
           connectionId: socket.id,
           leaveReason,
-          activeUserCount: room.usersLength,
         });
-
-        broadcast(Protocol.USER_LEFT, socket.user.id);
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-        if (room.doneWithScramble()) {
-          logger.debug('everyone done, sending new scramble');
-          sendNewScramble(room);
-        }
       } catch (e) {
         logger.error(e);
       }
@@ -338,6 +361,7 @@ module.exports = (io, middlewares) => {
       }
 
       socket.join(encodeUserRoom(socket.userId, room._id));
+      reconnectGrace.cancel(room._id, socket.userId);
 
       const r = await room.addUser(socket.user, spectating, (_room) => {
         ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
@@ -838,7 +862,12 @@ module.exports = (io, middlewares) => {
         logger.info(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
 
         if (socket.user && socket.room) {
-          await leaveRoom('disconnect');
+          reconnectGrace.schedule({
+            roomId: socket.roomId,
+            userId: socket.userId,
+            connectionId: socket.id,
+            leaveReason: 'disconnect',
+          });
         } else if (socket.room) {
           await metrics.endRoomVisit({
             room: socket.room,
