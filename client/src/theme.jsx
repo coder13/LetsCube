@@ -42,6 +42,11 @@ const makeTheme = (darkMode) => createTheme({
     fontSize: 12,
   },
   components: {
+    MuiTextField: {
+      defaultProps: {
+        variant: 'standard',
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
         '*scrollbar': {

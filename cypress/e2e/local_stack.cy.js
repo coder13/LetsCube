@@ -101,6 +101,15 @@ describe('local app stack', () => {
 
     cy.contains('Create Room', { timeout: 10000 }).click();
     cy.get('#roomName').type(roomName);
+    cy.get('label[for="roomName"]').should(($label) => {
+      const labelRect = $label[0].getBoundingClientRect();
+      const contentRect = $label[0]
+        .closest('.MuiDialogContent-root')
+        .getBoundingClientRect();
+
+      expect(labelRect.top).to.be.at.least(contentRect.top);
+      expect(labelRect.bottom).to.be.at.most(contentRect.bottom);
+    });
     cy.get('[role="dialog"]').contains('button', 'Create').click();
 
     cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);

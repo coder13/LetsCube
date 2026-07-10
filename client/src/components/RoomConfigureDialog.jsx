@@ -117,6 +117,7 @@ function RoomConfigureDialog({
           autoComplete="off"
           autoFocus
           fullWidth
+          margin="dense"
         />
         <FormControlLabel
           className={classes.formControl}
