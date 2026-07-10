@@ -7,6 +7,7 @@ import {
 } from '@mui/material/colors';
 import {
   createTheme,
+  StyledEngineProvider,
   ThemeProvider as MuiThemeProvider,
 } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -82,11 +83,13 @@ export const ThemeProvider = ({ children }) => {
   }, [themeType]);
 
   return (
-    <MuiThemeProvider theme={makeTheme(themeType === 'dark')}>
-      <ToggleThemeContext.Provider value={toggleTheme}>
-        {children}
-      </ToggleThemeContext.Provider>
-    </MuiThemeProvider>
+    <StyledEngineProvider injectFirst>
+      <MuiThemeProvider theme={makeTheme(themeType === 'dark')}>
+        <ToggleThemeContext.Provider value={toggleTheme}>
+          {children}
+        </ToggleThemeContext.Provider>
+      </MuiThemeProvider>
+    </StyledEngineProvider>
   );
 };
 

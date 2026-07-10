@@ -94,6 +94,7 @@ describe('local app stack', () => {
 
   it('creates a room, reloads it directly, and lists it in the lobby', () => {
     const roomName = `Cypress Room ${Date.now()}`;
+    cy.viewport(1280, 720);
     login();
 
     cy.visit('/');
@@ -103,6 +104,8 @@ describe('local app stack', () => {
     cy.get('[role="dialog"]').contains('button', 'Create').click();
 
     cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.get('.MuiBottomNavigation-root').should('not.be.visible');
+    cy.get('thead tr').first().should('have.css', 'display', 'flex');
     cy.location('pathname').then((pathname) => {
       cy.reload();
       cy.location('pathname', { timeout: 10000 }).should('eq', pathname);
