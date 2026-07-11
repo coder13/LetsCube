@@ -60,7 +60,7 @@ const STATUS = {
 
 const STATUSES = [STATUS.RESTING, STATUS.INSPECTING, STATUS.TIMING, STATUS.SUBMITTING];
 
-class ManualTimer extends React.Component {
+export class ManualTimer extends React.Component {
   constructor(props) {
     super(props);
 
@@ -194,10 +194,15 @@ class ManualTimer extends React.Component {
 
     const { onSubmitTime } = this.props;
     const { penalties } = this.state;
+    const time = this.finalTime();
+
+    if (!Number.isFinite(time)) {
+      return;
+    }
 
     if (onSubmitTime) {
       onSubmitTime({
-        time: this.finalTime(),
+        time,
         penalties: {
           DNF: penalties.DNF,
           inspection: penalties.inspection,

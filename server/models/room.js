@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const { Events } = require('../../client/src/lib/events');
+const Events = require('../../client/src/lib/events.json');
+const { mirrorRoomChanges } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
@@ -17,6 +18,7 @@ const Result = new mongoose.Schema({
     required: true,
   },
   penalties: Object,
+  submissionId: String,
 }, {
   timestamps: true,
 });
@@ -326,5 +328,77 @@ Room.methods.updateAdminIfNeeded = function (cb) {
   }
 };
 
+const collectPostgresChanges = (room) => {
+  const changesByAttempt = new Map();
+  const participantUserIds = new Set();
+  const ensureAttempt = (attemptIndex) => {
+    if (!changesByAttempt.has(attemptIndex)) {
+      changesByAttempt.set(attemptIndex, {
+        attemptIndex,
+        resultUserIds: new Set(),
+        resultsMapModified: false,
+        syncAllResults: false,
+      });
+    }
+    return changesByAttempt.get(attemptIndex);
+  };
+
+  room.modifiedPaths({ includeChildren: true }).forEach((path) => {
+    const participantMatch = path.match(
+      /^(?:competing|waitingFor|banned|inRoom|registered)\.([^.]+)/,
+    );
+    if (participantMatch) {
+      participantUserIds.add(participantMatch[1]);
+    }
+
+    const resultMatch = path.match(/^attempts\.(\d+)\.results(?:\.([^.]+))?/);
+    if (resultMatch) {
+      const change = ensureAttempt(Number(resultMatch[1]));
+      if (resultMatch[2]) {
+        change.resultUserIds.add(resultMatch[2]);
+      } else {
+        change.resultsMapModified = true;
+      }
+      return;
+    }
+
+    const attemptMatch = path.match(/^attempts\.(\d+)\.(?:id|scrambles)(?:\.|$)/);
+    if (attemptMatch) {
+      ensureAttempt(Number(attemptMatch[1]));
+    }
+  });
+
+  (room.attempts || []).forEach((attempt, attemptIndex) => {
+    if (attempt.isNew) {
+      ensureAttempt(attemptIndex).syncAllResults = true;
+    }
+  });
+
+  const attempts = [...changesByAttempt.values()].map((change) => ({
+    attemptIndex: change.attemptIndex,
+    resultUserIds: [...change.resultUserIds],
+    syncAllResults: change.syncAllResults
+      || (change.resultsMapModified && change.resultUserIds.size === 0),
+  }));
+
+  return {
+    attempts,
+    participantUserIds: [...participantUserIds],
+    replaceAttempts: !room.isNew && room.isModified('event'),
+    syncAllParticipants: room.isNew,
+    syncRoomOwners: room.isNew || room.isModified('owner') || room.isModified('admin'),
+  };
+};
+
+Room.pre('save', function capturePostgresChanges() {
+  this.$locals.postgresChanges = collectPostgresChanges(this);
+});
+
+Room.post('save', async (room) => {
+  // PostgreSQL failures are logged and swallowed by the migration-phase writer.
+  await mirrorRoomChanges(room, room.$locals.postgresChanges);
+});
+
 module.exports.Attempt = Attempt;
+module.exports.collectPostgresChanges = collectPostgresChanges;
 module.exports.Room = Room;

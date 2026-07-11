@@ -1,4 +1,4 @@
-import * as Protocol from '../../lib/protocol';
+import Protocol from '../../lib/protocol';
 import Namespace from '../../lib/Namespace';
 import {
   CONNECT,

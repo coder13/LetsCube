@@ -33,7 +33,8 @@ const trackPage = (page) => {
 
 const gaTrackingMiddleware = () => (next) => (action) => {
   if (action.type === '@@router/LOCATION_CHANGE') {
-    const nextPage = `${action.payload.location.pathname}${action.payload.location.search}`;
+    // Query strings can contain the temporary WCA OAuth authorization code.
+    const nextPage = action.payload.location.pathname;
     trackPage(nextPage);
   }
   return next(action);

@@ -1,5 +1,5 @@
 // import io from 'socket.io-client';
-import * as Protocol from './protocol';
+import Protocol from './protocol';
 
 Error.stackTraceLimit = Infinity;
 

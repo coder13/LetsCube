@@ -2,7 +2,10 @@
 /* eslint-env jest */
 
 const bcrypt = require('bcrypt');
-const { Room } = require('./room');
+const mongoose = require('mongoose');
+const { collectPostgresChanges, Room } = require('./room');
+
+const RoomModel = mongoose.model('RoomPostgresChangesTest', Room);
 
 describe('room security helpers', () => {
   it('authenticates passwords asynchronously', async () => {
@@ -47,5 +50,95 @@ describe('room security helpers', () => {
     expect(room.expireAt).toBeInstanceOf(Date);
     expect(room.expireAt.getTime()).toBeGreaterThanOrEqual(before + 10 * 60 * 1000);
     expect(room.expireAt.getTime()).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000);
+  });
+
+  it('stores an optional result submission id', () => {
+    const room = RoomModel.hydrate({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      attempts: [{
+        id: 0,
+        scrambles: ['R U R\''],
+        results: {
+          1234: {
+            time: 12000,
+            penalties: {},
+            submissionId: 'submission-123',
+          },
+        },
+      }],
+    });
+
+    expect(room.attempts[0].results.get('1234').submissionId).toBe('submission-123');
+  });
+
+  it('collects only the changed result for incremental PostgreSQL writes', () => {
+    const room = RoomModel.hydrate({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      event: '333',
+      waitingFor: { 1234: true },
+      attempts: [{
+        _id: '507f1f77bcf86cd799439012',
+        id: 0,
+        scrambles: ['R U R\''],
+        results: {
+          1234: {
+            _id: '507f1f77bcf86cd799439013',
+            time: 12000,
+            penalties: {},
+          },
+        },
+      }],
+    });
+    room.attempts[0].results.set('1234', {
+      time: 13000,
+      penalties: { AUF: true },
+    });
+    room.waitingFor.set('1234', false);
+
+    expect(collectPostgresChanges(room)).toEqual({
+      attempts: [{
+        attemptIndex: 0,
+        resultUserIds: ['1234'],
+        syncAllResults: false,
+      }],
+      participantUserIds: ['1234'],
+      replaceAttempts: false,
+      syncAllParticipants: false,
+      syncRoomOwners: false,
+    });
+  });
+
+  it('replaces PostgreSQL attempts when the room event resets them', () => {
+    const room = RoomModel.hydrate({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      event: '333',
+      attempts: [{
+        _id: '507f1f77bcf86cd799439012',
+        id: 0,
+        scrambles: ['R U R\''],
+        results: {},
+      }],
+    });
+    room.event = '222';
+    room.attempts = [{
+      id: 0,
+      scrambles: ['R U2 R\''],
+      results: {},
+    }];
+
+    expect(collectPostgresChanges(room)).toEqual({
+      attempts: [{
+        attemptIndex: 0,
+        resultUserIds: [],
+        syncAllResults: true,
+      }],
+      participantUserIds: [],
+      replaceAttempts: true,
+      syncAllParticipants: false,
+      syncRoomOwners: false,
+    });
   });
 });

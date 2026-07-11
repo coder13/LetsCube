@@ -7,11 +7,12 @@ const passport = require('passport');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
+const { createHealthHandler, createHealthReporter } = require('./health');
+const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
-const { Room } = require('./models');
 
 Error.stackTraceLimit = 100;
 
@@ -25,6 +26,26 @@ const init = async () => {
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
   const mongoose = await connect();
+  await initializePostgres();
+  startPostgresMaintenance();
+
+  const reportHealth = createHealthReporter({
+    service: 'api',
+    checks: {
+      mongodb: () => mongoose.connection.readyState === 1,
+      postgres: {
+        required: false,
+        check: async () => {
+          if (config.postgres.enabled) {
+            await pool.query('SELECT 1');
+          }
+          return true;
+        },
+      },
+    },
+  });
+
+  app.get('/health/api', createHealthHandler(reportHealth));
 
   /* Logging */
 
@@ -98,26 +119,3 @@ try {
 } catch (e) {
   logger.error(e);
 }
-
-/* eslint-disable no-await-in-loop */
-async function asyncForEach(array, callback) {
-  for (let index = 0; index < array.length; index += 1) {
-    await callback(array[index], index, array);
-  }
-}
-
-process.on('SIGINT', () => {
-  Room.find().then(async (rooms) => {
-    try {
-      await asyncForEach(rooms, async (room) => {
-        await asyncForEach(room.users, async (user) => {
-          await room.dropUser(user);
-        });
-      });
-    } catch (e) {
-      logger.error(e);
-    }
-
-    process.exit(0);
-  });
-});

@@ -1,0 +1,130 @@
+datasource db {
+  provider = "postgresql"
+  schemas  = ["analytics", "app"]
+}
+
+model User {
+  id                 String            @id @db.Uuid
+  wcaUserId          BigInt            @unique(map: "users_wca_user_id_key") @map("wca_user_id")
+  email              String?
+  name               String
+  username           String?
+  wcaId              String?           @map("wca_id")
+  preferences        Json              @default("{}") @db.JsonB
+  avatar             Json              @default("{}") @db.JsonB
+  sourceCreatedAt    DateTime?         @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt    DateTime          @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt         DateTime          @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  ownedRooms         Room[]            @relation("RoomOwner")
+  administeredRooms  Room[]            @relation("RoomAdmin")
+  roomParticipations RoomParticipant[]
+  solves             Solve[]
+
+  @@map("users")
+  @@schema("app")
+}
+
+model Room {
+  id                      String            @id @db.Uuid
+  mongoId                 String            @unique(map: "rooms_mongo_id_key") @map("mongo_id")
+  name                    String
+  cubeEvent               String            @map("cube_event")
+  accessCode              String            @unique(map: "rooms_access_code_key") @map("access_code")
+  passwordHash            String?           @map("password_hash")
+  roomType                String            @map("room_type")
+  ownerId                 String?           @map("owner_id") @db.Uuid
+  adminId                 String?           @map("admin_id") @db.Uuid
+  requireRevealedIdentity Boolean           @default(false) @map("require_revealed_identity")
+  startTime               DateTime?         @map("start_time") @db.Timestamptz(6)
+  started                 Boolean           @default(false)
+  nextSolveAt             DateTime?         @map("next_solve_at") @db.Timestamptz(6)
+  expiresAt               DateTime?         @map("expires_at") @db.Timestamptz(6)
+  twitchChannel           String?           @map("twitch_channel")
+  deletedAt               DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  sourceCreatedAt         DateTime?         @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt         DateTime          @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt              DateTime          @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  owner                   User?             @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  admin                   User?             @relation("RoomAdmin", fields: [adminId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  participants            RoomParticipant[]
+  attempts                Attempt[]
+  solves                  Solve[]
+
+  @@map("rooms")
+  @@schema("app")
+}
+
+model RoomParticipant {
+  roomId          String   @map("room_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  competing       Boolean  @default(false)
+  waitingFor      Boolean  @default(false) @map("waiting_for")
+  banned          Boolean  @default(false)
+  inRoom          Boolean  @default(false) @map("in_room")
+  registered      Boolean  @default(false)
+  sourceUpdatedAt DateTime @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt      DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([roomId, userId])
+  @@map("room_participants")
+  @@schema("app")
+}
+
+model Attempt {
+  id              String    @id @db.Uuid
+  mongoId         String    @unique(map: "attempts_mongo_id_unique") @map("mongo_id")
+  roomId          String    @map("room_id") @db.Uuid
+  ordinal         Int
+  cubeEvent       String    @map("cube_event")
+  scrambles       Json      @db.JsonB
+  sourceCreatedAt DateTime? @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt DateTime  @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt      DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  room            Room      @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  solves          Solve[]
+
+  @@index([roomId, ordinal], map: "attempts_room_ordinal_idx")
+  @@map("attempts")
+  @@schema("app")
+}
+
+model Solve {
+  id                String   @id @db.Uuid
+  attemptId         String   @map("attempt_id") @db.Uuid
+  roomId            String   @map("room_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  timeMs            Int      @map("time_ms")
+  dnf               Boolean  @default(false)
+  inspectionPenalty Boolean  @default(false) @map("inspection_penalty")
+  aufPenalty        Boolean  @default(false) @map("auf_penalty")
+  sourceCreatedAt   DateTime @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt   DateTime @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt        DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  room              Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([attemptId, userId], map: "solves_attempt_id_user_id_key")
+  @@index([userId, sourceCreatedAt(sort: Desc), id(sort: Desc)], map: "solves_user_created_idx")
+  @@map("solves")
+  @@schema("app")
+}
+
+model MetricEvent {
+  id         String   @id @db.Uuid
+  eventName  String   @map("event_name")
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  actorId    String?  @map("actor_id")
+  roomId     String?  @map("room_id")
+  properties Json     @default("{}") @db.JsonB
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  ingestedAt DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+
+  @@index([eventName, occurredAt(sort: Desc)], map: "analytics_events_name_time_idx")
+  @@index([roomId, occurredAt(sort: Desc)], map: "analytics_events_room_time_idx")
+  @@index([expiresAt], map: "analytics_events_expiry_idx")
+  @@map("events")
+  @@schema("analytics")
+}

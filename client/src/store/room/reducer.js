@@ -16,7 +16,17 @@ import {
   UPDATE_USER_BANNED,
   NEXT_SOLVE_AT,
   TOGGLE_FOLLOW_USER,
+  RESULT_SUBMISSION_PENDING,
+  RESULT_SUBMISSION_SENDING,
+  RESULT_SUBMISSION_FAILED,
+  RESULT_SUBMISSION_CLEARED,
 } from './actions';
+
+const EMPTY_RESULT_SUBMISSION = {
+  status: 'idle',
+  pendingResult: null,
+  error: null,
+};
 
 const INITIAL_STATE = {
   fetching: null,
@@ -47,21 +57,30 @@ const INITIAL_STATE = {
   following: {},
   registeredUsers: 0,
   twitchChannel: '',
+  resultSubmission: EMPTY_RESULT_SUBMISSION,
 };
 
-const editResult = (state, action) => ({
-  ...state,
-  attempts: state.attempts.map((attempt) => (
-    attempt.id === action.result.id ? ({
-      ...attempt,
-      results: { ...attempt.results, [action.result.userId]: action.result.result },
-    }) : attempt
-  )),
-  waitingFor: {
-    ...state.waitingFor,
-    [action.result.userId]: false,
-  },
-});
+const editResult = (state, action) => {
+  const latestAttempt = state.attempts[state.attempts.length - 1];
+  const resultIsForLatestAttempt = latestAttempt
+    && latestAttempt.id === action.result.id;
+
+  return {
+    ...state,
+    attempts: state.attempts.map((attempt) => (
+      attempt.id === action.result.id ? ({
+        ...attempt,
+        results: { ...attempt.results, [action.result.userId]: action.result.result },
+      }) : attempt
+    )),
+    waitingFor: resultIsForLatestAttempt
+      ? {
+        ...state.waitingFor,
+        [action.result.userId]: false,
+      }
+      : state.waitingFor,
+  };
+};
 
 const reducers = {
   [ROOM_UPDATED]: (state, { room }) => ({
@@ -94,14 +113,16 @@ const reducers = {
   }),
   [JOIN_ROOM]: (state, action) => ({
     ...state,
-    fetching: true,
+    fetching: action.reconnecting ? state.fetching : true,
     password: action.password,
   }),
-  [RESET_ROOM]: () => ({
+  [RESET_ROOM]: (state) => ({
     ...INITIAL_STATE,
+    resultSubmission: state.resultSubmission,
   }),
-  [LEAVE_ROOM]: () => ({
+  [LEAVE_ROOM]: (state) => ({
     ...INITIAL_STATE,
+    resultSubmission: state.resultSubmission,
   }),
   [NEW_ATTEMPT]: (state, action) => ({
     ...state,
@@ -151,6 +172,49 @@ const reducers = {
       [action.userId]: !state.following[action.userId],
     },
   }),
+  [RESULT_SUBMISSION_PENDING]: (state, action) => ({
+    ...state,
+    resultSubmission: {
+      status: action.pendingResult.terminalFailure ? 'failed' : 'pending',
+      pendingResult: action.pendingResult,
+      error: action.pendingResult.terminalFailure ? action.pendingResult.failure : null,
+    },
+  }),
+  [RESULT_SUBMISSION_SENDING]: (state, action) => (
+    state.resultSubmission.pendingResult
+    && state.resultSubmission.pendingResult.submissionId === action.submissionId
+      ? {
+        ...state,
+        resultSubmission: {
+          ...state.resultSubmission,
+          status: 'sending',
+          error: null,
+        },
+      }
+      : state
+  ),
+  [RESULT_SUBMISSION_FAILED]: (state, action) => (
+    state.resultSubmission.pendingResult
+    && state.resultSubmission.pendingResult.submissionId === action.submissionId
+      ? {
+        ...state,
+        resultSubmission: {
+          ...state.resultSubmission,
+          status: 'failed',
+          error: action.error,
+        },
+      }
+      : state
+  ),
+  [RESULT_SUBMISSION_CLEARED]: (state, action) => (
+    state.resultSubmission.pendingResult
+    && state.resultSubmission.pendingResult.submissionId === action.submissionId
+      ? {
+        ...state,
+        resultSubmission: EMPTY_RESULT_SUBMISSION,
+      }
+      : state
+  ),
 };
 
 // Socket reducer

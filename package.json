@@ -6,6 +6,7 @@
     "server"
   ],
   "resolutions": {
+    "@hono/node-server": "1.19.13",
     "cheerio": "1.0.0-rc.12"
   },
   "scripts": {

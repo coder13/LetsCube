@@ -1,4 +1,21 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "127.0.0.1:55433:5432"
+    environment:
+      POSTGRES_DB: letscube
+      POSTGRES_USER: letscube
+      POSTGRES_PASSWORD: letscube
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U letscube -d letscube"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   mongo:
     image: mongo:6.0
     ports:
@@ -23,4 +40,5 @@ services:
 
 volumes:
   mongo-data:
+  postgres-data:
   redis-data:
