@@ -52,6 +52,26 @@ describe('room security helpers', () => {
     expect(room.expireAt.getTime()).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000);
   });
 
+  it('stores an optional result submission id', () => {
+    const room = RoomModel.hydrate({
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      attempts: [{
+        id: 0,
+        scrambles: ['R U R\''],
+        results: {
+          1234: {
+            time: 12000,
+            penalties: {},
+            submissionId: 'submission-123',
+          },
+        },
+      }],
+    });
+
+    expect(room.attempts[0].results.get('1234').submissionId).toBe('submission-123');
+  });
+
   it('collects only the changed result for incremental PostgreSQL writes', () => {
     const room = RoomModel.hydrate({
       _id: '507f1f77bcf86cd799439011',

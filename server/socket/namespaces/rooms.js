@@ -11,8 +11,13 @@ const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const { isRoomTypeEnabled: checkRoomTypeEnabled } = require('../lib/roomAvailability');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
 const { createReconnectGrace } = require('../lib/reconnectGrace');
+const {
+  createResultSubmissionService,
+  ResultSubmissionError,
+} = require('../lib/resultSubmission');
 const {
   createSafeSocketHandler,
   optionalAcknowledgment,
@@ -37,12 +42,14 @@ const roomMask = (room) => ({
 
 // Data for people in room
 const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
+const isRoomTypeEnabled = (type) => checkRoomTypeEnabled(type, config.grandPrix.enabled);
 
 const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
 
 const getRooms = (userId) => Room.find().populate('users').populate('admin').populate('owner')
   .then((rooms) => rooms.filter((room) => (
-    userId ? !room.banned.get(userId.toString()) : true
+    isRoomTypeEnabled(room.type)
+      && (userId ? !room.banned.get(userId.toString()) : true)
   )).map(roomMask));
 
 const roomTimerObj = {};
@@ -80,18 +87,31 @@ module.exports = (io, middlewares) => {
     })));
   }
 
-  function sendNewScramble(room) {
-    return room.newAttempt().then((r) => {
-      logger.debug('Sending new scramble to room', { roomId: room.id });
-      ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
-        waitingFor: r.waitingFor,
-        attempt: r.attempts[r.attempts.length - 1],
-      });
+  async function createAndSendNewScramble(room) {
+    const updatedRoom = await room.newAttempt();
+    logger.debug('Sending new scramble to room', { roomId: room.id });
+    ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
+      waitingFor: updatedRoom.waitingFor,
+      attempt: updatedRoom.attempts[updatedRoom.attempts.length - 1],
+    });
+    return updatedRoom;
+  }
 
-      return r;
-    }).catch((err) => {
+  function sendNewScramble(room) {
+    return createAndSendNewScramble(room).catch((err) => {
       logger.error(err);
     });
+  }
+
+  const resultSubmissions = createResultSubmissionService({
+    advanceRoom: createAndSendNewScramble,
+    fetchRoom,
+  });
+
+  function sendGlobalRoomUpdate(room) {
+    if (isRoomTypeEnabled(room.type)) {
+      ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+    }
   }
 
   async function finalizeUserDeparture({
@@ -101,6 +121,11 @@ module.exports = (io, middlewares) => {
     const userKey = userId.toString();
 
     if (!room || !room.inRoom.get(userKey)) {
+      return false;
+    }
+
+    if (leaveReason === 'disconnect'
+      && await hasActiveSocketsForUserRoom(userId, roomId)) {
       return false;
     }
 
@@ -117,11 +142,11 @@ module.exports = (io, middlewares) => {
     });
 
     ns().in(updatedRoom.accessCode).emit(Protocol.USER_LEFT, userId);
-    ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(updatedRoom));
+    sendGlobalRoomUpdate(updatedRoom);
 
     if (updatedRoom.doneWithScramble()) {
       logger.debug('everyone done, sending new scramble');
-      sendNewScramble(updatedRoom);
+      await sendNewScramble(updatedRoom);
     }
 
     return true;
@@ -192,16 +217,18 @@ module.exports = (io, middlewares) => {
     clearInterval(roomTimerObj[room._id]);
   }
 
-  Room.find({ type: 'grand_prix' })
-    .then((rooms) => {
-      rooms.forEach(async (room) => {
-        if (room.startTime && Date.now() < new Date(room.startTime).getTime()) {
-          awaitRoomStart(room);
-        } else {
-          startTimer(room);
-        }
+  if (config.grandPrix.enabled) {
+    Room.find({ type: 'grand_prix' })
+      .then((rooms) => {
+        rooms.forEach(async (room) => {
+          if (room.startTime && Date.now() < new Date(room.startTime).getTime()) {
+            awaitRoomStart(room);
+          } else {
+            startTimer(room);
+          }
+        });
       });
-    });
+  }
 
   async function updateClientsWithUsers() {
     const sockets = [...await ns().adapter.allRooms([])]
@@ -361,22 +388,29 @@ module.exports = (io, middlewares) => {
       }
 
       socket.join(encodeUserRoom(socket.userId, room._id));
-      reconnectGrace.cancel(room._id, socket.userId);
+      const waitedForCleanup = await reconnectGrace.cancel(room._id, socket.userId);
+      const activeRoom = waitedForCleanup ? await fetchRoom(room._id) : room;
+      if (!activeRoom) {
+        return cb({
+          statusCode: 404,
+          message: 'Room no longer exists',
+        });
+      }
 
-      const r = await room.addUser(socket.user, spectating, (_room) => {
+      const r = await activeRoom.addUser(socket.user, spectating, (_room) => {
         ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
       });
 
       if (!r) {
-        // Join the socket to the room anyways but don't add them
-        socket.room = room;
+        // The user is already present in persisted room state.
+        socket.room = activeRoom;
         await metrics.beginRoomVisit({
-          room,
+          room: activeRoom,
           userId: socket.userId,
           connectionId: socket.id,
-          activeUserCount: room.usersLength,
+          activeUserCount: activeRoom.usersLength,
         });
-        return cb(null, joinRoomMask(room));
+        return cb(null, joinRoomMask(activeRoom));
       }
 
       socket.room = r;
@@ -390,12 +424,12 @@ module.exports = (io, middlewares) => {
       socket.emit(Protocol.JOIN, joinRoomMask(r));
       cb(null, joinRoomMask(r));
 
-      broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
-      ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
+      broadcast(Protocol.USER_JOIN, socket.user);
+      sendGlobalRoomUpdate(r);
 
-      if (room.doneWithScramble()) {
+      if (r.doneWithScramble()) {
         logger.debug('everyone done, sending new scramble');
-        sendNewScramble(room);
+        sendNewScramble(r);
       }
     }
 
@@ -421,6 +455,13 @@ module.exports = (io, middlewares) => {
             statusCode: 404,
             message: `Could not find room with id ${id}`,
           });
+        }
+
+        if (!isRoomTypeEnabled(room.type)) {
+          return rejectJoin('grand_prix_disabled', {
+            statusCode: 403,
+            message: 'Grand Prix rooms are disabled',
+          }, room);
         }
 
         if (room.private && !password) {
@@ -473,10 +514,10 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      if (options.type === 'grand_prix') {
+      if (options.type === 'grand_prix' && !config.grandPrix.enabled) {
         return acknowledgment({
           statusCode: 403,
-          message: 'Not allowed to make a Grand Prix Room',
+          message: 'Grand Prix rooms are disabled',
         });
       }
 
@@ -594,51 +635,89 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    on(Protocol.SUBMIT_RESULT, async ({ id, result }) => {
-      if (!socket.user || !socket.roomId) {
-        return;
-      }
-
-      try {
-        if (!socket.room.attempts[id]) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 400,
+    on(Protocol.SUBMIT_RESULT, async (payload = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+      const rejectSubmission = (error) => {
+        if (typeof cb === 'function') {
+          return acknowledgment(error);
+        }
+        if (socket.connected) {
+          return socket.emit(Protocol.ERROR, {
+            ...error,
             event: Protocol.SUBMIT_RESULT,
-            message: 'Invalid ID for attempt submission',
-          });
-          return;
-        }
-
-        if (socket.room.type === 'grand_prix') {
-          result.penalties.DNF = result.penalties.DNF
-            || id < socket.room.attempts.length - 1;
-        }
-        const previousResult = socket.room.attempts[id].results.get(socket.user.id.toString());
-        socket.room.attempts[id].results.set(socket.user.id.toString(), result);
-        socket.room.waitingFor.set(socket.user.id.toString(), false);
-
-        const r = await socket.room.save();
-
-        if (!previousResult) {
-          await metrics.recordRoomResult({
-            room: r,
-            userId: socket.userId,
           });
         }
+        return undefined;
+      };
 
-        ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
-          id,
-          result,
-          userId: socket.user.id,
+      if (!socket.user) {
+        return rejectSubmission({
+          statusCode: 401,
+          message: 'Must be logged in to submit a result',
+          retryable: false,
         });
-
-        if (r.doneWithScramble()) {
-          logger.debug('everyone done, sending new scramble');
-          sendNewScramble(r);
-        }
-      } catch (e) {
-        logger.error(e);
       }
+      if (!socket.roomId) {
+        return rejectSubmission({
+          statusCode: 409,
+          message: 'Must rejoin the room before submitting a result',
+          retryable: true,
+        });
+      }
+
+      const {
+        id, attemptKey, result, submissionId,
+      } = payload || {};
+      let submission;
+      try {
+        submission = await resultSubmissions.submit({
+          roomId: socket.roomId,
+          userId: socket.user.id,
+          attemptId: id,
+          attemptKey,
+          result,
+          submissionId,
+          onSaved: ({ room, result: savedResult }) => {
+            socket.room = room;
+            try {
+              ns().in(room.accessCode).emit(Protocol.NEW_RESULT, {
+                id,
+                result: savedResult,
+                userId: socket.user.id,
+              });
+            } catch (err) {
+              logger.error(err);
+            }
+            Promise.resolve()
+              .then(() => metrics.recordRoomResult({
+                room,
+                userId: socket.userId,
+              }))
+              .catch((err) => logger.error(err));
+          },
+        });
+      } catch (err) {
+        if (err.cause) {
+          logger.error(err.cause);
+        } else if (!(err instanceof ResultSubmissionError)) {
+          logger.error(err);
+        }
+        const error = err instanceof ResultSubmissionError
+          ? err.toResponse()
+          : {
+            statusCode: 500,
+            message: 'Failed to save result',
+            retryable: true,
+          };
+        return rejectSubmission(error);
+      }
+
+      socket.room = submission.room;
+      acknowledgment(null, {
+        submissionId: submission.submissionId,
+        status: submission.status,
+      });
+      return undefined;
     });
 
     on(Protocol.SEND_EDIT_RESULT, async (result) => {
@@ -683,12 +762,28 @@ module.exports = (io, middlewares) => {
       if (!checkAdmin()) {
         return;
       }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.REQUEST_SCRAMBLE,
+          message: 'Grand Prix rooms are disabled',
+        });
+        return;
+      }
 
       sendNewScramble(socket.room);
     });
 
     on(Protocol.CHANGE_EVENT, async (event) => {
       if (!checkAdmin()) {
+        return;
+      }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.CHANGE_EVENT,
+          message: 'Grand Prix rooms are disabled',
+        });
         return;
       }
 
@@ -702,8 +797,13 @@ module.exports = (io, middlewares) => {
         return;
       }
 
-      if (options.type === 'grand_prix') {
+      if (options.type === 'grand_prix' && !config.grandPrix.enabled) {
         logger.error(`${socket.id} attempted to edit room to grand_prix`);
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.EDIT_ROOM,
+          message: 'Grand Prix rooms are disabled',
+        });
         return;
       }
 
@@ -712,7 +812,10 @@ module.exports = (io, middlewares) => {
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
 
         Room.find().then((rooms) => {
-          ns().emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
+          ns().emit(
+            Protocol.UPDATE_ROOMS,
+            rooms.filter((candidate) => isRoomTypeEnabled(candidate.type)).map(roomMask),
+          );
         });
       } catch (e) {
         (logger.error(e));
@@ -721,6 +824,14 @@ module.exports = (io, middlewares) => {
 
     on(Protocol.START_ROOM, async () => {
       if (!checkAdmin()) {
+        return;
+      }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.START_ROOM,
+          message: 'Grand Prix rooms are disabled',
+        });
         return;
       }
 
@@ -766,7 +877,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(socket.room.accessCode).emit(Protocol.USER_LEFT, userId);
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -800,7 +911,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -824,7 +935,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
       } catch (e) {
         logger.error(e);
       }

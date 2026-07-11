@@ -70,11 +70,14 @@ const init = async () => {
     service: 'socket',
     checks: {
       mongodb: () => mongoose.connection.readyState === 1,
-      postgres: async () => {
-        if (config.postgres.enabled) {
-          await pool.query('SELECT 1');
-        }
-        return true;
+      postgres: {
+        required: false,
+        check: async () => {
+          if (config.postgres.enabled) {
+            await pool.query('SELECT 1');
+          }
+          return true;
+        },
       },
       redis: async () => pubClient.status === 'ready'
         && subClient.status === 'ready'

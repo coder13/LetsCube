@@ -1,6 +1,6 @@
 # LetsCube Deployment
 
-This repo supports running LetsCube with Docker Compose on one VPS. The intended production stack is `api`, `socket`, `mongo`, `redis`, and `nginx`.
+This repo supports running LetsCube with Docker Compose on one VPS. The intended production stack is `api`, `socket`, `mongo`, `postgres`, `redis`, and `nginx`.
 
 ## Current Startup Audit
 
@@ -42,10 +42,16 @@ cp .env.example .env.prod
 Start or update production:
 
 ```bash
-docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod up -d --build
+APP_IMAGE_TAG="$(git rev-parse HEAD)" \
+  docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod up -d --build
 ```
 
-The nginx container listens on ports `80` and `443`, proxies `/socket.io/` to `socket:9000`, and proxies everything else to `api:8080`. MongoDB and Redis are internal only.
+Using the full commit SHA keeps manually deployed application images
+immutable. `APP_IMAGE_TAG=local` remains available for direct development and
+one-off Compose use. The deployment script always overrides `APP_IMAGE_TAG`
+with the commit it checked out.
+
+The nginx container listens on ports `80` and `443`, proxies `/socket.io/` to `socket:9000`, and proxies everything else to `api:8080`. MongoDB, PostgreSQL, and Redis are internal only.
 
 TLS expects Let’s Encrypt files at:
 
@@ -70,6 +76,7 @@ View logs:
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f api
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f socket
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f mongo
+docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f postgres
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f redis
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f nginx
 ```
@@ -87,19 +94,77 @@ Deploy latest code from the server checkout:
 APP_DIR=/opt/letscube scripts/deploy.sh
 ```
 
-The deploy script builds the new application image and applies PostgreSQL
-migrations before replacing either application process. It then replaces and
-health-checks `api` and `socket` one at a time. MongoDB, PostgreSQL, and Redis
-are started without recreating existing containers. nginx is gracefully
-reloaded after each application replacement so it resolves the new container
-without dropping unrelated connections.
+The default `DEPLOY_TARGET=auto` chooses the smallest safe application target:
 
-Socket clients may briefly reconnect while the `socket` container is replaced.
-Room membership, the current scramble, waiting/competing state, and room admin
-are preserved during `ROOM_RECONNECT_GRACE_MS` (60 seconds by default). A
-client that reconnects within that window resumes the existing room instead of
-leaving and rejoining it. Only users with no socket on any Socket.IO instance
+| Changed paths | Resolved target |
+| --- | --- |
+| Documentation, CI, or agent metadata only | `none` |
+| Browser client only | `api` (which also serves the static client) |
+| Shared socket protocol, server, dependency, container, deployment, or unknown files | `all` |
+
+Override the classifier when the intended runtime impact is known:
+
+```bash
+DEPLOY_TARGET=api APP_DIR=/opt/letscube scripts/deploy.sh
+DEPLOY_TARGET=socket APP_DIR=/opt/letscube scripts/deploy.sh
+DEPLOY_TARGET=all APP_DIR=/opt/letscube scripts/deploy.sh
+DEPLOY_TARGET=none APP_DIR=/opt/letscube scripts/deploy.sh
+```
+
+Accepted values are `auto`, `api`, `socket`, `all`, and `none`. Explicit
+targets are honored even when the checkout is already current. With `auto`, an
+unchanged checkout exits without replacing healthy running containers. If API,
+socket, or nginx is missing, `auto` bootstraps both application services;
+`DEPLOY_FORCE=true` also rebuilds and replaces both at the current commit.
+Readiness waits are capped at 60 seconds before automatic rollback; override
+that bound with `DEPLOY_WAIT_TIMEOUT_SECONDS` when diagnosing unusually slow
+startup.
+
+You can verify the conservative path classifier without fetching code or
+touching Docker:
+
+```bash
+scripts/test-deploy-classifier.sh
+scripts/test-deploy.sh
+scripts/classify-deploy-target.sh client/src/App.jsx
+```
+
+For any selected application target, the deploy script builds one shared image
+tagged with the full commit SHA, waits for backing services without recreating
+them, and applies PostgreSQL migrations before replacing application
+containers. It snapshots the exact image ID of every selected running service,
+then replaces and health-checks services one at a time. For `all`, socket rolls
+out before API/static so the backward-compatible server is ready before the new
+browser client is served. nginx is gracefully reloaded only after a selected
+service changes, so it resolves the replacement container without dropping
+unrelated connections. If nginx is not running during a bootstrap deploy, its
+startup is deferred until the selected application services are ready.
+
+If replacement readiness or the nginx reload fails, recent diagnostic logs are
+printed and every application service attempted in that deploy is restored in
+reverse order using its exact pre-deploy image and Compose configuration. nginx
+is then reloaded again.
+Rollback image tags are retained locally for manual recovery until normal image
+cleanup. Database migrations are not automatically reversed, so migrations
+must remain backward-compatible with the previous application image.
+
+The checkout remains at the fetched commit after a failed deploy. Correct the
+failure and rerun with the explicit target printed by the script; a later
+`auto` run with no new commit otherwise treats the checkout as up to date.
+
+Socket clients briefly reconnect only when `socket` is selected. Room
+membership, the current scramble, waiting/competing state, and room admin are
+preserved during `ROOM_RECONNECT_GRACE_MS` (60 seconds by default). A client
+that reconnects within that window resumes the existing room without being
+logically removed first. Only users with no socket on any Socket.IO instance
 after the grace window are removed from the room.
+
+An in-progress solve continues timing in the browser during that reconnect. If
+the solve finishes before the socket is ready, the result is retained locally,
+the next solve is blocked, and the saved result is submitted only after the
+client rejoins the room. The local copy is cleared only after the server
+acknowledges persistence, so a refresh or repeated reconnect does not discard
+the time.
 
 Set the grace window in `.env.prod` if production deploys or client reconnects
 need more time:
@@ -112,11 +177,23 @@ Keep the grace shorter than the time in which an abandoned room should appear
 active. Explicit leaves, kicks, and bans remain immediate and do not use the
 grace window.
 
+Grand Prix is intentionally disabled in production:
+
+```bash
+GRAND_PRIX_ENABLED=false
+```
+
+Keep this setting disabled until the legacy scheduler is redesigned. Setting
+it to `true` explicitly restores the old mode for development or controlled
+testing.
+
 ### Health Checks
 
-The API and socket processes expose dependency-aware health endpoints. A
-healthy response has HTTP status `200`; an unavailable MongoDB, PostgreSQL, or
-Redis dependency returns `503` with the failing check marked `error`.
+The API and socket processes expose dependency-aware health endpoints.
+Unavailable MongoDB or Redis returns HTTP `503` with the failing check marked
+`error`. PostgreSQL dual writes are optional, so a PostgreSQL outage returns
+HTTP `200` with overall status `degraded` while the primary MongoDB/Redis path
+remains ready.
 
 ```bash
 curl -sS https://letscube.net/health/api
@@ -163,10 +240,10 @@ Do not upgrade the old VPS in place for this migration.
 5. Clone this repo to `/opt/letscube`.
 6. Create `.env.prod` with production secrets and domains.
 7. Copy or issue Let’s Encrypt certs for `letscube.net`.
-8. Start MongoDB and Redis containers.
+8. Start MongoDB, PostgreSQL, and Redis containers.
 9. Restore MongoDB from the production backup.
 10. Start the full production stack.
 11. Test frontend loading, login, room create/join, race/session flows, Redis-backed socket behavior, backups, and restore on non-production data.
-12. Confirm MongoDB and Redis are not publicly reachable.
+12. Confirm MongoDB, PostgreSQL, and Redis are not publicly reachable.
 13. Point DNS at the new VPS.
 14. Keep the old VPS available for rollback until the new stack has been stable.

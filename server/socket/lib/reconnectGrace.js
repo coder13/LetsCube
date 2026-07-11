@@ -19,6 +19,11 @@ const createReconnectGrace = ({
       clearTimer(timer);
       timers.delete(key);
     }
+
+    const finalization = finalizationQueues.get(roomId.toString());
+    return finalization
+      ? finalization.then(() => true, () => true)
+      : Promise.resolve(false);
   };
 
   const enqueueFinalization = (departure, requireInactive) => {

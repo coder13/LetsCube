@@ -5,6 +5,7 @@ x-app-environment: &app-environment
   PORT: ${PORT:-8080}
   SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
   ROOM_RECONNECT_GRACE_MS: ${ROOM_RECONNECT_GRACE_MS:-60000}
+  GRAND_PRIX_ENABLED: ${GRAND_PRIX_ENABLED:-false}
   MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}
@@ -52,6 +53,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get({host:'127.0.0.1',port:process.env.PORT||8080,path:'/health/api'},res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 30s
+      start_interval: 2s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -71,6 +73,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get({host:'127.0.0.1',port:process.env.SOCKETIO_PORT||9000,path:'/health/socket'},res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 30s
+      start_interval: 2s
       timeout: 5s
       retries: 5
       start_period: 30s

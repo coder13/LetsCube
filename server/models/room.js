@@ -18,6 +18,7 @@ const Result = new mongoose.Schema({
     required: true,
   },
   penalties: Object,
+  submissionId: String,
 }, {
   timestamps: true,
 });

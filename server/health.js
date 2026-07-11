@@ -26,14 +26,30 @@ const createHealthReporter = ({
   now = () => new Date(),
   uptime = () => process.uptime(),
 }) => async () => {
-  const checkResults = await Promise.all(Object.entries(checks).map(async ([name, check]) => (
-    [name, await runCheck(check, checkTimeoutMs) ? 'ok' : 'error']
+  const checkResults = await Promise.all(Object.entries(checks).map(async ([name, value]) => {
+    const descriptor = typeof value === 'function' ? { check: value } : value;
+    const required = descriptor.required !== false;
+    const status = await runCheck(descriptor.check, checkTimeoutMs) ? 'ok' : 'error';
+    return { name, required, status };
+  }));
+  const normalizedChecks = Object.fromEntries(checkResults.map(({ name, status }) => (
+    [name, status]
   )));
-  const normalizedChecks = Object.fromEntries(checkResults);
-  const healthy = Object.values(normalizedChecks).every((status) => status === 'ok');
+  const requiredCheckFailed = checkResults.some(({ required, status }) => (
+    required && status === 'error'
+  ));
+  const optionalCheckFailed = checkResults.some(({ required, status }) => (
+    !required && status === 'error'
+  ));
+  let status = 'ok';
+  if (requiredCheckFailed) {
+    status = 'error';
+  } else if (optionalCheckFailed) {
+    status = 'degraded';
+  }
 
   return {
-    status: healthy ? 'ok' : 'error',
+    status,
     service,
     timestamp: now().toISOString(),
     uptimeSeconds: Math.floor(uptime()),
@@ -44,7 +60,7 @@ const createHealthReporter = ({
 const createHealthHandler = (reportHealth) => async (_req, res) => {
   const report = await reportHealth();
 
-  res.statusCode = report.status === 'ok' ? 200 : 503;
+  res.statusCode = report.status === 'error' ? 503 : 200;
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(report));

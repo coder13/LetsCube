@@ -70,6 +70,36 @@ describe('reconnect grace', () => {
     expect(finalizeDeparture).not.toHaveBeenCalled();
   });
 
+  it('lets a reconnect wait for cleanup already in progress', async () => {
+    let finishFinalization;
+    let markFinalizationStarted;
+    const finalizationStarted = new Promise((resolve) => {
+      markFinalizationStarted = resolve;
+    });
+    finalizeDeparture.mockImplementationOnce(() => new Promise((resolve) => {
+      markFinalizationStarted();
+      finishFinalization = resolve;
+    }));
+    const manager = createManager();
+
+    manager.schedule(departure);
+    jest.runAllTimers();
+    await finalizationStarted;
+
+    let reconnectReleased = false;
+    const reconnect = manager.cancel(departure.roomId, departure.userId)
+      .then((waited) => {
+        reconnectReleased = true;
+        return waited;
+      });
+    await Promise.resolve();
+
+    expect(reconnectReleased).toBe(false);
+
+    finishFinalization(true);
+    await expect(reconnect).resolves.toBe(true);
+  });
+
   it('finalizes an explicit departure without waiting for socket inactivity', async () => {
     const manager = createManager();
 

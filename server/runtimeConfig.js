@@ -94,6 +94,9 @@ module.exports = {
     hashSecret: process.env.METRICS_HASH_SECRET || authSecret,
     retentionDays: parsePositiveInteger(process.env.METRICS_RETENTION_DAYS, 90),
   },
+  grandPrix: {
+    enabled: process.env.GRAND_PRIX_ENABLED === 'true',
+  },
   postgres: {
     enabled: process.env.POSTGRES_ENABLED !== 'false',
     connectionString: process.env.DATABASE_URL,

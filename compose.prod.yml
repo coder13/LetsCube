@@ -21,6 +21,9 @@ services:
   mongo:
     restart: unless-stopped
 
+  postgres:
+    restart: unless-stopped
+
   redis:
     restart: unless-stopped
 

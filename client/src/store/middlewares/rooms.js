@@ -21,8 +21,8 @@ import {
   START_ROOM,
   PAUSE_ROOM,
   UPDATE_USER,
+  DISCARD_PENDING_RESULT,
   joinRoom,
-  // leaveRoom,
   roomUpdated,
   resetRoom,
   userJoined,
@@ -34,7 +34,21 @@ import {
   updateAdmin,
   updateCompetingForUser,
   nextSolveAt,
+  resultSubmissionPending,
+  resultSubmissionSending,
+  resultSubmissionFailed,
+  resultSubmissionCleared,
 } from '../room/actions';
+import {
+  canDiscardPendingResult,
+  clearPendingResult,
+  createPendingResult,
+  markPendingResultAttempted,
+  markPendingResultFailed,
+  pendingResultMatches,
+  persistPendingResult,
+  readPendingResult,
+} from '../room/resultOutbox';
 import {
   ROOMS_CONNECT,
   ROOMS_DISCONNECT,
@@ -57,29 +71,273 @@ import {
 } from '../admin/actions';
 import { manager } from './manager';
 
-const roomsNamespaceMiddleware = (store) => {
+const DEFAULT_ACK_TIMEOUT_MS = 10000;
+const DEFAULT_RETRY_DELAY_MS = 2000;
+
+export const createRoomsNamespaceMiddleware = ({
+  NamespaceClass = Namespace,
+  namespaceManager = manager,
+  storage = window.localStorage,
+  createSubmissionId = uuid,
+  now = Date.now,
+  setTimeoutFn = window.setTimeout.bind(window),
+  clearTimeoutFn = window.clearTimeout.bind(window),
+  ackTimeoutMs = DEFAULT_ACK_TIMEOUT_MS,
+  retryDelayMs = DEFAULT_RETRY_DELAY_MS,
+} = {}) => (store) => {
+  let roomsConnected = false;
+  let joinedRoomId = null;
+  let pendingJoinRequest = null;
+  let joinGeneration = 0;
+  let submissionGeneration = 0;
+  let submissionAckTimer = null;
+  let submissionRetryTimer = null;
+  let hydratedPendingResult = false;
+  let storageWarningSubmissionId = null;
+
+  const currentSubmission = () => store.getState().room.resultSubmission;
+  const readStoredPendingResult = () => {
+    try {
+      return readPendingResult(storage);
+    } catch (storageError) {
+      return null;
+    }
+  };
+
+  const warnPendingResultNotBackedUp = (submissionId) => {
+    if (storageWarningSubmissionId === submissionId) {
+      return;
+    }
+
+    storageWarningSubmissionId = submissionId;
+    store.dispatch(createMessage({
+      severity: 'warning',
+      text: 'This result could not be backed up on this device. Keep this tab open while it submits.',
+    }));
+  };
+
+  const clearSubmissionTimers = () => {
+    if (submissionAckTimer !== null) {
+      clearTimeoutFn(submissionAckTimer);
+      submissionAckTimer = null;
+    }
+    if (submissionRetryTimer !== null) {
+      clearTimeoutFn(submissionRetryTimer);
+      submissionRetryTimer = null;
+    }
+  };
+
+  const invalidateSubmissionAttempt = () => {
+    submissionGeneration += 1;
+    clearSubmissionTimers();
+  };
+
+  const normalizeSubmissionError = (error, fallbackMessage) => ({
+    statusCode: error && error.statusCode,
+    message: (error && error.message) || fallbackMessage,
+    retryable: !!(error && error.retryable),
+  });
+
+  const normalizeResultForComparison = (result = {}) => ({
+    time: result.time,
+    AUF: !!(result.penalties && result.penalties.AUF),
+    DNF: !!(result.penalties && result.penalties.DNF),
+    inspection: !!(result.penalties && result.penalties.inspection),
+  });
+
+  const resultEchoMatches = (echo, pendingResult) => {
+    const { room, user } = store.getState();
+    const echoedSubmissionId = echo.result && echo.result.submissionId;
+    const pendingValue = normalizeResultForComparison(pendingResult.result);
+    const echoedValue = normalizeResultForComparison(echo.result);
+
+    return pendingResultMatches(pendingResult, { userId: user.id, roomId: room._id })
+      && String(joinedRoomId) === String(room._id)
+      && String(echo.userId) === String(user.id)
+      && String(echo.id) === String(pendingResult.attemptId)
+      && echoedSubmissionId === undefined
+      && pendingValue.time === echoedValue.time
+      && pendingValue.AUF === echoedValue.AUF
+      && pendingValue.DNF === echoedValue.DNF
+      && pendingValue.inspection === echoedValue.inspection;
+  };
+
+  let flushPendingResult;
+
+  const completePendingResult = (pendingResult) => {
+    const submission = currentSubmission();
+    if (!submission.pendingResult
+      || submission.pendingResult.submissionId !== pendingResult.submissionId) {
+      return false;
+    }
+
+    invalidateSubmissionAttempt();
+    try {
+      const cleared = clearPendingResult(pendingResult.submissionId, storage);
+      if (!cleared) {
+        const storedPendingResult = readStoredPendingResult();
+        if (storedPendingResult) {
+          store.dispatch(resultSubmissionPending(storedPendingResult));
+          flushPendingResult();
+          return false;
+        }
+      }
+    } catch (storageError) {
+      store.dispatch(createMessage({
+        severity: 'warning',
+        text: 'Your result was saved, but its local backup could not be removed.',
+      }));
+    }
+    store.dispatch(resultSubmissionCleared(pendingResult.submissionId));
+    return true;
+  };
+
+  let namespace;
+
+  flushPendingResult = () => {
+    const submission = currentSubmission();
+    let pendingResult = submission && submission.pendingResult;
+    const { room, user } = store.getState();
+
+    if (!pendingResult
+      || submission.status === 'sending'
+      || submission.status === 'failed'
+      || !roomsConnected
+      || String(joinedRoomId) !== String(room._id)
+      || !pendingResultMatches(pendingResult, { userId: user.id, roomId: room._id })) {
+      return;
+    }
+
+    if (submissionRetryTimer !== null) {
+      clearTimeoutFn(submissionRetryTimer);
+      submissionRetryTimer = null;
+    }
+
+    if (pendingResult.deliveryAttempted !== true) {
+      pendingResult = markPendingResultAttempted(pendingResult);
+      store.dispatch(resultSubmissionPending(pendingResult));
+      try {
+        persistPendingResult(pendingResult, storage);
+      } catch (storageError) {
+        warnPendingResultNotBackedUp(pendingResult.submissionId);
+      }
+    }
+
+    const generation = submissionGeneration + 1;
+    submissionGeneration = generation;
+    store.dispatch(resultSubmissionSending(pendingResult.submissionId));
+
+    const retrySubmission = () => {
+      if (generation !== submissionGeneration) {
+        return;
+      }
+
+      invalidateSubmissionAttempt();
+      store.dispatch(resultSubmissionPending(pendingResult));
+      submissionRetryTimer = setTimeoutFn(() => {
+        submissionRetryTimer = null;
+        flushPendingResult();
+      }, retryDelayMs);
+    };
+
+    submissionAckTimer = setTimeoutFn(() => {
+      submissionAckTimer = null;
+      retrySubmission();
+    }, ackTimeoutMs);
+
+    namespace.emit(Protocol.SUBMIT_RESULT, {
+      id: pendingResult.attemptId,
+      attemptKey: pendingResult.attemptKey,
+      result: pendingResult.result,
+      submissionId: pendingResult.submissionId,
+    }, (error, receipt) => {
+      if (generation !== submissionGeneration) {
+        return;
+      }
+
+      if (submissionAckTimer !== null) {
+        clearTimeoutFn(submissionAckTimer);
+        submissionAckTimer = null;
+      }
+
+      if (error) {
+        if (error.retryable) {
+          retrySubmission();
+          return;
+        }
+
+        invalidateSubmissionAttempt();
+        const submissionError = normalizeSubmissionError(
+          error,
+          'The server rejected this result.',
+        );
+        pendingResult = markPendingResultFailed(pendingResult, submissionError);
+        try {
+          persistPendingResult(pendingResult, storage);
+        } catch (storageError) {
+          warnPendingResultNotBackedUp(pendingResult.submissionId);
+        }
+        store.dispatch(resultSubmissionPending(pendingResult));
+        store.dispatch(resultSubmissionFailed(pendingResult.submissionId, submissionError));
+        return;
+      }
+
+      const accepted = receipt
+        && receipt.submissionId === pendingResult.submissionId
+        && (receipt.status === 'saved' || receipt.status === 'duplicate');
+
+      if (!accepted) {
+        retrySubmission();
+        return;
+      }
+
+      completePendingResult(pendingResult);
+    });
+  };
+
   const reconnectToRoom = () => {
-    if (store.getState().room.accessCode) {
+    const { room } = store.getState();
+    const request = pendingJoinRequest || (room.accessCode ? {
+      id: room._id,
+      password: room.password,
+    } : null);
+
+    if (request) {
       store.dispatch(joinRoom({
-        id: store.getState().room._id,
-        password: store.getState().room.password,
+        ...request,
+        reconnecting: true,
       }));
     }
   };
 
-  const namespace = new Namespace({
-    manager,
+  const handleDisconnected = () => {
+    roomsConnected = false;
+    joinedRoomId = null;
+    joinGeneration += 1;
+
+    const submission = currentSubmission();
+    const pendingResult = submission && submission.pendingResult;
+    invalidateSubmissionAttempt();
+    if (pendingResult && submission.status === 'sending') {
+      store.dispatch(resultSubmissionPending(pendingResult));
+    }
+
+    store.dispatch(disconnected());
+  };
+
+  namespace = new NamespaceClass({
+    manager: namespaceManager,
     namespace: '/rooms',
     onChange: (isConnected) => {
       store.dispatch(connectionChanged(isConnected));
     },
     onConnected: () => {
+      roomsConnected = true;
+      joinedRoomId = null;
       store.dispatch(connected());
       reconnectToRoom();
     },
-    onDisconnected: () => {
-      store.dispatch(disconnected());
-    },
+    onDisconnected: handleDisconnected,
     events: {
       [Protocol.ERROR]: (error) => {
         // eslint-disable-next-line no-console
@@ -171,11 +429,15 @@ const roomsNamespaceMiddleware = (store) => {
         }
       },
       [Protocol.NEW_RESULT]: (result) => {
+        const submission = currentSubmission();
+        if (submission.pendingResult
+          && resultEchoMatches(result, submission.pendingResult)) {
+          completePendingResult(submission.pendingResult);
+        }
         store.dispatch(newResult(result));
       },
       [Protocol.EDIT_RESULT]: (result) => {
         store.dispatch(editResult(result));
-        // calculate grand prix points
       },
       [Protocol.MESSAGE]: (message) => {
         store.dispatch(receiveChat(message));
@@ -203,7 +465,6 @@ const roomsNamespaceMiddleware = (store) => {
     },
   });
 
-  // catch attempt to join room here and then fetch socket event
   const reducers = {
     [ROOMS_CONNECT]: () => {
       namespace.connect();
@@ -211,17 +472,14 @@ const roomsNamespaceMiddleware = (store) => {
     [ROOMS_DISCONNECT]: () => {
       namespace.disconnect();
     },
-    // no real point in this being here oper other places
     '@@router/LOCATION_CHANGE': ({ payload }) => {
-      // TODO: improve
       if (payload.location.pathname === '/' || payload.location.pathname === '/profile') {
         document.title = 'Let\'s Cube';
       }
     },
     [USER_CHANGED]: () => {
-      // TODO: improve
-      manager.disconnect();
-      manager.connect();
+      namespaceManager.disconnect();
+      namespaceManager.connect();
     },
     [DELETE_ROOM]: ({ id }) => {
       namespace.emit(Protocol.DELETE_ROOM, id, (err) => {
@@ -234,7 +492,17 @@ const roomsNamespaceMiddleware = (store) => {
       });
     },
     [JOIN_ROOM]: ({ id, password }) => {
+      const generation = joinGeneration + 1;
+      joinGeneration = generation;
+      joinedRoomId = null;
+      pendingJoinRequest = { id, password };
       namespace.emit(Protocol.JOIN_ROOM, { id, password }, (err, room) => {
+        if (generation !== joinGeneration) {
+          return;
+        }
+
+        pendingJoinRequest = null;
+
         if (err) {
           if (err.banned) {
             store.dispatch(push('/'));
@@ -244,10 +512,13 @@ const roomsNamespaceMiddleware = (store) => {
             severity: 'error',
             text: err.message,
           }));
+          return;
         }
 
         if (room) {
           store.dispatch(roomUpdated(room));
+          joinedRoomId = room._id || id;
+          flushPendingResult();
 
           if (room.accessCode) {
             store.dispatch(createMessage({
@@ -268,18 +539,93 @@ const roomsNamespaceMiddleware = (store) => {
           return;
         }
 
-        // store.dispatch(roomJoined(room.accessCode));
         store.dispatch(roomUpdated(room));
+        joinedRoomId = room._id;
         store.dispatch(push(`/rooms/${room._id}`));
+        flushPendingResult();
       });
     },
     [LEAVE_ROOM]: () => {
+      joinedRoomId = null;
+      pendingJoinRequest = null;
+      joinGeneration += 1;
       if (store.getState().room._id) {
         namespace.emit(Protocol.LEAVE_ROOM);
       }
     },
     [SUBMIT_RESULT]: (event) => {
-      namespace.emit(Protocol.SUBMIT_RESULT, event.result);
+      const submission = currentSubmission();
+      const storedPendingResult = readStoredPendingResult();
+
+      if ((submission && submission.pendingResult) || storedPendingResult) {
+        if (!submission.pendingResult && storedPendingResult) {
+          store.dispatch(resultSubmissionPending(storedPendingResult));
+        }
+        store.dispatch(createMessage({
+          severity: 'warning',
+          text: 'A result is already waiting to be submitted.',
+        }));
+        return;
+      }
+
+      const { room, user } = store.getState();
+      let pendingResult;
+      try {
+        pendingResult = createPendingResult({
+          userId: user.id,
+          roomId: room._id,
+          attemptId: event.result.id,
+          attemptKey: event.result.attemptKey,
+          result: event.result.result,
+        }, {
+          createId: createSubmissionId,
+          now,
+        });
+      } catch (error) {
+        store.dispatch(createMessage({
+          severity: 'warning',
+          text: 'This result is invalid and was not submitted.',
+        }));
+        return;
+      }
+
+      store.dispatch(resultSubmissionPending(pendingResult));
+      try {
+        persistPendingResult(pendingResult, storage);
+      } catch (storageError) {
+        warnPendingResultNotBackedUp(pendingResult.submissionId);
+      }
+
+      flushPendingResult();
+    },
+    [DISCARD_PENDING_RESULT]: ({ submissionId }) => {
+      const submission = currentSubmission();
+      if (!submission.pendingResult
+        || submission.pendingResult.submissionId !== submissionId) {
+        return;
+      }
+
+      if (!canDiscardPendingResult(submission.pendingResult, submission.status)) {
+        store.dispatch(createMessage({
+          severity: 'warning',
+          text: 'This result may already have reached the server and must finish submitting.',
+        }));
+        return;
+      }
+
+      invalidateSubmissionAttempt();
+      try {
+        if (!clearPendingResult(submissionId, storage)) {
+          throw new Error('A newer result is saved on this device.');
+        }
+      } catch (storageError) {
+        store.dispatch(resultSubmissionFailed(submissionId, {
+          message: storageError.message || 'The saved result could not be discarded.',
+          retryable: false,
+        }));
+        return;
+      }
+      store.dispatch(resultSubmissionCleared(submissionId));
     },
     [SEND_EDIT_RESULT]: (event) => {
       namespace.emit(Protocol.SEND_EDIT_RESULT, event.result);
@@ -334,13 +680,20 @@ const roomsNamespaceMiddleware = (store) => {
     },
   };
 
-  // Return the handler that will be called for each action dispatched
   return (next) => (action) => {
+    if (!hydratedPendingResult) {
+      hydratedPendingResult = true;
+      const pendingResult = readStoredPendingResult();
+      if (pendingResult) {
+        store.dispatch(resultSubmissionPending(pendingResult));
+      }
+    }
+
     if (reducers[action.type]) {
       reducers[action.type](action);
     }
-    next(action); // This is a middleware, we still need to call this!
+    next(action);
   };
 };
 
-export default roomsNamespaceMiddleware;
+export default createRoomsNamespaceMiddleware();
