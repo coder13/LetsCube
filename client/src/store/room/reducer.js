@@ -5,6 +5,7 @@ import {
   USER_LEFT,
   LEAVE_ROOM,
   JOIN_ROOM,
+  ROOM_JOIN_FAILED,
   NEW_ATTEMPT,
   NEW_RESULT,
   EDIT_RESULT,
@@ -58,6 +59,7 @@ const INITIAL_STATE = {
   registeredUsers: 0,
   twitchChannel: '',
   resultSubmission: EMPTY_RESULT_SUBMISSION,
+  joinError: null,
 };
 
 const editResult = (state, action) => {
@@ -115,6 +117,11 @@ const reducers = {
     ...state,
     fetching: action.reconnecting ? state.fetching : true,
     password: action.password,
+    joinError: null,
+  }),
+  [ROOM_JOIN_FAILED]: (state, action) => ({
+    ...state,
+    joinError: action.error,
   }),
   [RESET_ROOM]: (state) => ({
     ...INITIAL_STATE,

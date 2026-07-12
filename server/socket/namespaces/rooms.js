@@ -360,6 +360,11 @@ module.exports = (io, middlewares) => {
 
     async function joinRoom(room, cb, spectating) {
       if (socket.roomId) {
+        if (String(socket.roomId) === String(room._id)) {
+          socket.room = socket.room || room;
+          return cb(null, joinRoomMask(socket.room));
+        }
+
         logger.debug('Socket is already in room', { roomId: socket.room._id });
         await metrics.recordRoomJoinFailure({
           room: socket.room,
@@ -445,7 +450,10 @@ module.exports = (io, middlewares) => {
           connectionId: socket.id,
           failureReason,
         });
-        return acknowledgment(error, room ? roomMask(room) : undefined);
+        return acknowledgment({
+          ...error,
+          reason: failureReason,
+        }, room ? roomMask(room) : undefined);
       };
 
       try {
@@ -461,6 +469,18 @@ module.exports = (io, middlewares) => {
           return rejectJoin('grand_prix_disabled', {
             statusCode: 403,
             message: 'Grand Prix rooms are disabled',
+          }, room);
+        }
+
+        if (socket.roomId) {
+          if (String(socket.roomId) === String(room._id)) {
+            socket.room = room;
+            return acknowledgment(null, joinRoomMask(room));
+          }
+
+          return rejectJoin('already_in_room', {
+            statusCode: 400,
+            message: 'Socket is already in room',
           }, room);
         }
 
@@ -792,24 +812,57 @@ module.exports = (io, middlewares) => {
       }).catch(logger.error);
     });
 
-    on(Protocol.EDIT_ROOM, async (options) => {
-      if (!checkAdmin()) {
-        return;
+    on(Protocol.EDIT_ROOM, async (options = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+      const rejectEdit = (error) => {
+        const response = {
+          ...error,
+          event: Protocol.EDIT_ROOM,
+        };
+
+        if (typeof cb === 'function') {
+          return acknowledgment(response);
+        }
+
+        return socket.emit(Protocol.ERROR, response);
+      };
+
+      if (!socket.user) {
+        logger.debug('Unauthenticated user attempting to edit a room');
+        return rejectEdit({
+          statusCode: 403,
+          message: 'Must be logged in',
+        });
+      }
+
+      if (!socket.room) {
+        logger.debug('User not in a room attempting to edit it');
+        return rejectEdit({
+          statusCode: 400,
+          message: 'Must be in a room',
+        });
+      }
+
+      if (socket.room.admin.id !== socket.user.id) {
+        logger.debug('Non-admin attempting to edit a room');
+        return rejectEdit({
+          statusCode: 403,
+          message: 'Must be admin of room',
+        });
       }
 
       if (options.type === 'grand_prix' && !config.grandPrix.enabled) {
         logger.error(`${socket.id} attempted to edit room to grand_prix`);
-        socket.emit(Protocol.ERROR, {
+        return rejectEdit({
           statusCode: 403,
-          event: Protocol.EDIT_ROOM,
           message: 'Grand Prix rooms are disabled',
         });
-        return;
       }
 
       try {
         const room = await socket.room.edit(options);
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        acknowledgment(null, joinRoomMask(room));
 
         Room.find().then((rooms) => {
           ns().emit(
@@ -818,7 +871,11 @@ module.exports = (io, middlewares) => {
           );
         });
       } catch (e) {
-        (logger.error(e));
+        logger.error(e);
+        return rejectEdit({
+          statusCode: e.statusCode || 500,
+          message: e.statusCode ? e.message : 'Failed to edit room',
+        });
       }
     });
 

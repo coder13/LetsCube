@@ -40,6 +40,7 @@ export function GlobalPendingResultAlert({
   onDiscard,
   onReturn,
   pendingResult,
+  privateRoom,
   status,
   userId,
 }) {
@@ -54,9 +55,12 @@ export function GlobalPendingResultAlert({
   } else if (status === 'failed') {
     message = `Your saved time could not be submitted: ${error.message}`;
   } else if (atPendingRoom) {
+    const rejoinMessage = privateRoom
+      ? 'Enter the room password below to rejoin and submit it.'
+      : 'Rejoin the room to submit it.';
     message = canDiscardResult
-      ? 'Your time is still saved on this device, but its room is not currently joined. Restore access to the room or discard the saved result.'
-      : 'Your time may already be submitting, but its room is not currently joined. Restore access to the room to finish it.';
+      ? `Your time is still saved on this device. ${rejoinMessage}`
+      : `Your time may already be submitting. ${rejoinMessage}`;
   } else {
     message = canDiscardResult
       ? `Your saved time is waiting in room ${pendingResult.roomId}. Return there to submit it, or discard it.`
@@ -99,12 +103,14 @@ GlobalPendingResultAlert.propTypes = {
     submissionId: PropTypes.string,
     userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }).isRequired,
+  privateRoom: PropTypes.bool,
   status: PropTypes.oneOf(['pending', 'sending', 'failed']).isRequired,
   userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 GlobalPendingResultAlert.defaultProps = {
   error: null,
+  privateRoom: false,
   userId: undefined,
 };
 
@@ -207,6 +213,7 @@ function Navigation({
             onDiscard={() => dispatch(discardPendingResult(pendingResult.submissionId))}
             onReturn={() => dispatch(push(pendingRoomPath))}
             pendingResult={pendingResult}
+            privateRoom={!!room.private}
             status={resultSubmission.status}
             userId={user.id}
           />

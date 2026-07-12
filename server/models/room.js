@@ -295,9 +295,23 @@ Room.methods.changeEvent = function (event) {
 };
 
 Room.methods.edit = async function (options) {
+  // Older clients sent the room access code when the password field was unchanged.
+  const legacyUnchangedPassword = !!this.password
+    && options.password === this.accessCode;
+  const replacesPassword = typeof options.password === 'string'
+    && options.password.length > 0
+    && !legacyUnchangedPassword;
+  if (options.private && !replacesPassword && !this.password) {
+    const error = new Error('A password is required to make a room private');
+    error.statusCode = 400;
+    throw error;
+  }
+
   this.name = options.name;
   if (options.private) {
-    this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    if (replacesPassword) {
+      this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    }
   } else {
     this.password = null;
   }

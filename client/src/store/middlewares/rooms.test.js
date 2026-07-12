@@ -7,10 +7,11 @@ import roomsReducer from '../rooms/reducer';
 import messagesReducer from '../messages/reducers';
 import {
   discardPendingResult,
+  editRoom,
   joinRoom,
   submitResult,
 } from '../room/actions';
-import { connectSocket } from '../rooms/actions';
+import { connectSocket, createRoom } from '../rooms/actions';
 import {
   PENDING_RESULT_STORAGE_KEY,
   createPendingResult,
@@ -18,6 +19,10 @@ import {
   markPendingResultFailed,
   persistPendingResult,
 } from '../room/resultOutbox';
+import {
+  persistRoomPassword,
+  readRoomPassword,
+} from '../room/roomPasswordStorage';
 import { createRoomsNamespaceMiddleware } from './rooms';
 
 jest.mock('./manager', () => ({
@@ -153,7 +158,7 @@ const result = {
   },
 };
 
-describe('rooms result outbox middleware', () => {
+describe('rooms middleware', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
@@ -168,6 +173,358 @@ describe('rooms result outbox middleware', () => {
     expect(emissionsFor(namespace, Protocol.JOIN_ROOM)).toHaveLength(1);
     expect(store.getState().room.fetching).toBe(false);
     expect(store.getState().room.attempts).toBe(attempts);
+  });
+
+  it('waits for the socket connection before emitting the initial room join', () => {
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        _id: null,
+        accessCode: null,
+      },
+    });
+    store.dispatch(connectSocket());
+    store.dispatch(joinRoom({ id: 'room-two', password: 'secret' }));
+
+    expect(emissionsFor(namespace, Protocol.JOIN_ROOM)).toHaveLength(0);
+
+    namespace.options.onConnected();
+
+    const joins = emissionsFor(namespace, Protocol.JOIN_ROOM);
+    expect(joins).toHaveLength(1);
+    expect(joins[0].args[0]).toEqual({ id: 'room-two', password: 'secret' });
+  });
+
+  it('uses a saved private room password after a refresh', () => {
+    persistRoomPassword('private-room', 'saved-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        _id: null,
+        accessCode: null,
+      },
+    });
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    store.dispatch(joinRoom({ id: 'private-room' }));
+
+    const join = emissionsFor(namespace, Protocol.JOIN_ROOM)[0];
+    expect(join.args[0]).toEqual({
+      id: 'private-room',
+      password: 'saved-password',
+    });
+
+    const joinedRoom = {
+      ...initialRoom(),
+      _id: 'private-room',
+      accessCode: 'PRIVATE',
+      private: true,
+    };
+    delete joinedRoom.resultSubmission;
+    join.args[1](null, joinedRoom);
+
+    expect(store.getState().room.password).toBe('saved-password');
+    expect(readRoomPassword('private-room')).toBe('saved-password');
+  });
+
+  it('remembers a successful private room password', () => {
+    const roomState = {
+      ...initialRoom(),
+      _id: null,
+      accessCode: null,
+    };
+    const built = buildStore({ roomState });
+    built.store.dispatch(connectSocket());
+    built.namespace.options.onConnected();
+    built.store.dispatch(joinRoom({ id: 'private-room', password: 'secret' }));
+
+    const join = emissionsFor(built.namespace, Protocol.JOIN_ROOM)[0];
+    const joinedRoom = {
+      ...initialRoom(),
+      _id: 'private-room',
+      accessCode: 'PRIVATE',
+      private: true,
+    };
+    delete joinedRoom.resultSubmission;
+    join.args[1](null, joinedRoom);
+    expect(readRoomPassword('private-room')).toBe('secret');
+    expect(built.store.getState().room.password).toBe('secret');
+  });
+
+  it('clears a rejected stored password and shows the password form', () => {
+    persistRoomPassword('private-room', 'stale-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        _id: null,
+        accessCode: null,
+      },
+    });
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    store.dispatch(joinRoom({ id: 'private-room' }));
+
+    const joins = emissionsFor(namespace, Protocol.JOIN_ROOM);
+    expect(joins).toHaveLength(1);
+    expect(joins[0].args[0]).toEqual({
+      id: 'private-room',
+      password: 'stale-password',
+    });
+
+    joins[0].args[1]({
+      statusCode: 403,
+      message: 'Invalid password',
+      reason: 'invalid_password',
+    }, {
+      _id: 'private-room',
+      name: 'Private room',
+      private: true,
+      type: 'normal',
+    });
+
+    expect(readRoomPassword('private-room')).toBeNull();
+    expect(emissionsFor(namespace, Protocol.JOIN_ROOM)).toHaveLength(1);
+    expect(store.getState().room).toMatchObject({
+      _id: 'private-room',
+      private: true,
+      fetching: false,
+    });
+    expect(store.getState().room.joinError.message).toBe('Invalid password');
+  });
+
+  it('remembers the password for a newly created private room', () => {
+    const { namespace, store } = buildStore();
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    store.dispatch(createRoom({
+      name: 'Private room',
+      password: 'new-password',
+      private: true,
+      type: 'normal',
+    }));
+
+    const creation = emissionsFor(namespace, Protocol.CREATE_ROOM)[0];
+    creation.args[1](null, {
+      ...initialRoom(),
+      _id: 'new-private-room',
+      accessCode: 'NEWPRIVATE',
+      private: true,
+    });
+
+    expect(readRoomPassword('new-private-room')).toBe('new-password');
+    expect(store.getState().room.password).toBe('new-password');
+  });
+
+  it('remembers a changed private room password after the edit succeeds', () => {
+    persistRoomPassword('room-one', 'old-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        private: true,
+        password: 'old-password',
+      },
+    });
+    store.dispatch(editRoom({
+      name: 'Private room',
+      private: true,
+      password: 'new-password',
+      type: 'normal',
+    }));
+
+    const edit = emissionsFor(namespace, Protocol.EDIT_ROOM)[0];
+    expect(readRoomPassword('room-one')).toBe('old-password');
+
+    edit.args[1](null, {
+      ...initialRoom(),
+      private: true,
+    });
+
+    expect(readRoomPassword('room-one')).toBe('new-password');
+    expect(store.getState().room.password).toBe('new-password');
+  });
+
+  it('keeps the saved password when an edit does not replace it', () => {
+    persistRoomPassword('room-one', 'existing-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        private: true,
+        password: 'existing-password',
+      },
+    });
+    store.dispatch(editRoom({
+      name: 'Renamed room',
+      private: true,
+      password: undefined,
+      type: 'normal',
+    }));
+
+    const edit = emissionsFor(namespace, Protocol.EDIT_ROOM)[0];
+    edit.args[1](null, {
+      ...initialRoom(),
+      name: 'Renamed room',
+      private: true,
+    });
+
+    expect(readRoomPassword('room-one')).toBe('existing-password');
+    expect(store.getState().room.password).toBe('existing-password');
+  });
+
+  it('keeps the saved password when a private room edit fails', () => {
+    persistRoomPassword('room-one', 'existing-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        private: true,
+        password: 'existing-password',
+      },
+    });
+    store.dispatch(editRoom({
+      name: 'Private room',
+      private: true,
+      password: 'rejected-password',
+      type: 'normal',
+    }));
+
+    const edit = emissionsFor(namespace, Protocol.EDIT_ROOM)[0];
+    edit.args[1]({
+      statusCode: 500,
+      message: 'Failed to edit room',
+    });
+
+    expect(readRoomPassword('room-one')).toBe('existing-password');
+    expect(store.getState().room.password).toBe('existing-password');
+  });
+
+  it('clears the saved password after making a room public', () => {
+    persistRoomPassword('room-one', 'existing-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        private: true,
+        password: 'existing-password',
+      },
+    });
+    store.dispatch(editRoom({
+      name: 'Public room',
+      private: false,
+      password: null,
+      type: 'normal',
+    }));
+
+    const edit = emissionsFor(namespace, Protocol.EDIT_ROOM)[0];
+    expect(readRoomPassword('room-one')).toBe('existing-password');
+
+    edit.args[1](null, {
+      ...initialRoom(),
+      name: 'Public room',
+      private: false,
+    });
+
+    expect(readRoomPassword('room-one')).toBeNull();
+    expect(store.getState().room.password).toBeNull();
+  });
+
+  it('clears the saved password when a room update makes it public', () => {
+    persistRoomPassword('room-one', 'existing-password');
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        private: true,
+        password: 'existing-password',
+      },
+    });
+
+    namespace.options.events[Protocol.UPDATE_ROOM]({
+      ...initialRoom(),
+      private: false,
+    });
+
+    expect(readRoomPassword('room-one')).toBeNull();
+    expect(store.getState().room.password).toBeNull();
+  });
+
+  it('loads the private room mask when a password is required', () => {
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        _id: null,
+        accessCode: null,
+      },
+    });
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    store.dispatch(joinRoom({ id: 'private-room' }));
+
+    const join = emissionsFor(namespace, Protocol.JOIN_ROOM)[0];
+    join.args[1]({
+      statusCode: 403,
+      message: 'Room requires password to join',
+    }, {
+      _id: 'private-room',
+      name: 'Private room',
+      private: true,
+      type: 'normal',
+    });
+
+    expect(store.getState().room).toMatchObject({
+      _id: 'private-room',
+      fetching: false,
+      private: true,
+    });
+    expect(emissionsFor(namespace, Protocol.SUBMIT_RESULT)).toHaveLength(0);
+  });
+
+  it('submits a restored result after private room access is restored', () => {
+    persistPendingResult(createPendingResult({
+      userId: 42,
+      roomId: 'private-room',
+      attemptId: 12,
+      attemptKey: 'attempt-one',
+      result: { time: 1234, penalties: {} },
+    }, {
+      createId: () => 'restored-submission',
+      now: () => 500,
+    }));
+    const { namespace, store } = buildStore({
+      roomState: {
+        ...initialRoom(),
+        _id: null,
+        accessCode: null,
+      },
+    });
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    store.dispatch(joinRoom({ id: 'private-room' }));
+
+    let join = emissionsFor(namespace, Protocol.JOIN_ROOM)[0];
+    join.args[1]({
+      statusCode: 403,
+      message: 'Room requires password to join',
+      reason: 'password_required',
+    }, {
+      _id: 'private-room',
+      name: 'Private room',
+      private: true,
+      type: 'normal',
+    });
+
+    expect(emissionsFor(namespace, Protocol.SUBMIT_RESULT)).toHaveLength(0);
+
+    store.dispatch(joinRoom({ id: 'private-room', password: 'secret' }));
+    [, join] = emissionsFor(namespace, Protocol.JOIN_ROOM);
+    const joinedRoom = {
+      ...initialRoom(),
+      _id: 'private-room',
+      accessCode: 'PRIVATE',
+      private: true,
+    };
+    delete joinedRoom.resultSubmission;
+    join.args[1](null, joinedRoom);
+
+    const submissions = emissionsFor(namespace, Protocol.SUBMIT_RESULT);
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].args[0].submissionId).toBe('restored-submission');
   });
 
   it('persists while disconnected and submits only after the room join acknowledgement', () => {
