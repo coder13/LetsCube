@@ -23,6 +23,7 @@ import {
   UPDATE_USER,
   DISCARD_PENDING_RESULT,
   joinRoom,
+  roomJoinFailed,
   roomUpdated,
   resetRoom,
   userJoined,
@@ -49,6 +50,11 @@ import {
   persistPendingResult,
   readPendingResult,
 } from '../room/resultOutbox';
+import {
+  clearRoomPassword,
+  persistRoomPassword,
+  readRoomPassword,
+} from '../room/roomPasswordStorage';
 import {
   ROOMS_CONNECT,
   ROOMS_DISCONNECT,
@@ -94,6 +100,7 @@ export const createRoomsNamespaceMiddleware = ({
   let submissionRetryTimer = null;
   let hydratedPendingResult = false;
   let storageWarningSubmissionId = null;
+  let passwordStorageWarningRoomId = null;
 
   const currentSubmission = () => store.getState().room.resultSubmission;
   const readStoredPendingResult = () => {
@@ -102,6 +109,73 @@ export const createRoomsNamespaceMiddleware = ({
     } catch (storageError) {
       return null;
     }
+  };
+
+  const readStoredRoomPassword = (roomId) => {
+    try {
+      return readRoomPassword(roomId, storage);
+    } catch (storageError) {
+      return null;
+    }
+  };
+
+  const forgetRoomPassword = (roomId) => {
+    try {
+      clearRoomPassword(roomId, storage);
+    } catch (storageError) {
+      // The next invalid join will try again.
+    }
+  };
+
+  const warnPasswordStorage = (roomId) => {
+    if (passwordStorageWarningRoomId === String(roomId)) {
+      return;
+    }
+
+    passwordStorageWarningRoomId = String(roomId);
+    store.dispatch(createMessage({
+      severity: 'warning',
+      text: 'Room password storage is unavailable on this device.',
+    }));
+  };
+
+  const rememberRoomPassword = (roomId, password) => {
+    if (!password) {
+      return;
+    }
+
+    try {
+      persistRoomPassword(roomId, password, storage);
+    } catch (storageError) {
+      warnPasswordStorage(roomId);
+    }
+  };
+
+  const applySuccessfulRoomEdit = (room, options) => {
+    const updatedRoom = room || store.getState().room;
+    const roomId = updatedRoom._id || store.getState().room._id;
+    if (options.private === false || updatedRoom.private === false) {
+      forgetRoomPassword(roomId);
+      store.dispatch(roomUpdated({
+        ...updatedRoom,
+        password: null,
+      }));
+      return;
+    }
+
+    if (options.password) {
+      rememberRoomPassword(roomId, options.password);
+      store.dispatch(roomUpdated({
+        ...updatedRoom,
+        password: options.password,
+      }));
+      return;
+    }
+
+    store.dispatch(roomUpdated({
+      ...updatedRoom,
+      password: store.getState().room.password || readStoredRoomPassword(roomId),
+    }));
   };
 
   const warnPendingResultNotBackedUp = (submissionId) => {
@@ -299,7 +373,6 @@ export const createRoomsNamespaceMiddleware = ({
     const { room } = store.getState();
     const request = pendingJoinRequest || (room.accessCode ? {
       id: room._id,
-      password: room.password,
     } : null);
 
     if (request) {
@@ -351,6 +424,15 @@ export const createRoomsNamespaceMiddleware = ({
         store.dispatch(roomsUpdated(rooms));
       },
       [Protocol.UPDATE_ROOM]: (room) => {
+        if (room.private === false) {
+          forgetRoomPassword(room._id);
+          store.dispatch(roomUpdated({
+            ...room,
+            password: null,
+          }));
+          return;
+        }
+
         store.dispatch(roomUpdated(room));
       },
       [Protocol.GLOBAL_ROOM_UPDATED]: (room) => {
@@ -360,6 +442,7 @@ export const createRoomsNamespaceMiddleware = ({
         store.dispatch(roomCreated(room));
       },
       [Protocol.ROOM_DELETED]: (room) => {
+        forgetRoomPassword(room);
         store.dispatch(roomDeleted(room));
         if (room === store.getState().room._id) {
           store.dispatch(push('/'));
@@ -488,15 +571,25 @@ export const createRoomsNamespaceMiddleware = ({
             severity: 'error',
             text: err.message,
           }));
+          return;
         }
+
+        forgetRoomPassword(id);
       });
     },
     [JOIN_ROOM]: ({ id, password }) => {
+      const storedPassword = readStoredRoomPassword(id);
+      const roomPassword = password || storedPassword;
       const generation = joinGeneration + 1;
       joinGeneration = generation;
       joinedRoomId = null;
       pendingJoinRequest = { id, password };
-      namespace.emit(Protocol.JOIN_ROOM, { id, password }, (err, room) => {
+
+      if (!roomsConnected) {
+        return;
+      }
+
+      namespace.emit(Protocol.JOIN_ROOM, { id, password: roomPassword }, (err, room) => {
         if (generation !== joinGeneration) {
           return;
         }
@@ -504,10 +597,29 @@ export const createRoomsNamespaceMiddleware = ({
         pendingJoinRequest = null;
 
         if (err) {
+          if (err.reason === 'not_found' || err.statusCode === 404) {
+            forgetRoomPassword(id);
+          }
+
+          const invalidPassword = err.reason === 'invalid_password'
+            || /invalid password/i.test(err.message || '');
+          if (invalidPassword && storedPassword === roomPassword) {
+            forgetRoomPassword(id);
+          }
+
+          const passwordAccessError = err.reason === 'password_required'
+            || err.reason === 'invalid_password'
+            || (room && room.private && err.statusCode === 403
+              && /password/i.test(err.message || ''));
+          if (room && passwordAccessError) {
+            store.dispatch(roomUpdated(room));
+          }
+
           if (err.banned) {
             store.dispatch(push('/'));
           }
 
+          store.dispatch(roomJoinFailed(err));
           store.dispatch(createMessage({
             severity: 'error',
             text: err.message,
@@ -516,8 +628,18 @@ export const createRoomsNamespaceMiddleware = ({
         }
 
         if (room) {
-          store.dispatch(roomUpdated(room));
-          joinedRoomId = room._id || id;
+          const joinedRoomIdValue = room._id || id;
+          if (room.private) {
+            rememberRoomPassword(joinedRoomIdValue, roomPassword);
+          } else {
+            forgetRoomPassword(joinedRoomIdValue);
+          }
+
+          store.dispatch(roomUpdated({
+            ...room,
+            password: room.private ? roomPassword || null : null,
+          }));
+          joinedRoomId = joinedRoomIdValue;
           flushPendingResult();
 
           if (room.accessCode) {
@@ -539,7 +661,13 @@ export const createRoomsNamespaceMiddleware = ({
           return;
         }
 
-        store.dispatch(roomUpdated(room));
+        if (room.private) {
+          rememberRoomPassword(room._id, options.password);
+        }
+        store.dispatch(roomUpdated({
+          ...room,
+          password: room.private ? options.password : null,
+        }));
         joinedRoomId = room._id;
         store.dispatch(push(`/rooms/${room._id}`));
         flushPendingResult();
@@ -637,7 +765,17 @@ export const createRoomsNamespaceMiddleware = ({
       namespace.emit(Protocol.CHANGE_EVENT, event);
     },
     [EDIT_ROOM]: ({ options }) => {
-      namespace.emit(Protocol.EDIT_ROOM, options);
+      namespace.emit(Protocol.EDIT_ROOM, options, (err, room) => {
+        if (err) {
+          store.dispatch(createMessage({
+            severity: 'error',
+            text: err.message,
+          }));
+          return;
+        }
+
+        applySuccessfulRoomEdit(room, options);
+      });
     },
     [SEND_CHAT]: ({ message }) => {
       namespace.emit(Protocol.MESSAGE, message);

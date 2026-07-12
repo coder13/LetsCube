@@ -45,13 +45,14 @@ describe('global pending result alert', () => {
         onDiscard={onDiscard}
         onReturn={jest.fn()}
         pendingResult={pendingResult}
+        privateRoom
         status="pending"
         userId={42}
       />,
     );
     const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
 
-    expect(wrapper.text()).toContain('room is not currently joined');
+    expect(wrapper.text()).toContain('Enter the room password below');
     expect(actions.find(Button)).toHaveLength(1);
     expect(actions.find(Button).text()).toBe('Discard saved result');
 

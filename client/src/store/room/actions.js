@@ -2,6 +2,7 @@ export const ROOM_UPDATED = 'room/updated';
 export const RESET_ROOM = 'room/reset';
 export const DELETE_ROOM = 'room/delete';
 export const JOIN_ROOM = 'room/join';
+export const ROOM_JOIN_FAILED = 'room/join_failed';
 export const LEAVE_ROOM = 'room/leave';
 export const SUBMIT_RESULT = 'room/submit_result';
 export const NEW_RESULT = 'room/new_result';
@@ -56,6 +57,11 @@ export const joinRoom = ({
   spectating,
   password,
   reconnecting,
+});
+
+export const roomJoinFailed = (error) => ({
+  type: ROOM_JOIN_FAILED,
+  error,
 });
 
 // We're submitting a new result

@@ -39,6 +39,87 @@ describe('room security helpers', () => {
     expect(room.save).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the existing password when a private room edit leaves it blank', async () => {
+    const password = await bcrypt.hash('existing-password', 4);
+    const room = {
+      password,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await Room.methods.edit.call(room, {
+      name: 'Renamed private room',
+      private: true,
+      password: '',
+      type: 'normal',
+      requireRevealedIdentity: false,
+      startTime: null,
+    });
+
+    expect(room.password).toBe(password);
+    expect(room.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the access-code placeholder sent by older clients', async () => {
+    const password = await bcrypt.hash('existing-password', 4);
+    const room = {
+      accessCode: 'ROOM-CODE',
+      password,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await Room.methods.edit.call(room, {
+      name: 'Renamed private room',
+      private: true,
+      password: 'ROOM-CODE',
+      type: 'normal',
+      requireRevealedIdentity: false,
+      startTime: null,
+    });
+
+    expect(room.password).toBe(password);
+    expect(room.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires a password when making a public room private', async () => {
+    const room = {
+      password: null,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(Room.methods.edit.call(room, {
+      name: 'Private room',
+      private: true,
+      password: undefined,
+      type: 'normal',
+      requireRevealedIdentity: false,
+      startTime: null,
+    })).rejects.toMatchObject({
+      message: 'A password is required to make a room private',
+      statusCode: 400,
+    });
+
+    expect(room.save).not.toHaveBeenCalled();
+  });
+
+  it('removes the password when making a private room public', async () => {
+    const room = {
+      password: await bcrypt.hash('existing-password', 4),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await Room.methods.edit.call(room, {
+      name: 'Public room',
+      private: false,
+      password: null,
+      type: 'normal',
+      requireRevealedIdentity: false,
+      startTime: null,
+    });
+
+    expect(room.password).toBeNull();
+    expect(room.save).toHaveBeenCalledTimes(1);
+  });
+
   it('marks stale rooms for expiration in ten minutes', async () => {
     const before = Date.now();
     const room = {

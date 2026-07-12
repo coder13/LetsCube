@@ -47,7 +47,7 @@ function RoomConfigureDialog({
   const classes = useStyles();
   const [stateName, setName] = React.useState(room.name);
   const [statePrivate, setPrivate] = React.useState(room.private);
-  const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
+  const [statePassword, setPassword] = React.useState('');
   const [stateType, setType] = React.useState(room.type);
   const [stateRequireRI, setRequireRI] = React.useState(room.requireRevealedIdentity);
   const [stateStartTime, setStartTime] = React.useState(room.startTime ? (
@@ -58,7 +58,7 @@ function RoomConfigureDialog({
   const handleCancel = () => {
     setName(room.name);
     setPrivate(room.private);
-    setPassword(null);
+    setPassword('');
     setType(room.type);
     setRequireRI(room.requireRevealedIdentity);
     setStartTime(room.startTime ? (
@@ -73,14 +73,14 @@ function RoomConfigureDialog({
     onSave({
       name: stateName,
       private: statePrivate,
-      password: statePrivate ? statePassword : null,
+      password: statePrivate ? statePassword || undefined : null,
       type: stateType,
       requireRevealedIdentity: stateRequireRI,
       startTime: stateStartTime ? new Date(stateStartTime) : null,
       twitchChannel: stateTwitchChannel,
     });
 
-    setPassword(null);
+    setPassword('');
     onCancel(); // Close the dialog box
   };
 
@@ -132,7 +132,9 @@ function RoomConfigureDialog({
           type="password"
           disabled={!statePrivate}
           onChange={handlePasswordChange}
-          // autoFocus
+          value={statePassword}
+          helperText={room.private && statePrivate ? 'Leave blank to keep the current password.' : undefined}
+          autoComplete="new-password"
           fullWidth
         />
       </DialogContent>
@@ -203,7 +205,11 @@ function RoomConfigureDialog({
       <Divider />
       <DialogActions>
         <Button onClick={handleCancel} color="secondary">Cancel</Button>
-        <Button onClick={handleSave} color="primary" disabled={!stateName || (statePrivate && !statePassword)}>
+        <Button
+          onClick={handleSave}
+          color="primary"
+          disabled={!stateName || (statePrivate && !room.private && !statePassword)}
+        >
           {room._id ? 'Save' : 'Create'}
         </Button>
       </DialogActions>
@@ -216,7 +222,6 @@ RoomConfigureDialog.propTypes = {
     _id: PropTypes.string,
     name: PropTypes.string,
     private: PropTypes.bool,
-    accessCode: PropTypes.string,
     type: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
     startTime: PropTypes.string,
@@ -232,7 +237,6 @@ RoomConfigureDialog.defaultProps = {
     _id: undefined,
     name: '',
     private: false,
-    accessCode: null,
     type: 'normal',
     requireRevealedIdentity: false,
     startTime: '',

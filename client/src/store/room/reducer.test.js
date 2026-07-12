@@ -1,4 +1,4 @@
-import { joinRoom, newResult } from './actions';
+import { joinRoom, newResult, roomJoinFailed } from './actions';
 import roomReducer from './reducer';
 
 const initialState = () => ({
@@ -62,5 +62,14 @@ describe('room joins', () => {
 
     expect(state.fetching).toBe(false);
     expect(state.attempts).toBe(loadedRoom.attempts);
+  });
+
+  it('shows a join error until the next attempt', () => {
+    const failedState = roomReducer(undefined, roomJoinFailed({
+      message: 'Invalid password',
+    }));
+
+    expect(failedState.joinError).toEqual({ message: 'Invalid password' });
+    expect(roomReducer(failedState, joinRoom({ id: 'room-1' })).joinError).toBeNull();
   });
 });
