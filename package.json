@@ -3,7 +3,8 @@
   "packageManager": "yarn@1.22.22",
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "packages/*"
   ],
   "resolutions": {
     "@hono/node-server": "1.19.13",
