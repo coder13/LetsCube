@@ -386,7 +386,12 @@ module.exports = (io, middlewares) => {
       }
     }
 
-    async function joinRoom(room, cb, spectating) {
+    async function joinRoom(
+      room,
+      cb,
+      spectating,
+      { password, reauthorizeOnRecovery = false } = {},
+    ) {
       if (socket.roomId) {
         if (String(socket.roomId) === String(room._id)) {
           socket.room = socket.room || room;
@@ -448,6 +453,41 @@ module.exports = (io, middlewares) => {
           statusCode: 404,
           message: 'Room no longer exists',
         });
+      }
+      if (reauthorizeOnRecovery) {
+        const rejectRecoveryJoin = (error) => {
+          socket.leave(room.accessCode);
+          socket.leave(encodeUserRoom(socket.userId, room._id));
+          delete socket.room;
+          delete socket.roomId;
+          return cb(error);
+        };
+        const userKey = socket.userId.toString();
+        if (!isRoomTypeEnabled(currentRoom.type)) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Grand Prix rooms are disabled',
+          });
+        }
+        if (currentRoom.private && (!password || !(await currentRoom.authenticate(password)))) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Invalid password',
+          });
+        }
+        if (currentRoom.banned.get(userKey)) {
+          return rejectRecoveryJoin({
+            statusCode: 401,
+            message: 'Banned',
+            banned: true,
+          });
+        }
+        if (currentRoom.requireRevealedIdentity && !socket.user.showWCAID) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Must be showing WCA Identity to join room.',
+          });
+        }
       }
       const r = await currentRoom.addUser(socket.user, spectating, sendAdminUpdate);
       if (!r) {
@@ -564,7 +604,10 @@ module.exports = (io, middlewares) => {
           }, room);
         }
 
-        return await joinRoom(room, acknowledgment, spectating);
+        return await joinRoom(room, acknowledgment, spectating, {
+          password,
+          reauthorizeOnRecovery: true,
+        });
       } catch (e) {
         logger.error(e);
         return rejectJoin('internal_error', {

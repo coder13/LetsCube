@@ -535,6 +535,38 @@ describe('room namespace departures and moderation', () => {
     expect(socket.room).toBe(rejoinedRoom);
   });
 
+  it('does not re-add a user banned while a duplicate join recovers from departure', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+    });
+    room.advancePresenceRevision.mockResolvedValue(null);
+    const departedAndBannedRoom = {
+      ...room,
+      inRoom: new Map([['101', false]]),
+      banned: new Map([['101', true]]),
+      addUser: jest.fn(),
+    };
+    const connect = setup(new Map([[room._id, room]]));
+    let fetchCount = 0;
+    Room.findById.mockImplementation(() => {
+      const fetchedRoom = fetchCount === 0 ? room : departedAndBannedRoom;
+      fetchCount += 1;
+      return queryResult(fetchedRoom);
+    });
+    const socket = await connect(makeSocket({ id: 'new-tab', session: {}, userId: 101 }));
+
+    const acknowledgment = await joinRoom(socket, { id: room._id });
+
+    expect(departedAndBannedRoom.addUser).not.toHaveBeenCalled();
+    expect(acknowledgment).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 401,
+      banned: true,
+    }));
+    expect(socket.roomId).toBeUndefined();
+  });
+
   it('finalizes one departure when two tabs explicitly leave together', async () => {
     const room = makeRoom({
       private: false,
