@@ -9,7 +9,7 @@ COPY package.json yarn.lock ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
 COPY packages/scrambles/package.json ./packages/scrambles/package.json
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile --network-concurrency 1 --network-timeout 600000
 
 ARG REACT_APP_API_ORIGIN=
 ARG REACT_APP_SOCKETIO_ORIGIN=
@@ -37,7 +37,7 @@ COPY package.json yarn.lock ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
 COPY packages/scrambles/package.json ./packages/scrambles/package.json
-RUN yarn install --frozen-lockfile --production=true \
+RUN yarn install --frozen-lockfile --production=true --network-concurrency 1 --network-timeout 600000 \
   && yarn cache clean \
   && mkdir -p server/node_modules
 
