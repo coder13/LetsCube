@@ -3,11 +3,44 @@
 
 const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
+const { generateScramble } = require('letscube-scrambles');
 const { collectPostgresChanges, Room } = require('./room');
+
+jest.mock('letscube-scrambles', () => ({
+  generateScramble: jest.fn(),
+}));
 
 const RoomModel = mongoose.model('RoomPostgresChangesTest', Room);
 
 describe('room security helpers', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('creates attempts with the shared async scramble generator', async () => {
+    generateScramble.mockResolvedValue('R U R\'');
+    const room = {
+      event: '333',
+      attempts: [],
+      usersInRoom: [{ id: 1234 }],
+      waitingFor: new Map(),
+      competing: new Map([['1234', true]]),
+      genAttempt: Room.methods.genAttempt,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    await Room.methods.newAttempt.call(room);
+
+    expect(generateScramble).toHaveBeenCalledWith('333');
+    expect(room.attempts).toEqual([{
+      id: 0,
+      scrambles: ['R U R\''],
+      results: {},
+    }]);
+    expect(room.waitingFor.get('1234')).toBe(true);
+    expect(room.save).toHaveBeenCalledTimes(1);
+  });
+
   it('authenticates passwords asynchronously', async () => {
     const password = 'correct horse battery staple';
     const room = {

@@ -1,4 +1,4 @@
-import Events from './events.json';
+import Events from 'letscube-scrambles/events';
 
 export { Events };
 

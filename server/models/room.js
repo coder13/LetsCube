@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
-const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const Events = require('../../client/src/lib/events.json');
+const { generateScramble } = require('letscube-scrambles');
 const { mirrorRoomChanges } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;
@@ -125,10 +124,6 @@ Room.index({
   expireAt: 1,
 }, {
   expireAfterSeconds: 0,
-});
-
-Room.virtual('scrambler').get(function () {
-  return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
 Room.virtual('usersInRoom').get(function () {
@@ -268,16 +263,16 @@ Room.methods.doneWithScramble = function () {
   return (this.waitingForCount === 0 || this.attempts.length === 0) && this.usersInRoom.length > 0;
 };
 
-Room.methods.genAttempt = function () {
+Room.methods.genAttempt = async function () {
   return {
     id: this.attempts.length,
-    scrambles: this.scrambler.get(1).map((i) => i.scramble_string),
+    scrambles: [await generateScramble(this.event)],
     results: {},
   };
 };
 
-Room.methods.newAttempt = function () {
-  const attempt = this.genAttempt();
+Room.methods.newAttempt = async function () {
+  const attempt = await this.genAttempt();
 
   this.attempts = this.attempts.concat([attempt]);
 
