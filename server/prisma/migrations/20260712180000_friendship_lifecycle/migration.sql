@@ -14,11 +14,14 @@ CREATE TABLE app.friend_relationships (
     CONSTRAINT friend_relationships_pkey PRIMARY KEY (id),
     CONSTRAINT friend_relationships_distinct_users CHECK (low_user_id <> high_user_id),
     CONSTRAINT friend_relationships_status_check CHECK (
-      status IN ('pending', 'accepted', 'declined', 'canceled')
+      status IN ('pending', 'accepted', 'declined', 'canceled', 'removed')
     ),
     CONSTRAINT friend_relationships_requester_check CHECK (
-      (status = 'accepted' AND requested_by_user_id IS NULL)
-      OR (status <> 'accepted' AND requested_by_user_id IN (low_user_id, high_user_id))
+      (status IN ('accepted', 'removed') AND requested_by_user_id IS NULL)
+      OR (
+        status NOT IN ('accepted', 'removed')
+        AND requested_by_user_id IN (low_user_id, high_user_id)
+      )
     )
 );
 
@@ -51,6 +54,9 @@ CREATE TABLE app.user_blocks (
     blocker_id uuid NOT NULL,
     blocked_id uuid NOT NULL,
     pair_key text NOT NULL,
+    active boolean NOT NULL,
+    revision integer NOT NULL,
+    state_changed_at timestamptz(6) NOT NULL,
     source_created_at timestamptz(6),
     source_updated_at timestamptz(6) NOT NULL,
     ingested_at timestamptz(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,

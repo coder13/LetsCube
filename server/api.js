@@ -1,6 +1,5 @@
 const express = require('express');
 
-const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 const { updateUsername } = require('./username');
@@ -14,7 +13,8 @@ const PREFERENCE_KEYS = new Set([
   'muteTimer',
 ]);
 
-module.exports = () => {
+module.exports = (app) => {
+  const router = express.Router();
   const sendError = (res, err) => {
     const body = {
       status: err.statusCode,
@@ -30,6 +30,15 @@ module.exports = () => {
     res.json(req.user.toObject());
   });
 
+  if (app.get('config').socialFeatures.enabled) {
+    router.use('/friends', createFriendsRouter());
+  } else {
+    router.use('/friends', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+  }
+
   router.put('/updateUsername', auth, async (req, res) => {
     try {
       const user = await updateUsername(User, req.user, req.body.username);
@@ -38,8 +47,6 @@ module.exports = () => {
       return sendError(res, err);
     }
   });
-
-  router.use('/friends', createFriendsRouter());
 
   router.put('/updatePreference', auth, async (req, res) => {
     const unknownPreference = Object.keys(req.body)

@@ -42,6 +42,29 @@ describe('friend relationship models', () => {
     await expect(invalidRequester.validate()).rejects.toThrow('requester does not match');
   });
 
+  it('accepts relationship and block tombstones with monotonic revisions', async () => {
+    const removed = new FriendRelationship({
+      pairKey: '1:2',
+      lowUserId: 1,
+      highUserId: 2,
+      requestedBy: null,
+      revision: 4,
+      stateChangedAt: new Date(),
+      status: 'removed',
+    });
+    const inactiveBlock = new UserBlock({
+      active: false,
+      pairKey: '1:2',
+      blockerId: 1,
+      blockedId: 2,
+      revision: 2,
+      stateChangedAt: new Date(),
+    });
+
+    await expect(removed.validate()).resolves.toBeUndefined();
+    await expect(inactiveBlock.validate()).resolves.toBeUndefined();
+  });
+
   it('rejects self-blocks and mismatched block pair keys', async () => {
     const selfBlock = new UserBlock({
       pairKey: '1:1',

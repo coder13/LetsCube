@@ -163,13 +163,23 @@ const transitionRelationship = ({
   }
 
   if (action === ACTIONS.UNFRIEND) {
-    if (!current) {
+    if (!current || current.status === RELATIONSHIP_STATUSES.REMOVED) {
       return { kind: 'noop', outcome: 'unfriend_replayed', relationship: null };
     }
     if (current.status !== RELATIONSHIP_STATUSES.ACCEPTED) {
       return failTransition();
     }
-    return { kind: 'delete', outcome: 'unfriended', relationship: null };
+    return {
+      kind: 'upsert',
+      outcome: 'unfriended',
+      relationship: {
+        ...current,
+        cooldownUntil: null,
+        requestedBy: null,
+        stateChangedAt: now,
+        status: RELATIONSHIP_STATUSES.REMOVED,
+      },
+    };
   }
 
   throw new SocialError(400, 'invalid_action', 'Unknown relationship action');
