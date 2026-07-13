@@ -316,25 +316,34 @@ Room.methods.edit = async function (options) {
   return this.save();
 };
 
-Room.methods.updateAdminIfNeeded = function (cb) {
-  if (this.usersInRoom.length === 0) {
-    this.admin = null;
-    return this.save();
+const sameUser = (left, right) => left && right
+  && String(left.id) === String(right.id);
+
+const selectRoomAdmin = ({ usersInRoom, owner, admin }) => {
+  if (usersInRoom.length === 0) {
+    return null;
   }
 
-  const findOwner = this.usersInRoom.find((user) => user.id === this.owner.id);
-  if (findOwner && this.admin && this.admin.id !== findOwner.id) {
-    this.admin = findOwner;
-    return this.save().then(cb);
+  const activeOwner = usersInRoom.find((user) => sameUser(user, owner));
+  if (activeOwner) {
+    return activeOwner;
   }
 
-  if (!this.admin || this.admin.id !== this.usersInRoom[0].id) {
-    const { usersInRoom } = this;
+  return usersInRoom.find((user) => sameUser(user, admin)) || usersInRoom[0];
+};
 
-    // eslint-disable-next-line prefer-destructuring
-    this.admin = usersInRoom[0];
-    return this.save().then(cb);
+Room.methods.updateAdminIfNeeded = async function (cb) {
+  const nextAdmin = selectRoomAdmin(this);
+  if (sameUser(this.admin, nextAdmin) || (!this.admin && !nextAdmin)) {
+    return this;
   }
+
+  this.admin = nextAdmin;
+  const room = await this.save();
+  if (cb) {
+    cb(room);
+  }
+  return room;
 };
 
 const collectPostgresChanges = (room) => {
@@ -411,3 +420,4 @@ Room.post('save', async (room) => {
 module.exports.Attempt = Attempt;
 module.exports.collectPostgresChanges = collectPostgresChanges;
 module.exports.Room = Room;
+module.exports.selectRoomAdmin = selectRoomAdmin;

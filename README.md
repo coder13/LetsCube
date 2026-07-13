@@ -50,6 +50,9 @@ yarn start:client
 
 For more on the internals and contributing, check out the [wiki](https://github.com/coder13/LetsCube/wiki)
 
+The server's owner/admin handoff and reconnect guarantees are documented in
+[Room ownership and administration](docs/room-ownership.md).
+
 ## Metrics
 
 The server stores pseudonymous room and authentication events in both the

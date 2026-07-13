@@ -4,7 +4,11 @@
 const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const { generateScramble } = require('letscube-scrambles');
-const { collectPostgresChanges, Room } = require('./room');
+const {
+  collectPostgresChanges,
+  Room,
+  selectRoomAdmin,
+} = require('./room');
 
 jest.mock('letscube-scrambles', () => ({
   generateScramble: jest.fn(),
@@ -164,6 +168,64 @@ describe('room security helpers', () => {
     expect(room.expireAt).toBeInstanceOf(Date);
     expect(room.expireAt.getTime()).toBeGreaterThanOrEqual(before + 10 * 60 * 1000);
     expect(room.expireAt.getTime()).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000);
+  });
+
+  it('restores the owner even when an empty room has no current admin', () => {
+    const owner = { id: 101 };
+    const earlierParticipant = { id: 202 };
+
+    expect(selectRoomAdmin({
+      usersInRoom: [earlierParticipant, owner],
+      owner,
+      admin: null,
+    })).toBe(owner);
+  });
+
+  it('keeps an active transferred admin while the owner is absent', () => {
+    const earlierParticipant = { id: 202 };
+    const transferredAdmin = { id: 303 };
+
+    expect(selectRoomAdmin({
+      usersInRoom: [earlierParticipant, transferredAdmin],
+      owner: { id: 101 },
+      admin: transferredAdmin,
+    })).toBe(transferredAdmin);
+  });
+
+  it('promotes an active participant when both owner and admin are absent', () => {
+    const nextAdmin = { id: 303 };
+
+    expect(selectRoomAdmin({
+      usersInRoom: [nextAdmin, { id: 404 }],
+      owner: { id: 101 },
+      admin: { id: 202 },
+    })).toBe(nextAdmin);
+  });
+
+  it('clears the admin when the room becomes empty', () => {
+    expect(selectRoomAdmin({
+      usersInRoom: [],
+      owner: { id: 101 },
+      admin: { id: 202 },
+    })).toBeNull();
+  });
+
+  it('persists and announces the owner reclaiming admin controls', async () => {
+    const owner = { id: 101 };
+    const room = {
+      usersInRoom: [owner, { id: 202 }],
+      owner,
+      admin: { id: 202 },
+      save: jest.fn(),
+    };
+    room.save.mockResolvedValue(room);
+    const onAdminChange = jest.fn();
+
+    await Room.methods.updateAdminIfNeeded.call(room, onAdminChange);
+
+    expect(room.admin).toBe(owner);
+    expect(room.save).toHaveBeenCalledTimes(1);
+    expect(onAdminChange).toHaveBeenCalledWith(room);
   });
 
   it('stores an optional result submission id', () => {

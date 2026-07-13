@@ -103,13 +103,14 @@ const makeSocket = ({
 };
 
 const setup = (rooms) => {
+  const roomChannel = { emit: jest.fn() };
   const namespace = {
     adapter: {
       allRooms: jest.fn().mockResolvedValue(new Set()),
       sockets: jest.fn().mockResolvedValue(new Set()),
     },
     emit: jest.fn(),
-    in: jest.fn(() => ({ emit: jest.fn() })),
+    in: jest.fn(() => roomChannel),
     on: jest.fn(),
     use: jest.fn(),
   };
@@ -125,10 +126,13 @@ const setup = (rooms) => {
   User.find.mockResolvedValue([]);
   initRooms(io, []);
 
-  return async (socket) => {
+  const connectSocket = async (socket) => {
     await connect(socket);
     return socket;
   };
+  connectSocket.namespace = namespace;
+  connectSocket.roomChannel = roomChannel;
+  return connectSocket;
 };
 
 const joinRoom = async (socket, payload) => {
@@ -205,6 +209,74 @@ describe('private room namespace joins', () => {
       expect.objectContaining({ reason: 'already_in_room' }),
       expect.objectContaining({ _id: otherRoom._id }),
     );
+  });
+
+  it('returns restored controls when the owner rejoins after an admin handoff', async () => {
+    const owner = { id: 101 };
+    const room = makeRoom({
+      private: false,
+      password: null,
+      owner,
+      admin: { id: 202 },
+      inRoom: new Map([['101', false], ['202', true]]),
+    });
+    room.addUser.mockImplementation(async (user, spectating, onAdminChange) => {
+      room.inRoom.set(user.id.toString(), true);
+      room.admin = user;
+      onAdminChange(room);
+      return room;
+    });
+    room.edit = jest.fn().mockResolvedValue(room);
+    const connect = setup(new Map([[room._id, room]]));
+    const socket = await connect(makeSocket({
+      id: 'owner-socket',
+      session: {},
+      userId: owner.id,
+    }));
+
+    const joinAcknowledgment = await joinRoom(socket, { id: room._id });
+
+    expect(joinAcknowledgment).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ admin: expect.objectContaining({ id: owner.id }) }),
+    );
+    expect(connect.roomChannel.emit).toHaveBeenCalledWith(
+      Protocol.UPDATE_ADMIN,
+      expect.objectContaining({ id: owner.id }),
+    );
+
+    const editAcknowledgment = jest.fn();
+    await socket.handlers[Protocol.EDIT_ROOM]({
+      name: 'Owner is back',
+      private: false,
+      type: 'normal',
+    }, editAcknowledgment);
+
+    expect(room.edit).toHaveBeenCalledTimes(1);
+    expect(editAcknowledgment).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ admin: expect.objectContaining({ id: owner.id }) }),
+    );
+  });
+
+  it('does not change ownership when a disabled Grand Prix room is joined', async () => {
+    const room = makeRoom({
+      type: 'grand_prix',
+      private: false,
+      password: null,
+      admin: { id: 202 },
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    const socket = await connect(makeSocket({ id: 'grand-prix-socket', session: {} }));
+
+    const acknowledgment = await joinRoom(socket, { id: room._id });
+
+    expect(acknowledgment).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: 'grand_prix_disabled' }),
+      expect.objectContaining({ _id: room._id }),
+    );
+    expect(room.addUser).not.toHaveBeenCalled();
+    expect(room.admin).toEqual({ id: 202 });
   });
 });
 

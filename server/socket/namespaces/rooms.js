@@ -10,7 +10,11 @@ const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
-const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const {
+  canAccessRoom,
+  canDeleteRoom,
+  isRoomAdmin,
+} = require('../lib/roomAuthorization');
 const { isRoomTypeEnabled: checkRoomTypeEnabled } = require('../lib/roomAvailability');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
 const { createReconnectGrace } = require('../lib/reconnectGrace');
@@ -323,7 +327,7 @@ module.exports = (io, middlewares) => {
       if (!isLoggedIn() || !isInRoom()) {
         logger.debug('Unauthenticated user or user not in room attempting to perform admin action');
         return false;
-      } if (socket.room.admin.id !== socket.user.id) {
+      } if (!isRoomAdmin(socket.user.id, socket.room)) {
         logger.debug('Non-admin attempting to perform admin action');
         socket.emit(Protocol.ERROR, {
           statusCode: 403,
@@ -756,7 +760,7 @@ module.exports = (io, middlewares) => {
         }
 
         const { userId } = result;
-        if (userId !== socket.user.id && socket.user.id !== socket.room.admin.id) {
+        if (userId !== socket.user.id && !isRoomAdmin(socket.user.id, socket.room)) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
             event: Protocol.SEND_EDIT_RESULT,
@@ -843,7 +847,7 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      if (socket.room.admin.id !== socket.user.id) {
+      if (!isRoomAdmin(socket.user.id, socket.room)) {
         logger.debug('Non-admin attempting to edit a room');
         return rejectEdit({
           statusCode: 403,
