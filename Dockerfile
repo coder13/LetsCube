@@ -8,6 +8,7 @@ RUN corepack enable
 COPY package.json yarn.lock ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
+COPY packages/scrambles/package.json ./packages/scrambles/package.json
 RUN yarn install --frozen-lockfile
 
 ARG REACT_APP_API_ORIGIN=
@@ -20,6 +21,7 @@ ENV REACT_APP_SOCKETIO_ORIGIN=${REACT_APP_SOCKETIO_ORIGIN}
 ENV REACT_APP_WCA_ORIGIN=${REACT_APP_WCA_ORIGIN}
 ENV REACT_APP_WCA_CLIENT_ID=${REACT_APP_WCA_CLIENT_ID}
 
+COPY packages/scrambles ./packages/scrambles
 COPY client ./client
 RUN yarn workspace letscube-client build
 
@@ -34,6 +36,7 @@ RUN corepack enable
 COPY package.json yarn.lock ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
+COPY packages/scrambles/package.json ./packages/scrambles/package.json
 RUN yarn install --frozen-lockfile --production=true \
   && yarn cache clean \
   && mkdir -p server/node_modules
@@ -55,6 +58,7 @@ COPY --from=server-deps --chown=letscube:letscube /app/node_modules ./node_modul
 COPY --from=server-deps --chown=letscube:letscube /app/server/node_modules ./server/node_modules
 COPY --from=client-build --chown=letscube:letscube /app/client/build ./client/build
 COPY --from=client-build --chown=letscube:letscube /app/client/src/lib ./client/src/lib
+COPY --from=client-build --chown=letscube:letscube /app/packages/scrambles ./packages/scrambles
 
 USER letscube
 EXPOSE 8080 9000
