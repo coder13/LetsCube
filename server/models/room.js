@@ -7,6 +7,22 @@ const { mirrorRoomChanges } = require('../postgres/dualWrite');
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
 
+const sameUser = (left, right) => left && right
+  && String(left.id) === String(right.id);
+
+const selectRoomAdmin = ({ usersInRoom, owner, admin }) => {
+  if (usersInRoom.length === 0) {
+    return null;
+  }
+
+  const activeOwner = usersInRoom.find((user) => sameUser(user, owner));
+  if (activeOwner) {
+    return activeOwner;
+  }
+
+  return usersInRoom.find((user) => sameUser(user, admin)) || usersInRoom[0];
+};
+
 // const lengths = {
 
 // };
@@ -86,6 +102,12 @@ const Room = new mongoose.Schema({
     type: Map,
     of: Boolean,
     default: {},
+  },
+  // Incremented for every join or departure so a conditional departure cannot
+  // overwrite a reconnect that raced it on another Socket.IO process.
+  membershipRevision: {
+    type: Number,
+    default: 0,
   },
   admin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -187,6 +209,7 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
   }
 
   this.inRoom.set(user.id.toString(), true);
+  this.membershipRevision = (this.membershipRevision || 0) + 1;
 
   if (this.waitingForCount === 0) {
     this.waitingFor.set(user.id.toString(), true);
@@ -210,6 +233,7 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 Room.methods.dropUser = async function (user, updateAdmin) {
   this.inRoom.set(user.id.toString(), false);
   this.waitingFor.set(user.id.toString(), false);
+  this.membershipRevision = (this.membershipRevision || 0) + 1;
 
   await this.updateAdminIfNeeded(updateAdmin);
 
@@ -218,6 +242,70 @@ Room.methods.dropUser = async function (user, updateAdmin) {
   }
 
   return this.save();
+};
+
+Room.methods.dropUserAtomically = async function (user) {
+  const userKey = user.id.toString();
+  if (!this.inRoom.get(userKey)) {
+    return null;
+  }
+
+  const usersInRoom = this.users.filter((candidate) => (
+    candidate.id.toString() !== userKey
+      && this.inRoom.get(candidate.id.toString())
+  ));
+  const nextAdmin = selectRoomAdmin({
+    usersInRoom,
+    owner: this.owner,
+    admin: this.admin,
+  });
+  const adminChanged = !sameUser(this.admin, nextAdmin);
+  const membershipRevision = this.membershipRevision || 0;
+  const condition = {
+    _id: this._id,
+    [`inRoom.${userKey}`]: true,
+  };
+  if (this.updatedAt) {
+    condition.updatedAt = this.updatedAt;
+  }
+  if (membershipRevision > 0) {
+    condition.membershipRevision = membershipRevision;
+  } else {
+    condition.$or = [
+      { membershipRevision: 0 },
+      { membershipRevision: { $exists: false } },
+    ];
+  }
+
+  const update = {
+    $set: {
+      [`inRoom.${userKey}`]: false,
+      [`waitingFor.${userKey}`]: false,
+      admin: nextAdmin ? nextAdmin._id || nextAdmin : null,
+    },
+    $inc: {
+      membershipRevision: 1,
+    },
+  };
+  if (usersInRoom.length === 0 && this.type === 'normal') {
+    update.$set.expireAt = new Date(Date.now() + STALE_ROOM_LIFETIME_MS);
+  }
+
+  const updatedRoom = await this.constructor.findOneAndUpdate(condition, update, {
+    new: true,
+  }).populate('users').populate('admin').populate('owner');
+  if (!updatedRoom) {
+    return null;
+  }
+
+  await mirrorRoomChanges(updatedRoom, {
+    attempts: [],
+    participantUserIds: [userKey],
+    syncAllParticipants: false,
+    syncRoomOwners: adminChanged,
+  });
+
+  return { room: updatedRoom, adminChanged };
 };
 
 Room.methods.banUser = async function (userId) {
@@ -312,22 +400,6 @@ Room.methods.edit = async function (options) {
   this.requireRevealedIdentity = options.requireRevealedIdentity;
   this.startTime = options.startTime;
   return this.save();
-};
-
-const sameUser = (left, right) => left && right
-  && String(left.id) === String(right.id);
-
-const selectRoomAdmin = ({ usersInRoom, owner, admin }) => {
-  if (usersInRoom.length === 0) {
-    return null;
-  }
-
-  const activeOwner = usersInRoom.find((user) => sameUser(user, owner));
-  if (activeOwner) {
-    return activeOwner;
-  }
-
-  return usersInRoom.find((user) => sameUser(user, admin)) || usersInRoom[0];
 };
 
 Room.methods.updateAdminIfNeeded = async function (cb) {

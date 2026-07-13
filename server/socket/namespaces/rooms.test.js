@@ -363,11 +363,12 @@ describe('room namespace departures and moderation', () => {
       inRoom: new Map([['101', true]]),
       doneWithScramble: jest.fn().mockReturnValue(false),
     });
-    room.dropUser = jest.fn(async (user, onAdminChange) => {
-      room.inRoom.set(String(user.id), false);
-      room.admin = null;
-      onAdminChange(room);
-      return room;
+    room.dropUserAtomically = jest.fn().mockResolvedValue({
+      room: {
+        ...room,
+        admin: null,
+      },
+      adminChanged: true,
     });
     const connect = setup(new Map([[room._id, room]]));
     await connect(makeSocket({ id: 'spectator-socket', session: {} }));
@@ -381,6 +382,55 @@ describe('room namespace departures and moderation', () => {
     });
 
     expect(connect.roomChannel.emit).not.toHaveBeenCalledWith(Protocol.UPDATE_ADMIN, null);
+    expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
+  });
+
+  it('emits metrics and leave events only for the process that claims a departure', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+    });
+    const updatedRoom = {
+      ...room,
+      inRoom: new Map([['101', false]]),
+      usersLength: 0,
+      doneWithScramble: jest.fn().mockReturnValue(false),
+    };
+    let claimed = false;
+    room.dropUserAtomically = jest.fn(async () => {
+      if (claimed) {
+        return null;
+      }
+      claimed = true;
+      return { room: updatedRoom, adminChanged: false };
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    const persistedRoom = {
+      ...room,
+      inRoom: new Map([['101', false]]),
+    };
+    Room.findById.mockImplementation(() => queryResult(claimed ? persistedRoom : room));
+    const reconnectGrace = createReconnectGrace.mock.results[0].value;
+
+    await Promise.all([
+      reconnectGrace.finalizeDeparture({
+        roomId: room._id,
+        userId: 101,
+        connectionId: 'socket-on-process-a',
+        leaveReason: 'explicit',
+      }),
+      reconnectGrace.finalizeDeparture({
+        roomId: room._id,
+        userId: 101,
+        connectionId: 'socket-on-process-b',
+        leaveReason: 'explicit',
+      }),
+    ]);
+
+    expect(room.dropUserAtomically).toHaveBeenCalledTimes(2);
+    expect(metrics.endRoomVisit).toHaveBeenCalledTimes(1);
+    expect(connect.roomChannel.emit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
   });
 

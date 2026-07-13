@@ -127,19 +127,38 @@ module.exports = (io, middlewares) => {
   async function finalizeUserDeparture({
     roomId, userId, connectionId, leaveReason,
   }) {
-    const room = await fetchRoom(roomId);
     const userKey = userId.toString();
 
-    if (!room || !room.inRoom.get(userKey)) {
+    // The compare-and-set in dropUserAtomically is the cross-process claim.
+    // A losing process re-reads so it never overwrites a concurrent rejoin.
+    async function claimDeparture() {
+      const room = await fetchRoom(roomId);
+      if (!room || !room.inRoom.get(userKey)) {
+        return null;
+      }
+
+      if (leaveReason === 'disconnect'
+        && await hasActiveSocketsForUserRoom(userId, roomId)) {
+        return null;
+      }
+
+      const departure = await room.dropUserAtomically({ id: userId });
+      if (!departure) {
+        return claimDeparture();
+      }
+
+      return departure;
+    }
+
+    const departure = await claimDeparture();
+    if (!departure) {
       return false;
     }
 
-    if (leaveReason === 'disconnect'
-      && await hasActiveSocketsForUserRoom(userId, roomId)) {
-      return false;
+    const { room: updatedRoom, adminChanged } = departure;
+    if (adminChanged) {
+      sendAdminUpdate(updatedRoom);
     }
-
-    const updatedRoom = await room.dropUser({ id: userId }, sendAdminUpdate);
 
     await metrics.endRoomVisit({
       room: updatedRoom,

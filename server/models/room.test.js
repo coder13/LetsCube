@@ -4,6 +4,7 @@
 const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const { generateScramble } = require('letscube-scrambles');
+const { mirrorRoomChanges } = require('../postgres/dualWrite');
 const {
   collectPostgresChanges,
   Room,
@@ -12,6 +13,9 @@ const {
 
 jest.mock('letscube-scrambles', () => ({
   generateScramble: jest.fn(),
+}));
+jest.mock('../postgres/dualWrite', () => ({
+  mirrorRoomChanges: jest.fn().mockResolvedValue(undefined),
 }));
 
 const RoomModel = mongoose.model('RoomPostgresChangesTest', Room);
@@ -258,6 +262,54 @@ describe('room security helpers', () => {
     expect(room.admin).toBeNull();
     expect(room.save).toHaveBeenCalled();
     expect(onAdminChange).not.toHaveBeenCalled();
+  });
+
+  it('claims a departure with the membership revision compare-and-set', async () => {
+    const owner = { id: 101, _id: 'owner-id' };
+    const nextAdmin = { id: 202, _id: 'next-admin-id' };
+    const updatedRoom = { id: 'room-one' };
+    const query = {
+      populate: jest.fn(() => query),
+      then: (resolve, reject) => Promise.resolve(updatedRoom).then(resolve, reject),
+    };
+    const model = {
+      findOneAndUpdate: jest.fn(() => query),
+    };
+    const updatedAt = new Date('2026-07-13T04:30:00.000Z');
+    const room = {
+      _id: 'room-one',
+      owner,
+      admin: owner,
+      users: [owner, nextAdmin],
+      inRoom: new Map([['101', true], ['202', true]]),
+      type: 'normal',
+      membershipRevision: 7,
+      updatedAt,
+      constructor: model,
+    };
+
+    const departure = await Room.methods.dropUserAtomically.call(room, owner);
+
+    expect(model.findOneAndUpdate).toHaveBeenCalledWith({
+      _id: room._id,
+      'inRoom.101': true,
+      membershipRevision: 7,
+      updatedAt,
+    }, {
+      $set: {
+        'inRoom.101': false,
+        'waitingFor.101': false,
+        admin: nextAdmin._id,
+      },
+      $inc: { membershipRevision: 1 },
+    }, { new: true });
+    expect(departure).toEqual({ room: updatedRoom, adminChanged: true });
+    expect(mirrorRoomChanges).toHaveBeenCalledWith(updatedRoom, {
+      attempts: [],
+      participantUserIds: ['101'],
+      syncAllParticipants: false,
+      syncRoomOwners: true,
+    });
   });
 
   it('persists and announces the owner reclaiming admin controls', async () => {
