@@ -17,6 +17,7 @@ import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 import { getWcaAuthorizationUrl } from '../lib/wcaAuth';
 import NotificationsIcon from '@material-ui/icons/Notifications';
+import NotificationPopover from './Notifications/NotificationPopover';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -111,26 +112,12 @@ function Header({ user, room, notifications }) {
                       <NotificationsIcon />
                     </Badge>
                   </IconButton>
-                  <Menu
+                  <NotificationPopover
                     anchorEl={notificationAnchorEl}
-                    id="notification-menu"
-                    keepMounted
+                    notifications={notifications.notifications}
                     onClose={closeNotifications}
-                    open={Boolean(notificationAnchorEl)}
-                  >
-                    {notifications.notifications.length === 0 && <MenuItem disabled>No notifications</MenuItem>}
-                    {notifications.notifications.slice(0, 5).map((notification) => (
-                      <MenuItem
-                        component={Link}
-                        key={notification.id}
-                        onClick={closeNotifications}
-                        to="/notifications"
-                      >
-                        {notification.type === 'friend_request' ? 'Friend request' : 'Notification'}
-                      </MenuItem>
-                    ))}
-                    <MenuItem component={Link} onClick={closeNotifications} to="/notifications">View all notifications</MenuItem>
-                  </Menu>
+                    unreadCount={notifications.unreadCount}
+                  />
                 </>
               )}
               <IconButton onClick={handleMenu} color="inherit">

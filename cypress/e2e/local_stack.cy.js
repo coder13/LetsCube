@@ -96,8 +96,8 @@ describe('local app stack', () => {
   });
 
   it('delivers and acts on a friend request notification for two users', () => {
-    const requesterId = 990001;
-    const recipientId = 990002;
+    const requesterId = 900000 + (Date.now() % 99999);
+    const recipientId = requesterId + 1;
 
     loginAs(recipientId);
     loginAs(requesterId);
@@ -112,7 +112,12 @@ describe('local app stack', () => {
       ))).to.eq(true);
     });
 
-    cy.visit('/notifications');
+    cy.visit('/');
+    cy.get('button[aria-label="Notifications"]').click();
+    cy.get('[aria-label="Recent notifications"]').should('be.visible');
+    cy.contains('sent you a friend request.').should('be.visible');
+    cy.contains('View all notifications').click();
+    cy.location('pathname').should('eq', '/notifications');
     cy.get('button[aria-label="accept friend request"]').click();
 
     loginAs(requesterId);
