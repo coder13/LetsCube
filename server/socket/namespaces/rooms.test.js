@@ -58,26 +58,34 @@ const queryResult = (value) => {
   return query;
 };
 
-const makeRoom = (overrides = {}) => ({
-  _id: 'room-one',
-  accessCode: 'PRIVATE',
-  private: true,
-  password: 'bcrypt-hash-one',
-  type: 'normal',
-  owner: { id: 101 },
-  admin: { id: 101 },
-  users: [],
-  usersInRoom: [],
-  inRoom: new Map(),
-  banned: new Map(),
-  registered: new Map(),
-  membershipRevision: 7,
-  requireRevealedIdentity: false,
-  usersLength: 1,
-  authenticate: jest.fn().mockResolvedValue(true),
-  addUser: jest.fn().mockResolvedValue(false),
-  ...overrides,
-});
+const makeRoom = (overrides = {}) => {
+  const room = {
+    _id: 'room-one',
+    accessCode: 'PRIVATE',
+    private: true,
+    password: 'bcrypt-hash-one',
+    type: 'normal',
+    owner: { id: 101 },
+    admin: { id: 101 },
+    users: [],
+    usersInRoom: [],
+    inRoom: new Map(),
+    banned: new Map(),
+    registered: new Map(),
+    membershipRevision: 7,
+    presenceRevision: new Map([['101', 7]]),
+    requireRevealedIdentity: false,
+    usersLength: 1,
+    authenticate: jest.fn().mockResolvedValue(true),
+    addUser: jest.fn().mockResolvedValue(false),
+    advancePresenceRevision: jest.fn(),
+  };
+  Object.assign(room, overrides);
+  if (!overrides.advancePresenceRevision) {
+    room.advancePresenceRevision.mockResolvedValue(room);
+  }
+  return room;
+};
 
 const makeSocket = ({
   id, session, userId = 202,
@@ -230,6 +238,7 @@ describe('private room namespace joins', () => {
       onAdminChange(room);
       return room;
     });
+    room.advancePresenceRevision.mockResolvedValue(null);
     room.edit = jest.fn().mockResolvedValue(room);
     const connect = setup(new Map([[room._id, room]]));
     const socket = await connect(makeSocket({
@@ -380,6 +389,7 @@ describe('room namespace departures and moderation', () => {
       userId: 101,
       connectionId: 'host-socket',
       membershipRevision: room.membershipRevision,
+      presenceRevision: room.presenceRevision.get('101'),
       leaveReason: 'explicit',
     });
 
@@ -414,6 +424,7 @@ describe('room namespace departures and moderation', () => {
       userId: 101,
       connectionId: 'winner-socket',
       membershipRevision: 7,
+      presenceRevision: 7,
       leaveReason: 'explicit',
     })).resolves.toBe(true);
 
@@ -422,6 +433,7 @@ describe('room namespace departures and moderation', () => {
       admin: { id: 101 },
       inRoom: new Map([['101', true]]),
       membershipRevision: 9,
+      presenceRevision: new Map([['101', 9]]),
     };
     persistedRoom = rejoinedRoom;
 
@@ -430,6 +442,7 @@ describe('room namespace departures and moderation', () => {
       userId: 101,
       connectionId: 'loser-socket',
       membershipRevision: 7,
+      presenceRevision: 7,
       leaveReason: 'explicit',
     })).resolves.toBe(false);
 
@@ -440,6 +453,86 @@ describe('room namespace departures and moderation', () => {
     expect(metrics.endRoomVisit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
+  });
+
+  it('fences an active duplicate join before an older departure can finalize', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+    });
+    const fencedRoom = {
+      ...room,
+      presenceRevision: new Map([['101', 8]]),
+    };
+    room.advancePresenceRevision.mockResolvedValue(fencedRoom);
+    const connect = setup(new Map([[room._id, room]]));
+    const socket = await connect(makeSocket({ id: 'new-tab', session: {}, userId: 101 }));
+
+    const acknowledgment = await joinRoom(socket, { id: room._id });
+
+    expect(acknowledgment).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ _id: room._id }),
+    );
+    expect(room.advancePresenceRevision).toHaveBeenCalledWith(101);
+
+    Room.findById.mockImplementation(() => queryResult(fencedRoom));
+    const reconnectGrace = createReconnectGrace.mock.results[0].value;
+
+    await expect(reconnectGrace.finalizeDeparture({
+      roomId: room._id,
+      userId: 101,
+      connectionId: 'old-tab',
+      membershipRevision: 7,
+      presenceRevision: 7,
+      leaveReason: 'explicit',
+    })).resolves.toBe(false);
+
+    expect(room.dropUserAtomically).toBeUndefined();
+    expect(fencedRoom.inRoom.get('101')).toBe(true);
+    expect(fencedRoom.admin).toEqual({ id: 101 });
+  });
+
+  it('joins normally when a departure wins before the duplicate presence fence', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+    });
+    room.advancePresenceRevision.mockResolvedValue(null);
+    const rejoinedRoom = {
+      ...room,
+      inRoom: new Map([['101', true]]),
+      membershipRevision: 8,
+      presenceRevision: new Map([['101', 8]]),
+    };
+    const departedRoom = {
+      ...room,
+      inRoom: new Map([['101', false]]),
+      addUser: jest.fn().mockResolvedValue(rejoinedRoom),
+    };
+    const connect = setup(new Map([[room._id, room]]));
+    let fetchCount = 0;
+    Room.findById.mockImplementation(() => {
+      const fetchedRoom = fetchCount === 0 ? room : departedRoom;
+      fetchCount += 1;
+      return queryResult(fetchedRoom);
+    });
+    const socket = await connect(makeSocket({ id: 'new-tab', session: {}, userId: 101 }));
+
+    const acknowledgment = await joinRoom(socket, { id: room._id });
+
+    expect(departedRoom.addUser).toHaveBeenCalledWith(
+      socket.user,
+      undefined,
+      expect.any(Function),
+    );
+    expect(acknowledgment).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ _id: room._id }),
+    );
+    expect(socket.room).toBe(rejoinedRoom);
   });
 
   it('finalizes one departure when two tabs explicitly leave together', async () => {

@@ -23,6 +23,17 @@ const selectRoomAdmin = ({ usersInRoom, owner, admin }) => {
   return usersInRoom.find((user) => sameUser(user, admin)) || usersInRoom[0];
 };
 
+const presenceRevisionFor = (room, userKey) => (
+  room.presenceRevision ? room.presenceRevision.get(userKey) || 0 : 0
+);
+
+const advancePresenceRevisionFor = (room, userKey) => {
+  if (!room.presenceRevision) {
+    room.presenceRevision = new Map();
+  }
+  room.presenceRevision.set(userKey, presenceRevisionFor(room, userKey) + 1);
+};
+
 // const lengths = {
 
 // };
@@ -108,6 +119,11 @@ const Room = new mongoose.Schema({
   membershipRevision: {
     type: Number,
     default: 0,
+  },
+  presenceRevision: {
+    type: Map,
+    of: Number,
+    default: {},
   },
   admin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -210,6 +226,7 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 
   this.inRoom.set(user.id.toString(), true);
   this.membershipRevision = (this.membershipRevision || 0) + 1;
+  advancePresenceRevisionFor(this, user.id.toString());
 
   if (this.waitingForCount === 0) {
     this.waitingFor.set(user.id.toString(), true);
@@ -234,6 +251,7 @@ Room.methods.dropUser = async function (user, updateAdmin) {
   this.inRoom.set(user.id.toString(), false);
   this.waitingFor.set(user.id.toString(), false);
   this.membershipRevision = (this.membershipRevision || 0) + 1;
+  advancePresenceRevisionFor(this, user.id.toString());
 
   await this.updateAdminIfNeeded(updateAdmin);
 
@@ -247,10 +265,14 @@ Room.methods.dropUser = async function (user, updateAdmin) {
 Room.methods.dropUserAtomically = async function (
   user,
   expectedMembershipRevision = this.membershipRevision || 0,
+  expectedPresenceRevision = presenceRevisionFor(this, user.id.toString()),
 ) {
   const userKey = user.id.toString();
   const membershipRevision = this.membershipRevision || 0;
-  if (!this.inRoom.get(userKey) || expectedMembershipRevision !== membershipRevision) {
+  const presenceRevision = presenceRevisionFor(this, userKey);
+  if (!this.inRoom.get(userKey)
+    || expectedMembershipRevision !== membershipRevision
+    || expectedPresenceRevision !== presenceRevision) {
     return null;
   }
 
@@ -268,13 +290,29 @@ Room.methods.dropUserAtomically = async function (
     _id: this._id,
     [`inRoom.${userKey}`]: true,
   };
+  const revisionConditions = [];
   if (membershipRevision > 0) {
     condition.membershipRevision = membershipRevision;
   } else {
-    condition.$or = [
-      { membershipRevision: 0 },
-      { membershipRevision: { $exists: false } },
-    ];
+    revisionConditions.push({
+      $or: [
+        { membershipRevision: 0 },
+        { membershipRevision: { $exists: false } },
+      ],
+    });
+  }
+  if (presenceRevision > 0) {
+    condition[`presenceRevision.${userKey}`] = presenceRevision;
+  } else {
+    revisionConditions.push({
+      $or: [
+        { [`presenceRevision.${userKey}`]: 0 },
+        { [`presenceRevision.${userKey}`]: { $exists: false } },
+      ],
+    });
+  }
+  if (revisionConditions.length > 0) {
+    condition.$and = revisionConditions;
   }
 
   const update = {
@@ -285,6 +323,7 @@ Room.methods.dropUserAtomically = async function (
     },
     $inc: {
       membershipRevision: 1,
+      [`presenceRevision.${userKey}`]: 1,
     },
   };
   if (usersInRoom.length === 0 && this.type === 'normal') {
@@ -306,6 +345,20 @@ Room.methods.dropUserAtomically = async function (
   });
 
   return { room: updatedRoom, adminChanged };
+};
+
+Room.methods.advancePresenceRevision = function (userId) {
+  const userKey = userId.toString();
+  return this.constructor.findOneAndUpdate({
+    _id: this._id,
+    [`inRoom.${userKey}`]: true,
+  }, {
+    $inc: {
+      [`presenceRevision.${userKey}`]: 1,
+    },
+  }, {
+    new: true,
+  }).populate('users').populate('admin').populate('owner');
 };
 
 Room.methods.banUser = async function (userId) {

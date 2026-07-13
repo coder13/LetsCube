@@ -88,6 +88,7 @@ module.exports = (io, middlewares) => {
       roomId: room._id,
       userId: user.id,
       membershipRevision: room.membershipRevision,
+      presenceRevision: room.presenceRevision.get(user.id.toString()),
       leaveReason: 'disconnect',
     })));
   }
@@ -126,13 +127,14 @@ module.exports = (io, middlewares) => {
   }
 
   async function finalizeUserDeparture({
-    roomId, userId, connectionId, leaveReason, membershipRevision,
+    roomId, userId, connectionId, leaveReason, membershipRevision, presenceRevision,
   }) {
     const userKey = userId.toString();
 
     const room = await fetchRoom(roomId);
     if (!room || !room.inRoom.get(userKey)
-      || room.membershipRevision !== membershipRevision) {
+      || room.membershipRevision !== membershipRevision
+      || room.presenceRevision.get(userKey) !== presenceRevision) {
       return false;
     }
 
@@ -143,7 +145,11 @@ module.exports = (io, middlewares) => {
 
     // The membership revision is the departure generation. A failed claim is
     // terminal: retrying it after a rejoin would remove the new membership.
-    const departure = await room.dropUserAtomically({ id: userId }, membershipRevision);
+    const departure = await room.dropUserAtomically(
+      { id: userId },
+      membershipRevision,
+      presenceRevision,
+    );
     if (!departure) {
       return false;
     }
@@ -372,6 +378,7 @@ module.exports = (io, middlewares) => {
           userId: socket.userId,
           connectionId: socket.id,
           membershipRevision: socket.room.membershipRevision,
+          presenceRevision: socket.room.presenceRevision.get(socket.userId.toString()),
           leaveReason,
         });
       } catch (e) {
@@ -423,18 +430,42 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      const r = await activeRoom.addUser(socket.user, spectating, sendAdminUpdate);
-
-      if (!r) {
-        // The user is already present in persisted room state.
-        socket.room = activeRoom;
+      const presentRoom = await activeRoom.advancePresenceRevision(socket.userId);
+      if (presentRoom) {
+        socket.room = presentRoom;
         await metrics.beginRoomVisit({
-          room: activeRoom,
+          room: presentRoom,
           userId: socket.userId,
           connectionId: socket.id,
-          activeUserCount: activeRoom.usersLength,
+          activeUserCount: presentRoom.usersLength,
         });
-        return cb(null, joinRoomMask(activeRoom));
+        return cb(null, joinRoomMask(presentRoom));
+      }
+
+      const currentRoom = await fetchRoom(room._id);
+      if (!currentRoom) {
+        return cb({
+          statusCode: 404,
+          message: 'Room no longer exists',
+        });
+      }
+      const r = await currentRoom.addUser(socket.user, spectating, sendAdminUpdate);
+      if (!r) {
+        const fencedRoom = await currentRoom.advancePresenceRevision(socket.userId);
+        if (!fencedRoom) {
+          return cb({
+            statusCode: 409,
+            message: 'Room membership changed while joining',
+          });
+        }
+        socket.room = fencedRoom;
+        await metrics.beginRoomVisit({
+          room: fencedRoom,
+          userId: socket.userId,
+          connectionId: socket.id,
+          activeUserCount: fencedRoom.usersLength,
+        });
+        return cb(null, joinRoomMask(fencedRoom));
       }
 
       socket.room = r;
@@ -1072,6 +1103,7 @@ module.exports = (io, middlewares) => {
             userId: socket.userId,
             connectionId: socket.id,
             membershipRevision: socket.room.membershipRevision,
+            presenceRevision: socket.room.presenceRevision.get(socket.userId.toString()),
             leaveReason: 'disconnect',
           });
         } else if (socket.room) {

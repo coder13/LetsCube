@@ -283,6 +283,7 @@ describe('room security helpers', () => {
       inRoom: new Map([['101', true], ['202', true]]),
       type: 'normal',
       membershipRevision: 7,
+      presenceRevision: new Map([['101', 7]]),
       constructor: model,
     };
 
@@ -292,13 +293,17 @@ describe('room security helpers', () => {
       _id: room._id,
       'inRoom.101': true,
       membershipRevision: 7,
+      'presenceRevision.101': 7,
     }, {
       $set: {
         'inRoom.101': false,
         'waitingFor.101': false,
         admin: nextAdmin._id,
       },
-      $inc: { membershipRevision: 1 },
+      $inc: {
+        membershipRevision: 1,
+        'presenceRevision.101': 1,
+      },
     }, { new: true });
     expect(departure).toEqual({ room: updatedRoom, adminChanged: true });
     expect(mirrorRoomChanges).toHaveBeenCalledWith(updatedRoom, {
@@ -307,6 +312,30 @@ describe('room security helpers', () => {
       syncAllParticipants: false,
       syncRoomOwners: true,
     });
+  });
+
+  it('advances an active user presence revision atomically', async () => {
+    const updatedRoom = { id: 'room-one' };
+    const query = {
+      populate: jest.fn(() => query),
+      then: (resolve, reject) => Promise.resolve(updatedRoom).then(resolve, reject),
+    };
+    const model = {
+      findOneAndUpdate: jest.fn(() => query),
+    };
+    const room = {
+      _id: 'room-one',
+      constructor: model,
+    };
+
+    await expect(Room.methods.advancePresenceRevision.call(room, 101)).resolves.toBe(updatedRoom);
+
+    expect(model.findOneAndUpdate).toHaveBeenCalledWith({
+      _id: room._id,
+      'inRoom.101': true,
+    }, {
+      $inc: { 'presenceRevision.101': 1 },
+    }, { new: true });
   });
 
   it('persists and announces the owner reclaiming admin controls', async () => {
