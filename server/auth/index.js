@@ -31,14 +31,19 @@ module.exports = (app, passport) => {
 
     if (process.env.LETSCUBE_TEST_AUTH === 'true') {
       try {
+        const testUserMatch = /^cypress-test-user-(\d+)$/.exec(code);
+        const testUserId = testUserMatch
+          ? Number(testUserMatch[1]) : +(process.env.LETSCUBE_TEST_USER_ID || 990001);
+        const testUserName = testUserMatch ? `Cypress Test User ${testUserId}` : 'Cypress Test User';
+        const testUsername = testUserMatch ? `cypress-${testUserId}` : 'cypress';
         const user = await User.findOneAndUpdate({
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
+          id: testUserId,
         }, {
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
-          name: 'Cypress Test User',
-          username: 'cypress',
+          id: testUserId,
+          name: testUserName,
+          username: testUsername,
           email: 'cypress@example.com',
-          wcaId: '2026TEST01',
+          wcaId: testUserMatch ? `2026TEST${testUserId}` : '2026TEST01',
           accessToken: `test-token-${code}`,
           avatar: {},
         }, {

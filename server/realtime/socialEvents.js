@@ -4,6 +4,7 @@ const Protocol = require('../../client/src/lib/protocol.json');
 const config = require('../runtimeConfig');
 const logger = require('../logger');
 const { encodeUser } = require('../socket/utils');
+const { isKnownNotification } = require('../social/notificationTypes');
 
 const SOCIAL_EVENT_CHANNEL = 'letscube:social-events:v1';
 
@@ -28,13 +29,44 @@ const normalizeRecipients = (userIds) => [...new Set(userIds.map(Number).filter(
   (userId) => Number.isSafeInteger(userId) && userId > 0,
 ))];
 
+const notificationPayload = (notification, updated = false) => {
+  if (!notification) {
+    return null;
+  }
+  if (updated) {
+    if (!notification.readAt) {
+      return null;
+    }
+    return {
+      ...(typeof notification.id === 'string' ? { id: notification.id } : {}),
+      readAt: notification.readAt,
+    };
+  }
+  if (typeof notification.id !== 'string') {
+    return null;
+  }
+  if (!isKnownNotification({
+    sourceType: notification.source && notification.source.type,
+    type: notification.type,
+  }) || !notification.actorId || !notification.createdAt || !notification.expiresAt
+    || !notification.source.id) {
+    return null;
+  }
+  return notification;
+};
+
 const createSocialEventPublisher = ({
   client,
   eventLogger = logger,
   now = () => new Date(),
-} = {}) => async ({ userIds }) => {
+} = {}) => async ({ notification, type = Protocol.FRIEND_STATE_INVALIDATED, userIds }) => {
   const recipients = normalizeRecipients(userIds || []);
-  if (recipients.length === 0) {
+  const isNotificationEvent = type === Protocol.NOTIFICATION_CREATED
+    || type === Protocol.NOTIFICATION_UPDATED;
+  const sanitizedNotification = isNotificationEvent
+    ? notificationPayload(notification, type === Protocol.NOTIFICATION_UPDATED) : null;
+  if (recipients.length === 0 || (isNotificationEvent && !sanitizedNotification)
+    || (!isNotificationEvent && type !== Protocol.FRIEND_STATE_INVALIDATED)) {
     return false;
   }
 
@@ -46,7 +78,8 @@ const createSocialEventPublisher = ({
     await redis.publish(SOCIAL_EVENT_CHANNEL, JSON.stringify({
       occurredAt: now().toISOString(),
       schemaVersion: 1,
-      type: Protocol.FRIEND_STATE_INVALIDATED,
+      ...(sanitizedNotification ? { notification: sanitizedNotification } : {}),
+      type,
       userIds: recipients,
     }));
     return true;
@@ -59,18 +92,28 @@ const createSocialEventPublisher = ({
 const parseSocialEvent = (message) => {
   try {
     const event = JSON.parse(message);
-    if (event.schemaVersion !== 1 || event.type !== Protocol.FRIEND_STATE_INVALIDATED) {
+    const isNotificationEvent = event.type === Protocol.NOTIFICATION_CREATED
+      || event.type === Protocol.NOTIFICATION_UPDATED;
+    if (event.schemaVersion !== 1 || (event.type !== Protocol.FRIEND_STATE_INVALIDATED
+      && !isNotificationEvent)) {
       return null;
     }
     const userIds = normalizeRecipients(event.userIds || []);
     if (userIds.length === 0) {
       return null;
     }
+    const notification = isNotificationEvent
+      ? notificationPayload(event.notification, event.type === Protocol.NOTIFICATION_UPDATED)
+      : null;
+    if (isNotificationEvent && !notification) {
+      return null;
+    }
     return {
-      payload: {
+      payload: isNotificationEvent ? { notification, schemaVersion: event.schemaVersion } : {
         occurredAt: event.occurredAt,
         schemaVersion: event.schemaVersion,
       },
+      type: event.type,
       userIds,
     };
   } catch (err) {
@@ -91,7 +134,7 @@ const registerSocialEventSubscriber = (io, client, eventLogger = logger) => {
     }
     event.userIds.forEach((userId) => {
       namespace.to(encodeUser(userId)).emit(
-        Protocol.FRIEND_STATE_INVALIDATED,
+        event.type,
         event.payload,
       );
     });
@@ -104,5 +147,15 @@ module.exports = {
   createSocialEventPublisher,
   parseSocialEvent,
   publishSocialInvalidation: createSocialEventPublisher(),
+  publishNotificationCreated: ({ notification, recipientId }) => createSocialEventPublisher()({
+    notification,
+    type: Protocol.NOTIFICATION_CREATED,
+    userIds: [recipientId],
+  }),
+  publishNotificationUpdated: ({ notification, recipientId }) => createSocialEventPublisher()({
+    notification,
+    type: Protocol.NOTIFICATION_UPDATED,
+    userIds: [recipientId],
+  }),
   registerSocialEventSubscriber,
 };

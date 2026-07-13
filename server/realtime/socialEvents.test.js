@@ -59,6 +59,37 @@ describe('social realtime invalidations', () => {
     expect(emit.mock.calls[0][1]).not.toHaveProperty('userIds');
   });
 
+  it('relays typed notification events only to the recipient user room', () => {
+    const handlers = {};
+    const emit = jest.fn();
+    const io = { of: jest.fn(() => ({ to: jest.fn(() => ({ emit })) })) };
+    const client = {
+      on: jest.fn((event, handler) => { handlers[event] = handler; }),
+      subscribe: jest.fn().mockResolvedValue(1),
+    };
+
+    registerSocialEventSubscriber(io, client);
+    handlers.message(SOCIAL_EVENT_CHANNEL, JSON.stringify({
+      notification: {
+        actorId: 1,
+        createdAt: '2026-07-12T12:00:00.000Z',
+        expiresAt: '2026-08-11T12:00:00.000Z',
+        id: '507f1f77bcf86cd799439011',
+        readAt: null,
+        source: { id: 'relationship-1', type: 'friend_relationship' },
+        type: 'friend_request',
+      },
+      schemaVersion: 1,
+      type: Protocol.NOTIFICATION_CREATED,
+      userIds: [2],
+    }));
+
+    expect(emit).toHaveBeenCalledWith(Protocol.NOTIFICATION_CREATED, expect.objectContaining({
+      notification: expect.objectContaining({ type: 'friend_request' }),
+    }));
+    expect(emit.mock.calls[0][1].notification).not.toHaveProperty('email');
+  });
+
   it('ignores malformed or unknown events', () => {
     expect(parseSocialEvent('not-json')).toBeNull();
     expect(parseSocialEvent(JSON.stringify({

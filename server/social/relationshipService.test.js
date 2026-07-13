@@ -143,6 +143,10 @@ const createService = () => {
     mirrorRelationship: jest.fn().mockResolvedValue(null),
   };
   const notifier = jest.fn().mockResolvedValue(true);
+  const notifications = {
+    createFriendRequest: jest.fn().mockResolvedValue({ created: true }),
+    createFriendRequestAccepted: jest.fn().mockResolvedValue({ created: true }),
+  };
   const now = jest.fn(() => new Date('2026-07-12T12:00:00.000Z'));
   const requestLimiter = { consume: jest.fn().mockResolvedValue(undefined) };
   const socialLogger = { error: jest.fn() };
@@ -151,6 +155,7 @@ const createService = () => {
     metricRecorder,
     mirrors,
     notifier,
+    notifications,
     now,
     requestLimiter,
     socialLogger,
@@ -160,6 +165,7 @@ const createService = () => {
     metricRecorder,
     mirrors,
     notifier,
+    notifications,
     now,
     requestLimiter,
     socialLogger,
@@ -169,7 +175,9 @@ const createService = () => {
 
 describe('relationship service', () => {
   it('stores one unordered pair and accepts a crossed request', async () => {
-    const { relationships, service, users } = createService();
+    const {
+      notifications, relationships, service, users,
+    } = createService();
 
     await service.sendRequest(users.get(2), 1);
     await service.sendRequest(users.get(1), 2);
@@ -182,6 +190,8 @@ describe('relationship service', () => {
       requestedBy: null,
       status: 'accepted',
     }));
+    expect(notifications.createFriendRequest).toHaveBeenCalledTimes(1);
+    expect(notifications.createFriendRequestAccepted).toHaveBeenCalledTimes(1);
   });
 
   it('makes duplicate sends and concurrent accepts idempotent', async () => {
