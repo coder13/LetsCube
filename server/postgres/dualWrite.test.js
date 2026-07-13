@@ -9,7 +9,9 @@ jest.mock('./index', () => ({
 const postgres = require('./index');
 const {
   markRoomDeleted,
+  mirrorBlock,
   mirrorMetricEvent,
+  mirrorRelationship,
   mirrorRoom,
   mirrorRoomChanges,
   mirrorUser,
@@ -195,5 +197,124 @@ describe('PostgreSQL dual writer', () => {
       expect.stringContaining('UPDATE app.rooms'),
       ['507f1f77bcf86cd799439011'],
     );
+  });
+
+  it('mirrors relationship revisions and directional blocks without graph metrics', async () => {
+    const otherUser = {
+      ...user,
+      id: 5678,
+      name: 'Other Solver',
+      username: 'other',
+      wcaId: '2026TEST02',
+    };
+    const updatedAt = new Date('2026-07-12T20:00:00.000Z');
+
+    await mirrorRelationship({
+      pairKey: '1234:5678',
+      lowUserId: 1234,
+      highUserId: 5678,
+      requestedBy: 1234,
+      status: 'pending',
+      revision: 2,
+      stateChangedAt: updatedAt,
+      createdAt: updatedAt,
+      updatedAt,
+    }, [user, otherUser]);
+    await mirrorBlock({
+      active: true,
+      blockerId: 1234,
+      blockedId: 5678,
+      pairKey: '1234:5678',
+      revision: 1,
+      stateChangedAt: updatedAt,
+      createdAt: updatedAt,
+      updatedAt,
+    }, user, otherUser);
+
+    const statements = client.query.mock.calls.map(([sql]) => sql);
+    expect(statements.some((sql) => sql.includes('INSERT INTO app.friend_relationships')))
+      .toBe(true);
+    expect(statements.some((sql) => sql.includes('INSERT INTO app.user_blocks'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('DELETE FROM app.friend_relationships')))
+      .toBe(false);
+    expect(statements.find((sql) => sql.includes('INSERT INTO app.friend_relationships')))
+      .toContain('friend_relationships.revision < EXCLUDED.revision');
+    expect(statements.find((sql) => sql.includes('INSERT INTO app.user_blocks')))
+      .toContain('user_blocks.revision < EXCLUDED.revision');
+  });
+
+  it('tolerates disabled PostgreSQL', async () => {
+    postgres.withTransaction.mockResolvedValueOnce(null);
+    await expect(mirrorRelationship({ pairKey: '1234:5678' }, []))
+      .resolves.toBeNull();
+  });
+
+  it('rejects deliberately reordered stale relationship and block mirrors', async () => {
+    const otherUser = {
+      ...user,
+      id: 5678,
+      name: 'Other Solver',
+    };
+    const sourceState = {};
+    client.query.mockImplementation(async (sql, values) => {
+      if (sql.includes('INSERT INTO app.friend_relationships')) {
+        const incoming = { revision: values[7], status: values[4] };
+        if (!sourceState.relationship
+          || sourceState.relationship.revision < incoming.revision) {
+          sourceState.relationship = incoming;
+        }
+      }
+      if (sql.includes('INSERT INTO app.user_blocks')) {
+        const incoming = { active: values[4], revision: values[5] };
+        if (!sourceState.block || sourceState.block.revision < incoming.revision) {
+          sourceState.block = incoming;
+        }
+      }
+      return { rows: [] };
+    });
+    const newerAt = new Date('2026-07-12T20:01:00.000Z');
+    const olderAt = new Date('2026-07-12T20:00:00.000Z');
+
+    await mirrorRelationship({
+      pairKey: '1234:5678',
+      lowUserId: 1234,
+      highUserId: 5678,
+      requestedBy: null,
+      status: 'removed',
+      revision: 3,
+      stateChangedAt: newerAt,
+      updatedAt: newerAt,
+    }, [user, otherUser]);
+    await mirrorRelationship({
+      pairKey: '1234:5678',
+      lowUserId: 1234,
+      highUserId: 5678,
+      requestedBy: null,
+      status: 'accepted',
+      revision: 2,
+      stateChangedAt: olderAt,
+      updatedAt: olderAt,
+    }, [user, otherUser]);
+    await mirrorBlock({
+      active: false,
+      blockerId: 1234,
+      blockedId: 5678,
+      pairKey: '1234:5678',
+      revision: 2,
+      stateChangedAt: newerAt,
+      updatedAt: newerAt,
+    }, user, otherUser);
+    await mirrorBlock({
+      active: true,
+      blockerId: 1234,
+      blockedId: 5678,
+      pairKey: '1234:5678',
+      revision: 1,
+      stateChangedAt: olderAt,
+      updatedAt: olderAt,
+    }, user, otherUser);
+
+    expect(sourceState.relationship).toEqual({ revision: 3, status: 'removed' });
+    expect(sourceState.block).toEqual({ active: false, revision: 2 });
   });
 });

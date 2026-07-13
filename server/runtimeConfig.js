@@ -97,6 +97,9 @@ module.exports = {
   grandPrix: {
     enabled: process.env.GRAND_PRIX_ENABLED === 'true',
   },
+  socialFeatures: {
+    enabled: process.env.SOCIAL_FEATURES_ENABLED === 'true',
+  },
   postgres: {
     enabled: process.env.POSTGRES_ENABLED !== 'false',
     connectionString: process.env.DATABASE_URL,

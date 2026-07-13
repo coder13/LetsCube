@@ -109,3 +109,7 @@ this migration phase.
 Username lookup uses a separately normalized, uniquely indexed key while
 preserving display casing. See [the normalized username migration](docs/username-migration.md)
 for the required collision audit, production order, and rollback procedure.
+
+Friend relationships and directional blocks use revisioned tombstone rows;
+strictly older mirrors are ignored so reordered background writes cannot
+resurrect a removed relationship or a deactivated block.

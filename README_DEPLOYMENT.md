@@ -234,6 +234,16 @@ first deploy an application release that no longer references the compatibility
 column, advance every supported rollback image to that release, and only then
 apply a migration that drops it. Do not combine that drop with this cutover.
 
+The Friend System server surface is disabled by default:
+
+```bash
+SOCIAL_FEATURES_ENABLED=false
+```
+
+Only set this to `true` during controlled development or after the #188
+launch-hardening gate is complete. The same switch controls REST routes and
+their realtime relay; normal room behavior is unaffected.
+
 ### Health Checks
 
 The API and socket processes expose dependency-aware health endpoints.

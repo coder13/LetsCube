@@ -1,9 +1,9 @@
 const express = require('express');
 
-const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 const { updateUsername } = require('./username');
+const createFriendsRouter = require('./api/friends');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -13,7 +13,8 @@ const PREFERENCE_KEYS = new Set([
   'muteTimer',
 ]);
 
-module.exports = () => {
+module.exports = (app) => {
+  const router = express.Router();
   const sendError = (res, err) => {
     const body = {
       status: err.statusCode,
@@ -37,6 +38,15 @@ module.exports = () => {
       return sendError(res, err);
     }
   });
+
+  if (app && app.get('config').socialFeatures.enabled) {
+    router.use('/friends', createFriendsRouter());
+  } else {
+    router.use('/friends', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+  }
 
   router.put('/updatePreference', auth, async (req, res) => {
     const unknownPreference = Object.keys(req.body)

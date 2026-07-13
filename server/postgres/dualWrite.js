@@ -122,6 +122,86 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
 
 const mirrorUser = (user) => withTransaction((client) => upsertUser(client, user));
 
+const mirrorRelationship = (relationship, users) => withTransaction(async (client) => {
+  const knownUserIds = new Set();
+  for (const user of users) {
+    const mirroredId = await upsertUser(client, user, relationship.updatedAt);
+    if (mirroredId) {
+      knownUserIds.add(numericUserId(user));
+    }
+  }
+  if (!knownUserIds.has(relationship.lowUserId)
+    || !knownUserIds.has(relationship.highUserId)) {
+    return null;
+  }
+
+  const updatedAt = sourceDate(relationship.updatedAt);
+  await client.query(`
+    INSERT INTO app.friend_relationships (
+      id, pair_key, low_user_id, high_user_id, status, requested_by_user_id,
+      cooldown_until, revision, state_changed_at, source_created_at, source_updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    ON CONFLICT (pair_key) DO UPDATE SET
+      status = EXCLUDED.status,
+      requested_by_user_id = EXCLUDED.requested_by_user_id,
+      cooldown_until = EXCLUDED.cooldown_until,
+      revision = EXCLUDED.revision,
+      state_changed_at = EXCLUDED.state_changed_at,
+      source_updated_at = EXCLUDED.source_updated_at,
+      ingested_at = now()
+    WHERE app.friend_relationships.revision < EXCLUDED.revision
+  `, [
+    stableId('friend-relationship', relationship.pairKey),
+    relationship.pairKey,
+    stableId('user', relationship.lowUserId),
+    stableId('user', relationship.highUserId),
+    relationship.status,
+    relationship.requestedBy ? stableId('user', relationship.requestedBy) : null,
+    relationship.cooldownUntil || null,
+    relationship.revision,
+    relationship.stateChangedAt,
+    relationship.createdAt || null,
+    updatedAt,
+  ]);
+  return relationship.pairKey;
+});
+
+const mirrorBlock = (block, blocker, blocked) => withTransaction(async (client) => {
+  const updatedAt = sourceDate(block.updatedAt, block.createdAt);
+  const blockerUserId = await upsertUser(client, blocker, updatedAt);
+  const blockedUserId = await upsertUser(client, blocked, updatedAt);
+  if (!blockerUserId || !blockedUserId) {
+    return null;
+  }
+
+  await client.query(`
+    INSERT INTO app.user_blocks (
+      id, blocker_id, blocked_id, pair_key, active, revision, state_changed_at,
+      source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
+      pair_key = EXCLUDED.pair_key,
+      active = EXCLUDED.active,
+      revision = EXCLUDED.revision,
+      state_changed_at = EXCLUDED.state_changed_at,
+      source_updated_at = EXCLUDED.source_updated_at,
+      ingested_at = now()
+    WHERE app.user_blocks.revision < EXCLUDED.revision
+  `, [
+    stableId('user-block', `${block.blockerId}:${block.blockedId}`),
+    blockerUserId,
+    blockedUserId,
+    block.pairKey,
+    block.active,
+    block.revision,
+    block.stateChangedAt,
+    block.createdAt || null,
+    updatedAt,
+  ]);
+  return block.pairKey;
+});
+
 const upsertRoomState = async (client, room, options = {}) => {
   if (!room || !room._id) {
     return null;
@@ -546,6 +626,8 @@ const mirrorMetricEvent = (event) => query(`
     privateRoom: event.privateRoom,
     failureReason: event.failureReason,
     leaveReason: event.leaveReason,
+    socialAction: event.socialAction,
+    socialOutcome: event.socialOutcome,
     activeUserCount: event.activeUserCount,
     roomSolveCount: event.roomSolveCount,
     durationMs: event.durationMs,
@@ -555,7 +637,9 @@ const mirrorMetricEvent = (event) => query(`
 
 module.exports = {
   markRoomDeleted,
+  mirrorBlock,
   mirrorMetricEvent,
+  mirrorRelationship,
   mirrorRoom,
   mirrorRoomChanges,
   mirrorUser,
