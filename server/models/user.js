@@ -4,6 +4,8 @@ const { mirrorUser } = require('../postgres/dualWrite');
 const redactUser = (doc, ret) => {
   delete ret.email;
   delete ret.accessToken;
+  delete ret.anonymizedAt;
+  delete ret.anonymizedBy;
   if (!doc.showWCAID) {
     delete ret.wcaId;
     if (!doc.preferRealName) {
@@ -51,10 +53,15 @@ const schema = new mongoose.Schema({
   },
   accessToken: {
     type: String,
-    required: true,
   },
   avatar: {
     type: Object,
+  },
+  anonymizedAt: {
+    type: Date,
+  },
+  anonymizedBy: {
+    type: Number,
   },
   muteTimer: {
     type: Boolean,
@@ -74,6 +81,9 @@ const schema = new mongoose.Schema({
 });
 
 schema.virtual('displayName').get(function () {
+  if (this.anonymizedAt) {
+    return this.username || 'Anonymous User';
+  }
   return !this.preferRealName ? this.username : this.name;
 });
 

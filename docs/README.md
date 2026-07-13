@@ -7,3 +7,7 @@ Letscube is a progressive webapp that lets users race against eachother solving 
 The frontend is built with React, Material-UI, and Redux.
 
 The backend is built with NodeJS, Express and MongoDB, and they are both connected with socket.io.
+
+Operational guides:
+
+- [User anonymization](user-anonymization.md)

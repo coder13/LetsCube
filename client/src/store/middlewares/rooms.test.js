@@ -12,6 +12,7 @@ import {
   submitResult,
 } from '../room/actions';
 import { connectSocket, createRoom } from '../rooms/actions';
+import { anonymizeAdminUser, searchAdminUsers } from '../admin/actions';
 import {
   PENDING_RESULT_STORAGE_KEY,
   createPendingResult,
@@ -173,6 +174,24 @@ describe('rooms middleware', () => {
     expect(emissionsFor(namespace, Protocol.JOIN_ROOM)).toHaveLength(1);
     expect(store.getState().room.fetching).toBe(false);
     expect(store.getState().room.attempts).toBe(attempts);
+  });
+
+  it('emits administrator user search and confirmed anonymization requests', () => {
+    const { namespace, store } = buildStore();
+    const searchComplete = jest.fn();
+    const anonymizeComplete = jest.fn();
+
+    store.dispatch(searchAdminUsers('2020TEST01', searchComplete));
+    store.dispatch(anonymizeAdminUser(1234, anonymizeComplete));
+
+    expect(emissionsFor(namespace, Protocol.ADMIN_SEARCH_USERS)[0].args).toEqual([
+      { query: '2020TEST01' },
+      searchComplete,
+    ]);
+    expect(emissionsFor(namespace, Protocol.ADMIN_ANONYMIZE_USER)[0].args).toEqual([
+      { userId: 1234, confirmation: 'ANONYMIZE:1234' },
+      anonymizeComplete,
+    ]);
   });
 
   it('waits for the socket connection before emitting the initial room join', () => {

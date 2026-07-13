@@ -56,6 +56,25 @@ describe('PostgreSQL dual writer', () => {
     expect(values).not.toContain('must-not-be-mirrored');
   });
 
+  it('preserves an anonymization scrub against later stale user snapshots', async () => {
+    await mirrorUser({
+      ...user,
+      name: 'Anonymous User',
+      email: undefined,
+      username: undefined,
+      wcaId: undefined,
+      avatar: {},
+      anonymizedAt: new Date('2026-07-12T12:00:00.000Z'),
+      anonymizedBy: 8184,
+    });
+
+    const [statement, values] = client.query.mock.calls[0];
+    expect(statement).toContain('app.users.anonymized_at IS NOT NULL');
+    expect(statement).toContain('COALESCE(app.users.anonymized_at, EXCLUDED.anonymized_at)');
+    expect(values).toContain(8184);
+    expect(values).not.toContain('solver@example.com');
+  });
+
   it('mirrors a room snapshot, participants, attempts, and solves', async () => {
     const updatedAt = new Date('2026-07-09T20:00:00.000Z');
     const room = {

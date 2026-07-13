@@ -46,5 +46,7 @@
   "START_ROOM": "start",
   "PAUSE_ROOM": "pause",
   "UPDATE_USER": "update_user",
-  "ADMIN": "admin"
+  "ADMIN": "admin",
+  "ADMIN_SEARCH_USERS": "admin_search_users",
+  "ADMIN_ANONYMIZE_USER": "admin_anonymize_user"
 }

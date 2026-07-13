@@ -72,7 +72,9 @@ import { createMessage } from '../messages/actions';
 import { SEND_CHAT, receiveChat } from '../chat/actions';
 import { USER_CHANGED } from '../user/actions';
 import {
+  ANONYMIZE_ADMIN_USER,
   FETCH_ADMIN_DATA,
+  SEARCH_ADMIN_USERS,
   setAdminData,
 } from '../admin/actions';
 import { manager } from './manager';
@@ -815,6 +817,15 @@ export const createRoomsNamespaceMiddleware = ({
       namespace.emit(Protocol.ADMIN, (data) => {
         store.dispatch(setAdminData(data));
       });
+    },
+    [SEARCH_ADMIN_USERS]: ({ query, onComplete }) => {
+      namespace.emit(Protocol.ADMIN_SEARCH_USERS, { query }, onComplete);
+    },
+    [ANONYMIZE_ADMIN_USER]: ({ userId, onComplete }) => {
+      namespace.emit(Protocol.ADMIN_ANONYMIZE_USER, {
+        userId,
+        confirmation: `ANONYMIZE:${userId}`,
+      }, onComplete);
     },
   };
 

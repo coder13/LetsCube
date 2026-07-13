@@ -3,6 +3,7 @@ const CustomStrategy = require('passport-custom').Strategy;
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
 const metrics = require('../metrics');
+const { persistWcaProfile } = require('../services/wcaAuthentication');
 
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
@@ -86,23 +87,11 @@ module.exports = (app, passport) => {
       }
 
       const profile = meRes.me;
-
-      User.findOneAndUpdate({
-        id: +profile.id,
-      }, {
-        id: +profile.id,
-        name: profile.name,
-        email: profile.email,
-        wcaId: profile.wca_id,
+      const user = await persistWcaProfile({
+        profile,
         accessToken: tokenRes.access_token,
-        avatar: profile.avatar,
-      }, {
-        upsert: true,
-        useFindAndModify: false,
-        new: true,
-      }, (err, user) => {
-        done(err, user.toObject());
       });
+      done(null, user.toObject());
     } catch (e) {
       done(e);
     }

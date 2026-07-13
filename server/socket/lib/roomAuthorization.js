@@ -26,6 +26,7 @@ const canAccessRoom = (userId, room) => {
 };
 
 module.exports = {
+  SUPER_ADMIN_ID,
   canAccessRoom,
   canDeleteRoom,
 };

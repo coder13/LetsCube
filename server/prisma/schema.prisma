@@ -12,6 +12,8 @@ model User {
   wcaId              String?           @map("wca_id")
   preferences        Json              @default("{}") @db.JsonB
   avatar             Json              @default("{}") @db.JsonB
+  anonymizedAt       DateTime?         @map("anonymized_at") @db.Timestamptz(6)
+  anonymizedByWcaUserId BigInt?         @map("anonymized_by_wca_user_id")
   sourceCreatedAt    DateTime?         @map("source_created_at") @db.Timestamptz(6)
   sourceUpdatedAt    DateTime          @map("source_updated_at") @db.Timestamptz(6)
   ingestedAt         DateTime          @default(now()) @map("ingested_at") @db.Timestamptz(6)

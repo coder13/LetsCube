@@ -8,9 +8,14 @@ const logger = require('../../logger');
 const metrics = require('../../metrics');
 const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
-const { encodeUserRoom } = require('../utils');
+const { anonymizeUser, publicAdminUser } = require('../../services/userAnonymization');
+const { encodeUser, encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
-const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const {
+  SUPER_ADMIN_ID,
+  canAccessRoom,
+  canDeleteRoom,
+} = require('../lib/roomAuthorization');
 const { isRoomTypeEnabled: checkRoomTypeEnabled } = require('../lib/roomAvailability');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
 const { createReconnectGrace } = require('../lib/reconnectGrace');
@@ -24,6 +29,7 @@ const {
 } = require('../lib/socketHandler');
 
 const PASSWORD_SALT_ROUNDS = 10;
+const ADMIN_USER_SEARCH_LIMIT = 20;
 
 const publicRoomKeys = ['_id', 'name', 'event', 'usersLength', 'private', 'type', 'owner', 'requireRevealedIdentity', 'startTime', 'started', 'twitchChannel'];
 const privateRoomKeys = [...publicRoomKeys, 'users', 'competing', 'waitingFor', 'banned', 'attempts', 'admin', 'accessCode', 'inRoom', 'registered', 'nextSolveAt'];
@@ -53,6 +59,23 @@ const getRooms = (userId) => Room.find().populate('users').populate('admin').pop
   )).map(roomMask));
 
 const roomTimerObj = {};
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const adminUserSearchFilter = (query) => {
+  const pattern = new RegExp(escapeRegExp(query), 'i');
+  const filters = [
+    { wcaId: pattern },
+    { name: pattern },
+    { username: pattern },
+    { email: pattern },
+  ];
+  const numericId = Number(query);
+  if (Number.isSafeInteger(numericId) && numericId > 0) {
+    filters.unshift({ id: numericId });
+  }
+  return { $or: filters };
+};
 
 module.exports = (io, middlewares) => {
   const ns = () => io.of('/rooms');
@@ -112,6 +135,17 @@ module.exports = (io, middlewares) => {
     if (isRoomTypeEnabled(room.type)) {
       ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
     }
+  }
+
+  async function refreshRoomsForUser(user) {
+    const rooms = await Room.find({ users: user._id })
+      .populate('users')
+      .populate('admin')
+      .populate('owner');
+    rooms.forEach((room) => {
+      ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+      sendGlobalRoomUpdate(room);
+    });
   }
 
   async function finalizeUserDeparture({
@@ -1115,13 +1149,69 @@ module.exports = (io, middlewares) => {
     });
 
     on(Protocol.ADMIN, (cb) => {
-      if (!socket.userId || +socket.userId !== 8184) {
+      if (!socket.userId || +socket.userId !== SUPER_ADMIN_ID) {
         return;
       }
 
       roomMap(ns).then((sockets) => {
         cb(sockets);
       });
+    });
+
+    on(Protocol.ADMIN_SEARCH_USERS, async (payload = {}, acknowledgment) => {
+      const acknowledge = optionalAcknowledgment(acknowledgment);
+      if (!socket.userId || +socket.userId !== SUPER_ADMIN_ID) {
+        acknowledge({ statusCode: 403, message: 'Administrator access required' });
+        return;
+      }
+
+      const query = typeof payload.query === 'string' ? payload.query.trim() : '';
+      if (query.length < 2) {
+        acknowledge({ statusCode: 400, message: 'Enter at least two characters' });
+        return;
+      }
+
+      const users = await User.find(adminUserSearchFilter(query))
+        .select('id name username email wcaId anonymizedAt')
+        .sort({ id: 1 })
+        .limit(ADMIN_USER_SEARCH_LIMIT);
+      acknowledge(null, users.map(publicAdminUser));
+    });
+
+    on(Protocol.ADMIN_ANONYMIZE_USER, async (payload = {}, acknowledgment) => {
+      const acknowledge = optionalAcknowledgment(acknowledgment);
+      if (!socket.userId || +socket.userId !== SUPER_ADMIN_ID) {
+        acknowledge({ statusCode: 403, message: 'Administrator access required' });
+        return;
+      }
+
+      const userId = Number(payload.userId);
+      if (!Number.isSafeInteger(userId) || userId <= 0
+        || payload.confirmation !== `ANONYMIZE:${userId}`) {
+        acknowledge({ statusCode: 400, message: 'Invalid anonymization confirmation' });
+        return;
+      }
+
+      const user = await User.findOne({ id: userId });
+      if (!user) {
+        acknowledge({ statusCode: 404, message: 'User not found' });
+        return;
+      }
+
+      const result = await anonymizeUser(user, +socket.userId);
+      acknowledge(null, {
+        alreadyAnonymized: result.alreadyAnonymized,
+        postgresMirrorFailed: result.postgresMirrorFailed,
+        user: publicAdminUser(result.user),
+      });
+
+      if (!result.alreadyAnonymized) {
+        ns().in(encodeUser(userId)).disconnectSockets(true);
+        await Promise.all([
+          refreshRoomsForUser(user),
+          updateClientsWithUsers(),
+        ]).catch((error) => logger.error(error));
+      }
     });
   });
 };

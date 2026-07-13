@@ -7,6 +7,7 @@ const initRooms = require('./rooms');
 
 jest.mock('../../runtimeConfig', () => ({
   grandPrix: { enabled: false },
+  postgres: { enabled: false },
   socketio: { reconnectGraceMs: 60000 },
 }));
 jest.mock('../../logger', () => ({
@@ -27,10 +28,12 @@ jest.mock('../../models', () => ({
   },
   User: {
     find: jest.fn(),
+    findOne: jest.fn(),
   },
 }));
 jest.mock('../../postgres/dualWrite', () => ({
   markRoomDeleted: jest.fn(),
+  mirrorUser: jest.fn(),
 }));
 jest.mock('../lib/reconnectGrace', () => ({
   createReconnectGrace: jest.fn(() => ({
@@ -103,13 +106,17 @@ const makeSocket = ({
 };
 
 const setup = (rooms) => {
+  const roomOperator = {
+    disconnectSockets: jest.fn(),
+    emit: jest.fn(),
+  };
   const namespace = {
     adapter: {
       allRooms: jest.fn().mockResolvedValue(new Set()),
       sockets: jest.fn().mockResolvedValue(new Set()),
     },
     emit: jest.fn(),
-    in: jest.fn(() => ({ emit: jest.fn() })),
+    in: jest.fn(() => roomOperator),
     on: jest.fn(),
     use: jest.fn(),
   };
@@ -125,10 +132,12 @@ const setup = (rooms) => {
   User.find.mockResolvedValue([]);
   initRooms(io, []);
 
-  return async (socket) => {
+  const connectSocket = async (socket) => {
     await connect(socket);
     return socket;
   };
+  connectSocket.roomOperator = roomOperator;
+  return connectSocket;
 };
 
 const joinRoom = async (socket, payload) => {
@@ -205,6 +214,108 @@ describe('private room namespace joins', () => {
       expect.objectContaining({ reason: 'already_in_room' }),
       expect.objectContaining({ _id: otherRoom._id }),
     );
+  });
+});
+
+describe('administrator user anonymization', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('rejects user searches from non-administrators', async () => {
+    const connect = setup(new Map());
+    const socket = await connect(makeSocket({ id: 'user-socket', session: {} }));
+    const acknowledgment = jest.fn();
+
+    await socket.handlers[Protocol.ADMIN_SEARCH_USERS]({ query: 'solver' }, acknowledgment);
+
+    expect(acknowledgment).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+  });
+
+  it('searches users with a safe admin projection', async () => {
+    const connect = setup(new Map());
+    const socket = await connect(makeSocket({
+      id: 'admin-socket',
+      session: {},
+      userId: 8184,
+    }));
+    const users = [{
+      id: 1234,
+      name: 'Test Solver',
+      username: 'solver',
+      email: 'solver@example.com',
+      wcaId: '2020TEST01',
+      accessToken: 'secret',
+    }];
+    const query = {
+      limit: jest.fn().mockResolvedValue(users),
+      select: jest.fn(),
+      sort: jest.fn(),
+    };
+    query.select.mockReturnValue(query);
+    query.sort.mockReturnValue(query);
+    User.find.mockImplementation((filter) => (
+      filter.$or ? query : Promise.resolve([])
+    ));
+    const acknowledgment = jest.fn();
+
+    await socket.handlers[Protocol.ADMIN_SEARCH_USERS]({ query: 'solver' }, acknowledgment);
+
+    expect(query.select).toHaveBeenCalledWith('id name username email wcaId anonymizedAt');
+    expect(acknowledgment).toHaveBeenCalledWith(null, [expect.objectContaining({ id: 1234 })]);
+    expect(acknowledgment.mock.calls[0][1][0]).not.toHaveProperty('accessToken');
+  });
+
+  it('requires exact confirmation, scrubs the user, and disconnects active sessions', async () => {
+    const connect = setup(new Map());
+    const socket = await connect(makeSocket({
+      id: 'admin-socket',
+      session: {},
+      userId: 8184,
+    }));
+    const user = {
+      id: 1234,
+      name: 'Test Solver',
+      username: 'solver',
+      email: 'solver@example.com',
+      wcaId: '2020TEST01',
+      accessToken: 'secret',
+      avatar: { url: 'avatar.png' },
+      showWCAID: true,
+      preferRealName: true,
+      save: jest.fn(function save() { return Promise.resolve(this); }),
+    };
+    User.findOne.mockResolvedValue(user);
+    const invalidAcknowledgment = jest.fn();
+
+    await socket.handlers[Protocol.ADMIN_ANONYMIZE_USER]({
+      userId: 1234,
+      confirmation: 'wrong',
+    }, invalidAcknowledgment);
+    expect(invalidAcknowledgment).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 400 }),
+    );
+    expect(user.save).not.toHaveBeenCalled();
+
+    const acknowledgment = jest.fn();
+    await socket.handlers[Protocol.ADMIN_ANONYMIZE_USER]({
+      userId: 1234,
+      confirmation: 'ANONYMIZE:1234',
+    }, acknowledgment);
+
+    expect(user).toEqual(expect.objectContaining({
+      id: 1234,
+      name: 'Anonymous User',
+      showWCAID: false,
+      preferRealName: false,
+      anonymizedBy: 8184,
+    }));
+    expect(user.email).toBeUndefined();
+    expect(user.wcaId).toBeUndefined();
+    expect(acknowledgment).toHaveBeenCalledWith(null, expect.objectContaining({
+      alreadyAnonymized: false,
+    }));
+    expect(connect.roomOperator.disconnectSockets).toHaveBeenCalledWith(true);
   });
 });
 

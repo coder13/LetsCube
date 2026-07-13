@@ -61,15 +61,36 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
   await client.query(`
     INSERT INTO app.users (
       id, wca_user_id, email, name, username, wca_id, preferences, avatar,
-      source_created_at, source_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      anonymized_at, anonymized_by_wca_user_id, source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     ON CONFLICT (wca_user_id) DO UPDATE SET
-      email = EXCLUDED.email,
-      name = EXCLUDED.name,
-      username = EXCLUDED.username,
-      wca_id = EXCLUDED.wca_id,
-      preferences = EXCLUDED.preferences,
-      avatar = EXCLUDED.avatar,
+      email = CASE
+        WHEN app.users.anonymized_at IS NOT NULL OR EXCLUDED.anonymized_at IS NOT NULL
+          THEN NULL ELSE EXCLUDED.email END,
+      name = CASE
+        WHEN app.users.anonymized_at IS NOT NULL OR EXCLUDED.anonymized_at IS NOT NULL
+          THEN 'Anonymous User' ELSE EXCLUDED.name END,
+      username = CASE
+        WHEN app.users.anonymized_at IS NOT NULL OR EXCLUDED.anonymized_at IS NOT NULL
+          THEN CASE WHEN EXCLUDED.anonymized_at IS NOT NULL
+            THEN EXCLUDED.username ELSE app.users.username END
+        ELSE EXCLUDED.username END,
+      wca_id = CASE
+        WHEN app.users.anonymized_at IS NOT NULL OR EXCLUDED.anonymized_at IS NOT NULL
+          THEN NULL ELSE EXCLUDED.wca_id END,
+      preferences = CASE
+        WHEN EXCLUDED.anonymized_at IS NOT NULL
+          THEN EXCLUDED.preferences || '{"showWCAID": false, "preferRealName": false}'::jsonb
+        WHEN app.users.anonymized_at IS NOT NULL THEN app.users.preferences
+        ELSE EXCLUDED.preferences END,
+      avatar = CASE
+        WHEN app.users.anonymized_at IS NOT NULL OR EXCLUDED.anonymized_at IS NOT NULL
+          THEN '{}'::jsonb ELSE EXCLUDED.avatar END,
+      anonymized_at = COALESCE(app.users.anonymized_at, EXCLUDED.anonymized_at),
+      anonymized_by_wca_user_id = COALESCE(
+        app.users.anonymized_by_wca_user_id,
+        EXCLUDED.anonymized_by_wca_user_id
+      ),
       source_updated_at = EXCLUDED.source_updated_at,
       ingested_at = now()
     WHERE app.users.source_updated_at < EXCLUDED.source_updated_at
@@ -81,14 +102,18 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
           app.users.username,
           app.users.wca_id,
           app.users.preferences,
-          app.users.avatar
+          app.users.avatar,
+          app.users.anonymized_at,
+          app.users.anonymized_by_wca_user_id
         ) IS DISTINCT FROM ROW(
           EXCLUDED.email,
           EXCLUDED.name,
           EXCLUDED.username,
           EXCLUDED.wca_id,
           EXCLUDED.preferences,
-          EXCLUDED.avatar
+          EXCLUDED.avatar,
+          EXCLUDED.anonymized_at,
+          EXCLUDED.anonymized_by_wca_user_id
         )
       )
   `, [
@@ -106,6 +131,8 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
       muteTimer: !!user.muteTimer,
     },
     user.avatar || {},
+    user.anonymizedAt || null,
+    numericUserId(user.anonymizedBy),
     user.createdAt || null,
     updatedAt,
   ]);

@@ -18,6 +18,7 @@
     "start:client": "yarn workspace letscube-client start",
     "start:server": "yarn workspace letscube-server start:server",
     "start:socket": "yarn workspace letscube-server start:socket",
+    "audit:wca-anonymization": "yarn workspace letscube-server audit:wca-anonymization",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run"
   },
