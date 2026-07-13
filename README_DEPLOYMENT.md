@@ -187,6 +187,16 @@ Keep this setting disabled until the legacy scheduler is redesigned. Setting
 it to `true` explicitly restores the old mode for development or controlled
 testing.
 
+The Friend System server surface is also disabled by default:
+
+```bash
+SOCIAL_FEATURES_ENABLED=false
+```
+
+Only set this to the exact value `true` during controlled development or after
+the #188 launch-hardening gate is complete. The same switch controls the REST
+routes and their realtime relay; normal room behavior is unaffected.
+
 ### Health Checks
 
 The API and socket processes expose dependency-aware health endpoints.

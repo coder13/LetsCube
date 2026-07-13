@@ -1,6 +1,5 @@
 const express = require('express');
 
-const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 const createFriendsRouter = require('./api/friends');
@@ -13,7 +12,8 @@ const PREFERENCE_KEYS = new Set([
   'muteTimer',
 ]);
 
-module.exports = () => {
+module.exports = (app) => {
+  const router = express.Router();
   const sendError = (res, err) => {
     res.status(err.statusCode || 500).send({
       status: err.statusCode,
@@ -25,7 +25,14 @@ module.exports = () => {
     res.json(req.user.toObject());
   });
 
-  router.use('/friends', createFriendsRouter());
+  if (app.get('config').socialFeatures.enabled) {
+    router.use('/friends', createFriendsRouter());
+  } else {
+    router.use('/friends', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+  }
 
   router.put('/updateUsername', auth, (req, res) => {
     // TODO: server side validation of username

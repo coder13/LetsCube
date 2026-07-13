@@ -4,6 +4,14 @@ MongoDB is the source of truth for friendship state. PostgreSQL receives
 non-blocking, idempotent mirrors and must never be read to authorize a social
 action while the dual-write migration is in progress.
 
+## Rollout gate
+
+The server surface is disabled unless `SOCIAL_FEATURES_ENABLED=true`. When it
+is disabled, `/api/friends` returns `404 feature_disabled` and the socket
+process does not subscribe to social invalidations. Existing room behavior is
+unchanged. Issue #188 owns launch hardening and production operation of this
+same switch; adding the foundation does not enable it.
+
 ## Identity and privacy
 
 Social APIs accept only the authenticated session user and a numeric target
@@ -34,8 +42,8 @@ Relationship transitions are:
 | pending by target | accept | accepted |
 | pending by actor | cancel | canceled for 60 seconds |
 | pending by target | decline | declined for 24 hours |
-| accepted | unfriend | none |
-| any | block | relationship removed; directional block retained |
+| accepted | unfriend | removed tombstone |
+| any | block | relationship tombstoned; directional block retained |
 | blocked by actor | unblock | directional block removed; no friendship restored |
 
 Replayed send, cancel, accept, decline, unfriend, block, and unblock operations
@@ -46,12 +54,29 @@ are idempotent. An invalid direction, such as accepting an outgoing request, is
 Updates compare the document revision before writing. A unique-pair conflict or
 concurrent revision change is read again and the transition is recalculated.
 Both friendship writes and block writes check blocking after mutation, so a
-concurrent block wins and removes the relationship. After bounded contention,
+concurrent block wins and tombstones the relationship. After bounded contention,
 the API returns `409 relationship_conflict` and the caller should reconcile.
 
-Each user may have at most 100 pending outgoing requests. A declined pair may
-not be requested again for 24 hours, and a canceled pair may not be requested
-again for 60 seconds. `request_cooldown` includes `retryAfterSeconds`.
+`removed` relationships and inactive blocks are durable MongoDB tombstones,
+not physical deletes. Each update increments that resource's revision.
+PostgreSQL upserts accept only a strictly newer revision, so a delayed request,
+friendship, or active-block mirror cannot overwrite a newer remove/unblock.
+This ordering contract is database-backed and therefore works across API
+processes and restarts; it does not depend on an in-process promise queue.
+
+Blocking activates the directional block before tombstoning the relationship,
+so failures remain fail-closed. Unblocking repeats relationship cleanup before
+deactivating the block. If cleanup fails, the active block remains and the
+hidden relationship cannot reappear.
+
+Each user may have at most 100 pending outgoing requests. A MongoDB quota
+document atomically reserves pair slots before relationship creation, so
+concurrent sends to different users cannot pass the cap. Failed writes release
+their slots. Reconciliation rebuilds missing reservations from pending
+relationships and removes abandoned reservations after five minutes. A
+declined pair may not be requested again for 24 hours, and a canceled pair may
+not be requested again for 60 seconds. `request_cooldown` includes
+`retryAfterSeconds`.
 
 ## REST API
 

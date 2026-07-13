@@ -93,3 +93,6 @@ TLS connections can set `PGSSL=true` and provide a CA with `PGSSL_CA`;
 certificate verification is enabled by default. PostgreSQL failures are logged
 but do not fail the corresponding MongoDB-backed application operation during
 this migration phase.
+Friend relationships and directional blocks use revisioned tombstone rows;
+strictly older mirrors are ignored so reordered background writes cannot
+resurrect a removed relationship or a deactivated block.

@@ -3,15 +3,14 @@ const logger = require('../logger');
 const metrics = require('../metrics');
 const {
   FriendRelationship,
+  OutgoingRequestQuota,
   RELATIONSHIP_STATUSES,
   User,
   UserBlock,
 } = require('../models');
 const {
   mirrorBlock,
-  mirrorBlockDeleted,
   mirrorRelationship,
-  mirrorRelationshipDeleted,
 } = require('../postgres/dualWrite');
 const { publishSocialInvalidation } = require('../realtime/socialEvents');
 const publicUserProjection = require('./publicUser');
@@ -23,6 +22,7 @@ const {
 
 const MAX_OUTGOING_REQUESTS = 100;
 const MAX_CAS_ATTEMPTS = 6;
+const RESERVATION_STALE_AFTER_MS = 5 * 60 * 1000;
 
 const toPlain = (document) => {
   if (!document) {
@@ -64,14 +64,13 @@ const normalizedPair = (firstUserId, secondUserId) => {
 const createRelationshipService = ({
   blockModel = UserBlock,
   metricRecorder = metrics,
+  quotaModel = OutgoingRequestQuota,
   relationshipModel = FriendRelationship,
   socialLogger = logger,
   userModel = User,
   mirrors = {
     mirrorBlock,
-    mirrorBlockDeleted,
     mirrorRelationship,
-    mirrorRelationshipDeleted,
   },
   notifier = publishSocialInvalidation,
   now = () => new Date(),
@@ -111,33 +110,142 @@ const createRelationshipService = ({
     };
   };
 
-  const pairIsBlocked = async (pairKey) => !!(await lean(blockModel.exists({ pairKey })));
+  const pairIsBlocked = async (pairKey) => !!(await lean(blockModel.exists({
+    active: true,
+    pairKey,
+  })));
 
-  const enforceOutgoingLimit = async (actorId) => {
-    const count = await relationshipModel.countDocuments({
-      requestedBy: actorId,
-      status: RELATIONSHIP_STATUSES.PENDING,
-    });
-    if (count >= MAX_OUTGOING_REQUESTS) {
-      throw new SocialError(
-        409,
-        'outgoing_request_limit',
-        'The outgoing friend request limit has been reached',
-      );
+  const ensureQuota = async (userId) => {
+    try {
+      return toPlain(await quotaModel.findOneAndUpdate({ userId }, {
+        $setOnInsert: {
+          reservations: [],
+          revision: 0,
+          userId,
+        },
+      }, {
+        new: true,
+        setDefaultsOnInsert: true,
+        upsert: true,
+        useFindAndModify: false,
+      }));
+    } catch (err) {
+      if (err.code !== 11000) {
+        throw err;
+      }
+      return lean(quotaModel.findOne({ userId }));
     }
+  };
+
+  const reconcileQuota = async (userId) => {
+    for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+      const quota = await ensureQuota(userId);
+      const pendingRelationships = await lean(relationshipModel.find({
+        requestedBy: userId,
+        status: RELATIONSHIP_STATUSES.PENDING,
+      }));
+      const pendingPairKeys = new Set(pendingRelationships.map(({ pairKey }) => pairKey));
+      const staleBefore = new Date(now().getTime() - RESERVATION_STALE_AFTER_MS);
+      const reservations = (quota.reservations || []).filter((reservation) => (
+        pendingPairKeys.has(reservation.pairKey)
+        || new Date(reservation.reservedAt) > staleBefore
+      ));
+      const reservedPairKeys = new Set(reservations.map(({ pairKey }) => pairKey));
+      pendingPairKeys.forEach((pairKey) => {
+        if (!reservedPairKeys.has(pairKey)) {
+          reservations.push({ pairKey, reservedAt: now() });
+        }
+      });
+
+      const reconciled = await quotaModel.findOneAndUpdate({
+        _id: quota._id,
+        revision: quota.revision,
+      }, {
+        $inc: { revision: 1 },
+        $set: { reservations },
+      }, {
+        new: true,
+        useFindAndModify: false,
+      });
+      if (reconciled) {
+        return toPlain(reconciled);
+      }
+    }
+    throw new SocialError(
+      409,
+      'request_quota_conflict',
+      'The outgoing friend request quota changed concurrently; retry',
+    );
+  };
+
+  const reserveOutgoingRequest = async (userId, pairKey) => {
+    await reconcileQuota(userId);
+    for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+      const quota = await lean(quotaModel.findOne({ userId }));
+      if ((quota.reservations || []).some((reservation) => reservation.pairKey === pairKey)) {
+        return quota;
+      }
+      const reserved = await quotaModel.findOneAndUpdate({
+        _id: quota._id,
+        revision: quota.revision,
+        'reservations.pairKey': { $ne: pairKey },
+        $expr: { $lt: [{ $size: '$reservations' }, MAX_OUTGOING_REQUESTS] },
+      }, {
+        $inc: { revision: 1 },
+        $push: { reservations: { pairKey, reservedAt: now() } },
+      }, {
+        new: true,
+        useFindAndModify: false,
+      });
+      if (reserved) {
+        return toPlain(reserved);
+      }
+
+      const latest = await lean(quotaModel.findOne({ userId }));
+      if ((latest.reservations || []).some((reservation) => reservation.pairKey === pairKey)) {
+        return latest;
+      }
+      if ((latest.reservations || []).length >= MAX_OUTGOING_REQUESTS) {
+        throw new SocialError(
+          409,
+          'outgoing_request_limit',
+          'The outgoing friend request limit has been reached',
+        );
+      }
+    }
+    throw new SocialError(
+      409,
+      'request_quota_conflict',
+      'The outgoing friend request quota changed concurrently; retry',
+    );
+  };
+
+  const releaseReservation = (userId, pairKey) => quotaModel.findOneAndUpdate({
+    userId,
+    'reservations.pairKey': pairKey,
+  }, {
+    $inc: { revision: 1 },
+    $pull: { reservations: { pairKey } },
+  }, {
+    new: true,
+    useFindAndModify: false,
+  });
+
+  const reconcilePairReservations = async (pair, relationship) => {
+    const pendingRequester = relationship
+      && relationship.status === RELATIONSHIP_STATUSES.PENDING
+      ? relationship.requestedBy : null;
+    const userIds = [pair.lowUserId, pair.highUserId];
+    await Promise.all(userIds.map((userId) => (
+      userId === pendingRequester
+        ? Promise.resolve()
+        : releaseReservation(userId, pair.pairKey)
+    )));
   };
 
   const persistTransition = async (current, transition) => {
     if (transition.kind === 'noop') {
       return current;
-    }
-
-    if (transition.kind === 'delete') {
-      const deleted = await relationshipModel.deleteOne({
-        _id: current._id,
-        revision: current.revision,
-      });
-      return deleted.deletedCount === 1 ? null : undefined;
     }
 
     if (!current) {
@@ -172,6 +280,38 @@ const createRelationshipService = ({
     return updated ? toPlain(updated) : undefined;
   };
 
+  const tombstoneRelationship = async (pair, changedAt) => {
+    for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+      const current = (await lean(relationshipModel.findOne({ pairKey: pair.pairKey }))) || null;
+      if (!current || current.status === RELATIONSHIP_STATUSES.REMOVED) {
+        return current;
+      }
+      const removed = await relationshipModel.findOneAndUpdate({
+        _id: current._id,
+        revision: current.revision,
+      }, {
+        $inc: { revision: 1 },
+        $set: {
+          cooldownUntil: null,
+          requestedBy: null,
+          stateChangedAt: changedAt,
+          status: RELATIONSHIP_STATUSES.REMOVED,
+        },
+      }, {
+        new: true,
+        useFindAndModify: false,
+      });
+      if (removed) {
+        return toPlain(removed);
+      }
+    }
+    throw new SocialError(
+      409,
+      'relationship_conflict',
+      'The relationship changed concurrently; reconcile and retry',
+    );
+  };
+
   const act = async (actorUser, targetValue, action) => {
     const {
       actorId, pair, targetId, targetUser,
@@ -200,21 +340,31 @@ const createRelationshipService = ({
         });
 
         if (action === ACTIONS.SEND && transition.outcome === 'request_created') {
-          await enforceOutgoingLimit(actorId);
+          await reserveOutgoingRequest(actorId, pair.pairKey);
         }
       } catch (err) {
         record(actorId, action, err.code || 'error');
         throw err;
       }
 
-      const persisted = await persistTransition(current, transition);
+      let persisted;
+      try {
+        persisted = await persistTransition(current, transition);
+      } catch (err) {
+        const latest = (await lean(relationshipModel.findOne({ pairKey: pair.pairKey }))) || null;
+        await reconcilePairReservations(pair, latest);
+        throw err;
+      }
       if (persisted === undefined) {
         continue;
       }
 
       if (await pairIsBlocked(pair.pairKey)) {
-        await relationshipModel.deleteOne({ pairKey: pair.pairKey });
-        runInBackground(mirrors.mirrorRelationshipDeleted(pair.pairKey));
+        const removed = await tombstoneRelationship(pair, now());
+        await reconcilePairReservations(pair, removed);
+        if (removed) {
+          runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
+        }
         invalidate([actorId, targetId]);
         record(actorId, action, 'unavailable');
         throw new SocialError(
@@ -224,9 +374,8 @@ const createRelationshipService = ({
         );
       }
 
-      if (transition.kind === 'delete') {
-        runInBackground(mirrors.mirrorRelationshipDeleted(pair.pairKey));
-      } else if (transition.kind !== 'noop') {
+      await reconcilePairReservations(pair, persisted);
+      if (transition.kind !== 'noop') {
         runInBackground(mirrors.mirrorRelationship(persisted, [actorUser, targetUser]));
       }
       if (transition.kind !== 'noop') {
@@ -239,6 +388,8 @@ const createRelationshipService = ({
       };
     }
 
+    const latest = (await lean(relationshipModel.findOne({ pairKey: pair.pairKey }))) || null;
+    await reconcilePairReservations(pair, latest);
     record(actorId, action, 'conflict');
     throw new SocialError(
       409,
@@ -256,10 +407,14 @@ const createRelationshipService = ({
       blockedId: targetId,
       blockerId: actorId,
     }, {
+      $inc: { revision: 1 },
+      $set: {
+        active: true,
+        stateChangedAt: blockedAt,
+      },
       $setOnInsert: {
         blockedId: targetId,
         blockerId: actorId,
-        createdAt: blockedAt,
         pairKey: pair.pairKey,
       },
     }, {
@@ -269,8 +424,12 @@ const createRelationshipService = ({
       useFindAndModify: false,
     }));
 
-    await relationshipModel.deleteOne({ pairKey: pair.pairKey });
     runInBackground(mirrors.mirrorBlock(blockDocument, actorUser, targetUser));
+    const removed = await tombstoneRelationship(pair, blockedAt);
+    await reconcilePairReservations(pair, removed);
+    if (removed) {
+      runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
+    }
     invalidate([actorId, targetId]);
     record(actorId, 'block', 'blocked');
     return { outcome: 'blocked' };
@@ -278,10 +437,35 @@ const createRelationshipService = ({
 
   const unblock = async (actorUser, targetValue) => {
     const {
-      actorId, targetId,
+      actorId, pair, targetId, targetUser,
     } = await loadUsers(actorUser, targetValue);
-    await blockModel.deleteOne({ blockerId: actorId, blockedId: targetId });
-    runInBackground(mirrors.mirrorBlockDeleted(actorId, targetId));
+    const removed = await tombstoneRelationship(pair, now());
+    await reconcilePairReservations(pair, removed);
+    if (removed) {
+      runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
+    }
+
+    const deactivated = await blockModel.findOneAndUpdate({
+      active: true,
+      blockedId: targetId,
+      blockerId: actorId,
+    }, {
+      $inc: { revision: 1 },
+      $set: {
+        active: false,
+        stateChangedAt: now(),
+      },
+    }, {
+      new: true,
+      useFindAndModify: false,
+    });
+    const blockDocument = toPlain(deactivated || await lean(blockModel.findOne({
+      blockedId: targetId,
+      blockerId: actorId,
+    })));
+    if (blockDocument) {
+      runInBackground(mirrors.mirrorBlock(blockDocument, actorUser, targetUser));
+    }
     invalidate([actorId, targetId]);
     record(actorId, 'unblock', 'unblocked');
     return { outcome: 'unblocked' };
@@ -295,6 +479,7 @@ const createRelationshipService = ({
         status: { $in: [RELATIONSHIP_STATUSES.ACCEPTED, RELATIONSHIP_STATUSES.PENDING] },
       })),
       lean(blockModel.find({
+        active: true,
         $or: [{ blockedId: actorId }, { blockerId: actorId }],
       })),
     ]);
@@ -367,6 +552,7 @@ const createRelationshipService = ({
 
 module.exports = {
   MAX_OUTGOING_REQUESTS,
+  RESERVATION_STALE_AFTER_MS,
   createRelationshipService,
   normalizeUserId,
   normalizedPair,

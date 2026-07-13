@@ -5,6 +5,7 @@ const RELATIONSHIP_STATUSES = Object.freeze({
   CANCELED: 'canceled',
   DECLINED: 'declined',
   PENDING: 'pending',
+  REMOVED: 'removed',
 });
 
 const FriendRelationship = new mongoose.Schema({
@@ -58,7 +59,9 @@ FriendRelationship.pre('validate', function validatePair(next) {
   }
   const requesterIsMember = this.requestedBy === this.lowUserId
     || this.requestedBy === this.highUserId;
-  if (this.status === RELATIONSHIP_STATUSES.ACCEPTED
+  const stateHasNoRequester = this.status === RELATIONSHIP_STATUSES.ACCEPTED
+    || this.status === RELATIONSHIP_STATUSES.REMOVED;
+  if (stateHasNoRequester
     ? this.requestedBy !== null && this.requestedBy !== undefined
     : !requesterIsMember) {
     next(new Error('Friend relationship requester does not match its state'));

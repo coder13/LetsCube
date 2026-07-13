@@ -3,7 +3,7 @@
 
 const { createRelationshipService, MAX_OUTGOING_REQUESTS } = require('./relationshipService');
 
-const clone = (value) => (value ? { ...value } : value);
+const clone = (value) => (value ? JSON.parse(JSON.stringify(value)) : value);
 
 const createModels = () => {
   const users = new Map([
@@ -19,13 +19,10 @@ const createModels = () => {
   ]);
   const relationships = new Map();
   const blocks = new Map();
+  const quotas = new Map();
   let sequence = 0;
 
   const relationshipModel = {
-    countDocuments: jest.fn(async (filter) => [...relationships.values()].filter(
-      (relationship) => relationship.requestedBy === filter.requestedBy
-        && relationship.status === filter.status,
-    ).length),
     create: jest.fn(async (relationship) => {
       if (relationships.has(relationship.pairKey)) {
         const err = new Error('duplicate pair');
@@ -54,6 +51,10 @@ const createModels = () => {
       return { deletedCount: 1 };
     }),
     find: jest.fn(async (filter) => [...relationships.values()].filter((relationship) => {
+      if (!filter.$or) {
+        return relationship.requestedBy === filter.requestedBy
+          && relationship.status === filter.status;
+      }
       const belongsToUser = filter.$or.some((condition) => Object.entries(condition)
         .every(([key, value]) => relationship[key] === value));
       return belongsToUser && filter.status.$in.includes(relationship.status);
@@ -79,21 +80,97 @@ const createModels = () => {
     deleteOne: jest.fn(async ({ blockerId, blockedId }) => ({
       deletedCount: blocks.delete(`${blockerId}:${blockedId}`) ? 1 : 0,
     })),
-    exists: jest.fn(async ({ pairKey }) => [...blocks.values()]
-      .some((block) => block.pairKey === pairKey)),
-    find: jest.fn(async (filter) => [...blocks.values()].filter((block) => filter.$or
-      .some((condition) => Object.entries(condition)
-        .every(([key, value]) => block[key] === value))).map(clone)),
+    exists: jest.fn(async ({ active, pairKey }) => [...blocks.values()]
+      .some((block) => block.pairKey === pairKey && block.active === active)),
+    find: jest.fn(async (filter) => [...blocks.values()].filter((block) => (
+      filter.$or.some((condition) => Object.entries(condition)
+        .every(([key, value]) => block[key] === value))
+      && block.active === filter.active
+    )).map(clone)),
+    findOne: jest.fn(async ({ blockerId, blockedId }) => clone(
+      blocks.get(`${blockerId}:${blockedId}`),
+    )),
     findOneAndUpdate: jest.fn(async (filter, update) => {
       const key = `${filter.blockerId}:${filter.blockedId}`;
       if (!blocks.has(key)) {
+        if (!update.$setOnInsert) {
+          return null;
+        }
         blocks.set(key, {
           ...update.$setOnInsert,
           _id: `block-${sequence += 1}`,
-          updatedAt: update.$setOnInsert.createdAt,
+          active: update.$set.active,
+          revision: update.$inc.revision,
+          stateChangedAt: update.$set.stateChangedAt,
+          createdAt: update.$set.stateChangedAt,
+          updatedAt: update.$set.stateChangedAt,
+        });
+      } else {
+        const current = blocks.get(key);
+        if (filter.active !== undefined && current.active !== filter.active) {
+          return null;
+        }
+        blocks.set(key, {
+          ...current,
+          ...update.$set,
+          revision: current.revision + update.$inc.revision,
+          updatedAt: update.$set.stateChangedAt,
         });
       }
       return clone(blocks.get(key));
+    }),
+  };
+
+  const quotaModel = {
+    findOne: jest.fn(async ({ userId }) => clone(quotas.get(userId))),
+    findOneAndUpdate: jest.fn(async (filter, update, options = {}) => {
+      let quota = filter.userId !== undefined
+        ? quotas.get(filter.userId)
+        : [...quotas.values()].find((entry) => entry._id === filter._id);
+      if (!quota && options.upsert) {
+        quota = {
+          ...update.$setOnInsert,
+          _id: `quota-${filter.userId}`,
+        };
+        quotas.set(filter.userId, quota);
+        return clone(quota);
+      }
+      if (!quota) {
+        return null;
+      }
+      if (filter.revision !== undefined && quota.revision !== filter.revision) {
+        return null;
+      }
+      const pairFilter = filter['reservations.pairKey'];
+      if (pairFilter && pairFilter.$ne && quota.reservations
+        .some(({ pairKey }) => pairKey === pairFilter.$ne)) {
+        return null;
+      }
+      if (typeof pairFilter === 'string' && !quota.reservations
+        .some(({ pairKey }) => pairKey === pairFilter)) {
+        return null;
+      }
+      if (filter.$expr && quota.reservations.length >= MAX_OUTGOING_REQUESTS) {
+        return null;
+      }
+
+      const next = clone(quota);
+      if (update.$set) {
+        Object.assign(next, clone(update.$set));
+      }
+      if (update.$push) {
+        next.reservations.push(clone(update.$push.reservations));
+      }
+      if (update.$pull) {
+        next.reservations = next.reservations.filter(
+          ({ pairKey }) => pairKey !== update.$pull.reservations.pairKey,
+        );
+      }
+      if (update.$inc) {
+        next.revision += update.$inc.revision;
+      }
+      quotas.set(next.userId, next);
+      return clone(next);
     }),
   };
 
@@ -105,6 +182,8 @@ const createModels = () => {
   return {
     blockModel,
     blocks,
+    quotaModel,
+    quotas,
     relationshipModel,
     relationships,
     userModel,
@@ -117,9 +196,7 @@ const createService = () => {
   const metricRecorder = { recordSocialOutcome: jest.fn() };
   const mirrors = {
     mirrorBlock: jest.fn().mockResolvedValue(null),
-    mirrorBlockDeleted: jest.fn().mockResolvedValue(null),
     mirrorRelationship: jest.fn().mockResolvedValue(null),
-    mirrorRelationshipDeleted: jest.fn().mockResolvedValue(null),
   };
   const notifier = jest.fn().mockResolvedValue(true);
   const now = jest.fn(() => new Date('2026-07-12T12:00:00.000Z'));
@@ -255,7 +332,7 @@ describe('relationship service', () => {
     await service.acceptRequest(users.get(2), 1);
     await service.block(users.get(1), 2);
 
-    expect(relationships.has('1:2')).toBe(false);
+    expect(relationships.get('1:2').status).toBe('removed');
     await expect(service.sendRequest(users.get(2), 1)).rejects.toMatchObject({
       code: 'relationship_unavailable',
     });
@@ -284,7 +361,7 @@ describe('relationship service', () => {
       code: 'relationship_unavailable',
     });
 
-    expect(relationships.has('1:2')).toBe(false);
+    expect(relationships.get('1:2').status).toBe('removed');
   });
 
   it('makes unfriend replayable and succeeds when PostgreSQL mirrors are disabled', async () => {
@@ -299,9 +376,12 @@ describe('relationship service', () => {
       outcome: 'unfriend_replayed',
     });
 
-    expect(relationships.has('1:2')).toBe(false);
+    expect(relationships.get('1:2').status).toBe('removed');
     expect(mirrors.mirrorRelationship).toHaveBeenCalled();
-    expect(mirrors.mirrorRelationshipDeleted).toHaveBeenCalledWith('1:2');
+    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pairKey: '1:2', status: 'removed' }),
+      expect.any(Array),
+    );
   });
 
   it('returns only public fields and sends generic invalidations to both users', async () => {
@@ -319,15 +399,97 @@ describe('relationship service', () => {
     expect(notifier).toHaveBeenCalledWith({ userIds: [1, 2] });
   });
 
-  it('enforces the pending outgoing request limit', async () => {
+  it('atomically enforces the pending limit across different target pairs', async () => {
     const {
-      relationshipModel, service, users,
+      quotas, service, users,
     } = createService();
-    relationshipModel.countDocuments.mockResolvedValue(MAX_OUTGOING_REQUESTS);
-
-    await expect(service.sendRequest(users.get(1), 2)).rejects.toMatchObject({
-      code: 'outgoing_request_limit',
-      statusCode: 409,
+    quotas.set(1, {
+      _id: 'quota-1',
+      reservations: Array.from({ length: 99 }, (_, index) => ({
+        pairKey: `1:${1000 + index}`,
+        reservedAt: new Date('2026-07-12T12:00:00.000Z'),
+      })),
+      revision: 0,
+      userId: 1,
     });
+
+    const results = await Promise.allSettled([
+      service.sendRequest(users.get(1), 2),
+      service.sendRequest(users.get(1), 3),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(({ status }) => status === 'rejected')).toEqual([
+      expect.objectContaining({
+        reason: expect.objectContaining({ code: 'outgoing_request_limit' }),
+      }),
+    ]);
+    expect(quotas.get(1).reservations).toHaveLength(MAX_OUTGOING_REQUESTS);
+  });
+
+  it('releases a request reservation when relationship persistence fails', async () => {
+    const {
+      quotas, relationshipModel, service, users,
+    } = createService();
+    relationshipModel.create.mockRejectedValueOnce(new Error('mongo write failed'));
+
+    await expect(service.sendRequest(users.get(1), 2)).rejects.toThrow('mongo write failed');
+
+    expect(quotas.get(1).reservations).toEqual([]);
+  });
+
+  it('reconciles abandoned quota reservations before enforcing the cap', async () => {
+    const {
+      quotas, service, users,
+    } = createService();
+    quotas.set(1, {
+      _id: 'quota-1',
+      reservations: Array.from({ length: MAX_OUTGOING_REQUESTS }, (_, index) => ({
+        pairKey: `1:${1000 + index}`,
+        reservedAt: new Date('2026-07-12T11:54:00.000Z'),
+      })),
+      revision: 0,
+      userId: 1,
+    });
+
+    await expect(service.sendRequest(users.get(1), 2)).resolves.toMatchObject({
+      outcome: 'request_created',
+    });
+
+    expect(quotas.get(1).reservations).toEqual([
+      expect.objectContaining({ pairKey: '1:2' }),
+    ]);
+  });
+
+  it('keeps a block active when unblock cannot tombstone a hidden relationship', async () => {
+    const {
+      blocks, mirrors, relationshipModel, relationships, service, users,
+    } = createService();
+    await service.sendRequest(users.get(1), 2);
+    await service.acceptRequest(users.get(2), 1);
+    relationshipModel.findOneAndUpdate.mockRejectedValueOnce(new Error('cleanup failed'));
+
+    await expect(service.block(users.get(1), 2)).rejects.toThrow('cleanup failed');
+    expect(blocks.get('1:2').active).toBe(true);
+    expect(relationships.get('1:2').status).toBe('accepted');
+
+    relationshipModel.findOneAndUpdate.mockRejectedValueOnce(new Error('cleanup still failed'));
+    await expect(service.unblock(users.get(1), 2)).rejects.toThrow('cleanup still failed');
+    expect(blocks.get('1:2').active).toBe(true);
+    expect(relationships.get('1:2').status).toBe('accepted');
+    expect((await service.list(users.get(1))).friends).toEqual([]);
+
+    await service.unblock(users.get(1), 2);
+    expect(blocks.get('1:2').active).toBe(false);
+    expect(relationships.get('1:2').status).toBe('removed');
+    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pairKey: '1:2', status: 'removed' }),
+      expect.any(Array),
+    );
+    expect(mirrors.mirrorBlock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ active: false, pairKey: '1:2' }),
+      expect.any(Object),
+      expect.any(Object),
+    );
   });
 });

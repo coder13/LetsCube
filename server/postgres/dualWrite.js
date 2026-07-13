@@ -134,10 +134,7 @@ const mirrorRelationship = (relationship, users) => withTransaction(async (clien
       id, pair_key, low_user_id, high_user_id, status, requested_by_user_id,
       cooldown_until, revision, state_changed_at, source_created_at, source_updated_at
     )
-    SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-    WHERE NOT EXISTS (
-      SELECT 1 FROM app.user_blocks WHERE pair_key = $2
-    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (pair_key) DO UPDATE SET
       status = EXCLUDED.status,
       requested_by_user_id = EXCLUDED.requested_by_user_id,
@@ -147,10 +144,6 @@ const mirrorRelationship = (relationship, users) => withTransaction(async (clien
       source_updated_at = EXCLUDED.source_updated_at,
       ingested_at = now()
     WHERE app.friend_relationships.revision < EXCLUDED.revision
-      OR (
-        app.friend_relationships.revision = EXCLUDED.revision
-        AND app.friend_relationships.source_updated_at <= EXCLUDED.source_updated_at
-      )
   `, [
     stableId('friend-relationship', relationship.pairKey),
     relationship.pairKey,
@@ -167,11 +160,6 @@ const mirrorRelationship = (relationship, users) => withTransaction(async (clien
   return relationship.pairKey;
 });
 
-const mirrorRelationshipDeleted = (pairKey) => query(
-  'DELETE FROM app.friend_relationships WHERE pair_key = $1',
-  [pairKey],
-);
-
 const mirrorBlock = (block, blocker, blocked) => withTransaction(async (client) => {
   const updatedAt = sourceDate(block.updatedAt, block.createdAt);
   const blockerUserId = await upsertUser(client, blocker, updatedAt);
@@ -182,31 +170,30 @@ const mirrorBlock = (block, blocker, blocked) => withTransaction(async (client) 
 
   await client.query(`
     INSERT INTO app.user_blocks (
-      id, blocker_id, blocked_id, pair_key, source_created_at, source_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6)
+      id, blocker_id, blocked_id, pair_key, active, revision, state_changed_at,
+      source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
       pair_key = EXCLUDED.pair_key,
+      active = EXCLUDED.active,
+      revision = EXCLUDED.revision,
+      state_changed_at = EXCLUDED.state_changed_at,
       source_updated_at = EXCLUDED.source_updated_at,
       ingested_at = now()
+    WHERE app.user_blocks.revision < EXCLUDED.revision
   `, [
     stableId('user-block', `${block.blockerId}:${block.blockedId}`),
     blockerUserId,
     blockedUserId,
     block.pairKey,
+    block.active,
+    block.revision,
+    block.stateChangedAt,
     block.createdAt || null,
     updatedAt,
   ]);
-  await client.query(
-    'DELETE FROM app.friend_relationships WHERE pair_key = $1',
-    [block.pairKey],
-  );
   return block.pairKey;
 });
-
-const mirrorBlockDeleted = (blockerId, blockedId) => query(`
-  DELETE FROM app.user_blocks
-  WHERE blocker_id = $1 AND blocked_id = $2
-`, [stableId('user', blockerId), stableId('user', blockedId)]);
 
 const upsertRoomState = async (client, room, options = {}) => {
   if (!room || !room._id) {
@@ -644,10 +631,8 @@ const mirrorMetricEvent = (event) => query(`
 module.exports = {
   markRoomDeleted,
   mirrorBlock,
-  mirrorBlockDeleted,
   mirrorMetricEvent,
   mirrorRelationship,
-  mirrorRelationshipDeleted,
   mirrorRoom,
   mirrorRoomChanges,
   mirrorUser,

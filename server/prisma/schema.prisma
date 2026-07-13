@@ -58,6 +58,9 @@ model UserBlock {
   blockerId       String    @map("blocker_id") @db.Uuid
   blockedId       String    @map("blocked_id") @db.Uuid
   pairKey         String    @map("pair_key")
+  active          Boolean
+  revision        Int
+  stateChangedAt  DateTime  @map("state_changed_at") @db.Timestamptz(6)
   sourceCreatedAt DateTime? @map("source_created_at") @db.Timestamptz(6)
   sourceUpdatedAt DateTime  @map("source_updated_at") @db.Timestamptz(6)
   ingestedAt      DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
