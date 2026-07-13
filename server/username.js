@@ -17,6 +17,10 @@ const invalidUsername = () => new UsernameError(
   'Username may only contain letters, numbers, underscores, and hyphens',
 );
 
+const canonicalizeUsername = (value) => (
+  typeof value === 'string' ? value.normalize('NFKC').trim() : value
+);
+
 const normalizeUsername = (value, { allowEmpty = true } = {}) => {
   if (value === undefined || value === null) {
     if (allowEmpty) {
@@ -29,7 +33,7 @@ const normalizeUsername = (value, { allowEmpty = true } = {}) => {
     throw invalidUsername();
   }
 
-  const username = value.normalize('NFKC').trim();
+  const username = canonicalizeUsername(value);
   if (!username) {
     if (allowEmpty) {
       return { username: undefined, usernameNormalized: undefined };
@@ -109,6 +113,7 @@ module.exports = {
   USERNAME_SEARCH_DEFAULT_LIMIT,
   USERNAME_SEARCH_MAX_LIMIT,
   UsernameError,
+  canonicalizeUsername,
   findUserByUsername,
   isUsernameDuplicateKeyError,
   normalizeUsername,

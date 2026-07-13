@@ -2,6 +2,7 @@
 /* eslint-env jest */
 
 const {
+  canonicalizeUsername,
   findUserByUsername,
   normalizeUsername,
   searchUsersByUsernamePrefix,
@@ -16,6 +17,11 @@ describe('username normalization and lookup', () => {
     });
   });
 
+  it('canonicalizes compatibility characters before validation', () => {
+    expect(canonicalizeUsername('  cuber\uFF20example.com ')).toBe('cuber@example.com');
+    expect(canonicalizeUsername('cuber\uFE6Bexample.com')).toBe('cuber@example.com');
+  });
+
   it('represents empty optional usernames as absent fields', () => {
     expect(normalizeUsername('   ')).toEqual({
       username: undefined,
@@ -27,6 +33,8 @@ describe('username normalization and lookup', () => {
     'cuber.name',
     'cuber+name',
     'cuber@example.com',
+    'cuber\uFF20example.com',
+    'cuber\uFE6Bexample.com',
     'two cubers',
     '1234567890123456',
   ])('rejects invalid input without treating it as a lookup: %s', (username) => {

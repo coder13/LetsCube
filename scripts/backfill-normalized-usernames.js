@@ -7,7 +7,11 @@ process.env.GETCONFIG_ROOT = process.env.GETCONFIG_ROOT
   || path.join(__dirname, '../server/config');
 
 const config = require('../server/runtimeConfig');
-const { planUsernameBackfill } = require('../server/usernameBackfill');
+const {
+  assertUsernameRolloutReady,
+  planUsernameBackfill,
+} = require('../server/usernameBackfill');
+const { reconcilePostgresUsernames } = require('../server/usernamePostgresBackfill');
 
 const args = new Set(process.argv.slice(2));
 const supportedArgs = new Set(['--apply', '--create-index']);
@@ -19,6 +23,17 @@ const duplicateNormalizedUsernames = (collection) => collection.aggregate([
   { $match: { count: { $gt: 1 } } },
   { $limit: 1 },
 ]).toArray();
+
+const readUsers = (collection) => collection.find({}, {
+  projection: {
+    _id: 1,
+    id: 1,
+    username: 1,
+    usernameNormalized: 1,
+  },
+}).toArray();
+
+let postgresPool;
 
 const run = async () => {
   if (unknownArg) {
@@ -34,14 +49,7 @@ const run = async () => {
   mongoose.set('strictQuery', false);
   await mongoose.connect(config.mongodb, { autoIndex: false });
   const users = mongoose.connection.collection('users');
-  const documents = await users.find({}, {
-    projection: {
-      _id: 1,
-      id: 1,
-      username: 1,
-      usernameNormalized: 1,
-    },
-  }).toArray();
+  const documents = await readUsers(users);
   const plan = planUsernameBackfill(documents);
 
   console.log(JSON.stringify({
@@ -58,7 +66,35 @@ const run = async () => {
     console.log(`Updated ${result.modifiedCount} user records.`);
   }
 
+  const verifiedPlan = planUsernameBackfill(await readUsers(users));
+  if (verifiedPlan.report.pendingChanges || verifiedPlan.report.privacyRemoved) {
+    throw new Error('MongoDB username backfill verification failed');
+  }
+
+  let postgres = { status: 'disabled' };
+  if (config.postgres.enabled) {
+    // Avoid creating a PostgreSQL pool for dry runs or explicitly disabled mirrors.
+    // eslint-disable-next-line global-require
+    ({ pool: postgresPool } = require('../server/postgres'));
+    postgres = {
+      status: 'reconciled',
+      ...await reconcilePostgresUsernames({
+        client: postgresPool,
+        users: verifiedPlan.postgresUsers,
+      }),
+    };
+  }
+
+  console.log(JSON.stringify({
+    verification: {
+      mongoPendingChanges: verifiedPlan.report.pendingChanges,
+      mongoPrivateValuesRemaining: verifiedPlan.report.privacyRemoved,
+      postgres,
+    },
+  }, null, 2));
+
   if (createIndex) {
+    assertUsernameRolloutReady(verifiedPlan.report);
     const duplicates = await duplicateNormalizedUsernames(users);
     if (duplicates.length) {
       throw new Error('Duplicate normalized usernames remain; unique index was not created');
@@ -74,4 +110,7 @@ const run = async () => {
 run().catch((err) => {
   console.error(err.message);
   process.exitCode = 1;
-}).finally(() => mongoose.disconnect());
+}).finally(() => Promise.allSettled([
+  mongoose.disconnect(),
+  ...(postgresPool ? [postgresPool.end()] : []),
+]));

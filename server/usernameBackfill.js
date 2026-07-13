@@ -1,8 +1,10 @@
-const { normalizeUsername } = require('./username');
+const { canonicalizeUsername, normalizeUsername } = require('./username');
 
 const identifier = (user) => (user.id === undefined ? user._id.toString() : user.id);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
-const containsEmailMarker = (value) => typeof value === 'string' && value.includes('@');
+const containsEmailMarker = (value) => (
+  typeof value === 'string' && canonicalizeUsername(value).includes('@')
+);
 
 const changedOperation = (user, set, unset) => {
   const changedSet = Object.entries(set).some(([key, value]) => user[key] !== value);
@@ -50,36 +52,57 @@ const planUsernameBackfill = (users) => {
     [...grouped.entries()].filter(([, entries]) => entries.length > 1).map(([key]) => key),
   );
   const operations = [];
+  const postgresUsers = [];
   const invalid = [];
   let empty = 0;
+  let privacyRemoved = 0;
   let valid = 0;
 
   analyzed.forEach((entry) => {
     const { user } = entry;
-    let operation;
+    let targetUsername;
+    let targetUsernameNormalized;
 
     if (entry.error) {
       invalid.push({ id: identifier(user), code: entry.error.code });
-      operation = changedOperation(user, {}, {
-        ...(containsEmailMarker(user.username) ? { username: '' } : {}),
-        usernameNormalized: '',
-      });
+      const removePrivateValue = containsEmailMarker(user.username);
+      if (removePrivateValue) {
+        privacyRemoved += 1;
+      } else {
+        targetUsername = user.username;
+      }
     } else if (!entry.usernameNormalized) {
       empty += 1;
-      operation = changedOperation(user, {}, { username: '', usernameNormalized: '' });
     } else if (collisionKeys.has(entry.usernameNormalized)) {
-      operation = changedOperation(user, { username: entry.username }, { usernameNormalized: '' });
+      targetUsername = entry.username;
     } else {
       valid += 1;
-      operation = changedOperation(user, {
-        username: entry.username,
-        usernameNormalized: entry.usernameNormalized,
-      }, {});
+      targetUsername = entry.username;
+      targetUsernameNormalized = entry.usernameNormalized;
     }
+
+    const operation = changedOperation(
+      user,
+      {
+        ...(targetUsername === undefined ? {} : { username: targetUsername }),
+        ...(targetUsernameNormalized === undefined
+          ? {} : { usernameNormalized: targetUsernameNormalized }),
+      },
+      {
+        ...(targetUsername === undefined ? { username: '' } : {}),
+        ...(targetUsernameNormalized === undefined ? { usernameNormalized: '' } : {}),
+      },
+    );
 
     if (operation) {
       operations.push(operation);
     }
+
+    postgresUsers.push({
+      wcaUserId: user.id,
+      username: targetUsername,
+      usernameNormalized: targetUsernameNormalized,
+    });
   });
 
   const collisions = [...collisionKeys].sort().map((usernameNormalized) => ({
@@ -98,9 +121,25 @@ const planUsernameBackfill = (users) => {
       empty,
       invalid,
       collisions,
+      privacyRemoved,
       pendingChanges: operations.length,
     },
+    postgresUsers,
   };
 };
 
-module.exports = { planUsernameBackfill };
+const assertUsernameRolloutReady = (report) => {
+  if (report.pendingChanges) {
+    throw new Error('Username backfill verification still has pending changes');
+  }
+  if (report.collisions.length) {
+    throw new Error(
+      `Cannot create username index: ${report.collisions.length} collision group(s) require resolution`,
+    );
+  }
+};
+
+module.exports = {
+  assertUsernameRolloutReady,
+  planUsernameBackfill,
+};
