@@ -71,12 +71,22 @@ hidden relationship cannot reappear.
 
 Each user may have at most 100 pending outgoing requests. A MongoDB quota
 document atomically reserves pair slots before relationship creation, so
-concurrent sends to different users cannot pass the cap. Failed writes release
-their slots. Reconciliation rebuilds missing reservations from pending
-relationships and removes abandoned reservations after five minutes. A
-declined pair may not be requested again for 24 hours, and a canceled pair may
+concurrent sends to different users cannot pass the cap. A reservation remains
+an active operation until that write either persists or explicitly fails, even
+when the write is delayed beyond five minutes; reconciliation never expires an
+active operation and risks admitting a 101st request. Once the relationship is
+durable, reconciliation converts its reservation to a normal pending slot.
+Failed writes release their slots. Reconciliation rebuilds missing reservations
+from pending relationships and removes unclaimed abandoned reservations after
+five minutes. A declined pair may not be requested again for 24 hours, and a canceled pair may
 not be requested again for 60 seconds. `request_cooldown` includes
 `retryAfterSeconds`.
+
+Quota cleanup is maintenance, not part of a committed relationship transition.
+After MongoDB durably changes a relationship or block, the API mirrors and
+invalidates immediately; cleanup then runs in the background and logs failures
+for operational follow-up. A cleanup failure therefore cannot turn a successful
+social action into an error or suppress its durable update.
 
 ## REST API
 

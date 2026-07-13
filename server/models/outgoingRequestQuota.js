@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const Reservation = new mongoose.Schema({
+  activeOperation: {
+    type: Boolean,
+    default: false,
+    required: true,
+  },
   pairKey: {
     type: String,
     required: true,
