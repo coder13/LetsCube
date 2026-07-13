@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useCallback, useEffect, useRef, useState,
+} from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
@@ -23,19 +25,26 @@ function PublicProfile() {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('loading');
+  const [acting, setActing] = useState(false);
+  const requestSequence = useRef(0);
 
-  const load = () => {
+  const load = useCallback((profileKey) => {
+    const requestId = requestSequence.current + 1;
+    requestSequence.current = requestId;
     setStatus('loading');
-    lcFetch(`/api/users/${encodeURIComponent(id)}`)
+    lcFetch(`/api/users/${encodeURIComponent(profileKey)}`)
       .then((response) => (response.ok ? response.json() : Promise.reject(response)))
       .then((data) => {
+        if (requestSequence.current !== requestId) return;
         setProfile(data);
         setStatus('ready');
       })
-      .catch(() => setStatus('unavailable'));
-  };
+      .catch(() => {
+        if (requestSequence.current === requestId) setStatus('unavailable');
+      });
+  }, []);
 
-  useEffect(load, [id]);
+  useEffect(() => load(id), [id, load]);
 
   const searchUsers = (event) => {
     event.preventDefault();
@@ -46,16 +55,21 @@ function PublicProfile() {
   };
 
   const act = (action) => {
-    const request = actionRequest(action, id);
+    if (!profile || acting) return;
+    setActing(true);
+    const request = actionRequest(action, profile.id);
     lcFetch(request.url, {
       method: request.method,
       headers: request.body ? { 'Content-Type': 'application/json' } : undefined,
       body: request.body ? JSON.stringify(request.body) : undefined,
-    }).then(load);
+    }).then(() => load(profile.profileKey)).finally(() => setActing(false));
   };
 
   return (
-    <Paper style={{ margin: 'auto', maxWidth: 560, padding: 24, width: '100%' }}>
+    <Paper style={{
+      margin: 'auto', maxWidth: 560, padding: 24, width: '100%',
+    }}
+    >
       <form onSubmit={searchUsers} style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         <TextField
           aria-label="Find a cuber by username or visible WCA ID"
@@ -65,17 +79,28 @@ function PublicProfile() {
         />
         <Button color="primary" type="submit" variant="contained">Search</Button>
       </form>
-      {results.map((user) => <Button component={Link} key={user.id} to={`/users/${user.id}`}>{user.displayName || user.username}</Button>)}
+      {results.map((user) => (
+        <Button component={Link} key={user.id} to={`/users/${user.profileKey}`}>
+          {user.displayName || user.username}
+        </Button>
+      ))}
       {status === 'loading' && <CircularProgress aria-label="Loading profile" />}
       {status === 'unavailable' && <Typography role="status">This user is not available.</Typography>}
       {status === 'ready' && profile && (
         <>
-          <Avatar alt={profile.displayName || profile.username} src={profile.avatar && profile.avatar.thumb_url} />
+          <Avatar
+            alt={profile.displayName || profile.username}
+            src={profile.avatar && profile.avatar.thumb_url}
+          />
           <Typography variant="h5">{profile.displayName || profile.username}</Typography>
           {profile.username && <Typography>{`@${profile.username}`}</Typography>}
           {profile.wcaId && <Typography>{`WCA ID: ${profile.wcaId}`}</Typography>}
           <Typography>{profile.relationship}</Typography>
-          {profile.actions.map((action) => <Button key={action} onClick={() => act(action)}>{action}</Button>)}
+          {profile.actions.map((action) => (
+            <Button disabled={acting} key={action} onClick={() => act(action)}>
+              {action}
+            </Button>
+          ))}
         </>
       )}
     </Paper>

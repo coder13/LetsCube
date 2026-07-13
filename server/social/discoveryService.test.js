@@ -36,7 +36,10 @@ const users = [
 const createService = ({ blocks = [], relationships = [] } = {}) => {
   const userModel = {
     find: jest.fn(() => chain(users)),
-    findOne: jest.fn(({ id }) => Promise.resolve(users.find((user) => user.id === id) || null)),
+    findOne: jest.fn((query) => Promise.resolve(users.find((user) => (
+      (query.usernameNormalized && user.usernameNormalized === query.usernameNormalized)
+      || (query.showWCAID && user.showWCAID && user.wcaId === query.wcaId)
+    )) || null)),
   };
   const blockModel = { find: jest.fn(() => chain(blocks)) };
   const relationshipModel = {
@@ -100,13 +103,13 @@ describe('privacy-safe discovery', () => {
       nextCursor: null,
       results: [expect.objectContaining({ id: 3 })],
     });
-    await expect(service.publicProfile({ id: 1 }, '2')).resolves.toBeNull();
+    await expect(service.publicProfile({ id: 1 }, 'cuber')).resolves.toBeNull();
   });
 
   it('returns viewer-relative safe actions and no editable/private fields', async () => {
     const { service } = createService({ relationships: [{ pairKey: '1:2', status: 'pending', requestedBy: 2 }] });
 
-    const profile = await service.publicProfile({ id: 1 }, 2);
+    const profile = await service.publicProfile({ id: 1 }, 'cuber');
 
     expect(profile).toEqual(expect.objectContaining({
       actions: ['accept', 'decline', 'block'],
@@ -117,10 +120,11 @@ describe('privacy-safe discovery', () => {
     expect(profile).not.toHaveProperty('accessToken');
   });
 
-  it('returns unavailable for missing or tampered ids', async () => {
+  it('returns unavailable for missing, email-like, or numeric identifiers', async () => {
     const { service } = createService();
 
     await expect(service.publicProfile({ id: 1 }, 'abc')).resolves.toBeNull();
+    await expect(service.publicProfile({ id: 1 }, 'name@example.com')).resolves.toBeNull();
     await expect(service.publicProfile({ id: 1 }, '999')).resolves.toBeNull();
   });
 });

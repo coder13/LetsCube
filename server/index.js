@@ -49,13 +49,14 @@ const init = async () => {
 
   /* Logging */
 
+  const isDiscoverySearch = (req) => req.path === '/api/users/search';
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode >= 400,
+    skip: (req, res) => res.statusCode >= 400 || isDiscoverySearch(req),
     stream: { write: (message) => logger.info(message) },
   }));
 
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode < 400,
+    skip: (req, res) => res.statusCode < 400 || isDiscoverySearch(req),
     stream: { write: (message) => logger.error(message) },
   }));
 
