@@ -3,6 +3,7 @@ import { shallow } from 'enzyme';
 import Alert from '@material-ui/lab/Alert';
 import Button from '@material-ui/core/Button';
 import Timer from '../../Timer/index';
+import ScramblePreview from '../../common/ScramblePreview';
 import { Main } from './Main';
 import {
   createPendingResult,
@@ -14,7 +15,6 @@ import {
 } from '../../../store/room/actions';
 
 jest.mock('../../Timer/StackmatTimer', () => () => null);
-jest.mock('react-cube-svg', () => ({ Cube: () => null }));
 
 const pendingResult = createPendingResult({
   userId: 42,
@@ -61,6 +61,18 @@ const makeProps = (overrides = {}) => ({
 });
 
 describe('room pending result UX', () => {
+  it('shows scramble previews for non-3x3 events', () => {
+    const props = makeProps({
+      room: { ...makeProps().room, event: 'pyram' },
+    });
+    const wrapper = shallow(<Main {...props} />);
+
+    expect(wrapper.find(ScramblePreview).props()).toMatchObject({
+      event: 'pyram',
+      scramble: 'R U',
+    });
+  });
+
   it('submits against the immutable attempt that was primed', () => {
     const props = makeProps({
       room: {

@@ -9,7 +9,6 @@ import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Button from '@material-ui/core/Button';
-import { Cube } from 'react-cube-svg';
 import { formatISO9075 } from 'date-fns';
 import calcStats from '../../../lib/stats';
 import {
@@ -26,6 +25,7 @@ import TimesTable from '../Common/TimesTable';
 import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../common/Scramble';
+import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from '../Common/UserStats';
 import UserSelectorDialog from '../Common/UserSelectorDialog';
 
@@ -244,7 +244,7 @@ function Main({ room, user }) {
     || isPendingResult(room.resultSubmission && room.resultSubmission.pendingResult);
 
   const stats = calcStats(attempts, users);
-  const showScramble = latestAttempt.scrambles && room.event === '333';
+  const showScramble = latestAttempt.scrambles && latestAttempt.scrambles.length;
 
   return (
     <ClickAwayListener onClickAway={() => { onTimerDefocused(); }}>
@@ -323,7 +323,8 @@ function Main({ room, user }) {
                     }}
                     variant="outlined"
                   >
-                    <Cube
+                    <ScramblePreview
+                      event={room.event}
                       size={240}
                       scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                     />
