@@ -38,6 +38,7 @@
     "postgres:migrate:status": "prisma migrate status --config prisma.config.mjs",
     "postgres:schema:check": "prisma migrate diff --exit-code --from-config-datasource --to-schema prisma/schema.prisma --config prisma.config.mjs",
     "postgres:schema:validate": "prisma validate --config prisma.config.mjs",
+    "privacy:purge-user-emails": "node privacy/purgeUserEmails.js",
     "test": "jest --passWithNoTests",
     "test:ci": "yarn test"
   },

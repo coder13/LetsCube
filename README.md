@@ -50,6 +50,19 @@ yarn start:client
 
 For more on the internals and contributing, check out the [wiki](https://github.com/coder13/LetsCube/wiki)
 
+## Identity privacy
+
+Let's Cube requests only the WCA OAuth `public` scope. WCA profile data is
+allowlisted at login, and the application does not request, retain, mirror,
+return, log, analyze, or search WCA email addresses or dates of birth. Product
+identity uses the WCA numeric user ID internally and exposes a WCA ID only when
+the user has explicitly enabled that existing profile preference.
+
+Any user-discovery feature must accept only its documented username and visible
+WCA ID formats. An email-like input must not be treated as an identifier or
+produce an existence signal. This is a required invariant for the Friend System,
+not a future discovery mode.
+
 ## Metrics
 
 The server stores pseudonymous room and authentication events in both the
@@ -71,9 +84,10 @@ access codes, OAuth credentials, chat content, scramble text, or solve times.
 ## PostgreSQL dual writes
 
 New MongoDB writes are mirrored into PostgreSQL without changing application
-reads. PostgreSQL receives users and preferences, rooms and participant state,
-attempts, durable solve results, and sanitized analytics events. OAuth access
-tokens are deliberately not copied. Writes use deterministic UUIDs and upserts,
+reads. PostgreSQL receives public identity and preferences, rooms and
+participant state, attempts, durable solve results, and sanitized analytics
+events. OAuth access tokens are deliberately not copied. Writes use
+deterministic UUIDs and upserts,
 so retries and future backfills are idempotent. Live room saves mirror only the
 attempts and results changed by that save; complete room snapshots are reserved
 for explicit backfills. Changing a room event explicitly replaces that room's

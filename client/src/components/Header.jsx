@@ -1,5 +1,4 @@
 import React from 'react';
-import qs from 'qs';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -15,6 +14,7 @@ import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
 import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
+import { getWcaAuthorizationUrl } from '../lib/wcaAuth';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -57,13 +57,13 @@ function Header({ user, room }) {
   };
 
   const login = () => {
-    localStorage.setItem('letscube.redirect_uri', `${document.location.origin}/wca-redirect`);
-    const url = `${process.env.REACT_APP_WCA_ORIGIN}/oauth/authorize?${qs.stringify({
-      response_type: 'code',
-      scope: 'public dob email',
-      redirect_uri: `${document.location.origin}/wca-redirect`,
-      client_id: process.env.REACT_APP_WCA_CLIENT_ID,
-    })}`;
+    const redirectUri = `${document.location.origin}/wca-redirect`;
+    localStorage.setItem('letscube.redirect_uri', redirectUri);
+    const url = getWcaAuthorizationUrl({
+      origin: process.env.REACT_APP_WCA_ORIGIN,
+      clientId: process.env.REACT_APP_WCA_CLIENT_ID,
+      redirectUri,
+    });
     window.location = url;
   };
 

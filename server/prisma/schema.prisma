@@ -6,6 +6,7 @@ datasource db {
 model User {
   id                 String            @id @db.Uuid
   wcaUserId          BigInt            @unique(map: "users_wca_user_id_key") @map("wca_user_id")
+  /// Compatibility-only during the privacy cutover. This column must remain null.
   email              String?
   name               String
   username           String?

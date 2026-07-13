@@ -18,7 +18,7 @@ const {
 
 const user = {
   id: 1234,
-  email: 'solver@example.com',
+  email: 'private@example.com',
   name: 'Test Solver',
   username: 'solver',
   wcaId: '2026TEST01',
@@ -46,13 +46,14 @@ describe('PostgreSQL dual writer', () => {
     expect(stableId('user', 1234)).not.toBe(stableId('room', 1234));
   });
 
-  it('mirrors users without copying OAuth access tokens', async () => {
+  it('mirrors users without copying private profile or OAuth fields', async () => {
     await mirrorUser(user);
 
     expect(client.query).toHaveBeenCalledTimes(1);
     const values = client.query.mock.calls[0][1];
     expect(values).toContain(1234);
-    expect(values).toContain('solver@example.com');
+    expect(client.query.mock.calls[0][0]).toContain('email = NULL');
+    expect(values).not.toContain('private@example.com');
     expect(values).not.toContain('must-not-be-mirrored');
   });
 
