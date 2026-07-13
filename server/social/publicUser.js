@@ -3,12 +3,16 @@ const publicUserProjection = (user) => {
     return null;
   }
 
+  const profileKey = user.usernameNormalized || (user.showWCAID ? user.wcaId : null);
   const projection = {
     id: user.id,
     username: user.username || null,
     displayName: user.preferRealName ? user.name : (user.username || null),
-    profileKey: user.usernameNormalized || (user.showWCAID ? user.wcaId : null),
   };
+
+  if (profileKey) {
+    projection.profileKey = profileKey;
+  }
 
   if (user.showWCAID) {
     projection.wcaId = user.wcaId || null;
