@@ -97,6 +97,7 @@ describe('local app stack', () => {
     const requesterId = 990001;
     const recipientId = 990002;
 
+    loginAs(recipientId);
     loginAs(requesterId);
     cy.request('POST', 'http://localhost:8080/api/friends/requests', { userId: recipientId })
       .its('status').should('eq', 201);
