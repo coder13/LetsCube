@@ -1,13 +1,15 @@
 describe('local app stack', () => {
+  const apiOrigin = Cypress.env('apiOrigin') || 'http://localhost:8080';
+
   const login = () => {
-    cy.request('POST', 'http://localhost:8080/auth/code', {
+    cy.request('POST', `${apiOrigin}/auth/code`, {
       code: 'cypress-test-code',
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
   };
 
   const loginAs = (userId) => {
-    cy.request('POST', 'http://localhost:8080/auth/code', {
+    cy.request('POST', `${apiOrigin}/auth/code`, {
       code: `cypress-test-user-${userId}`,
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
@@ -21,7 +23,7 @@ describe('local app stack', () => {
     cy.contains('Create Room').should('not.exist');
 
     cy.request({
-      url: 'http://localhost:8080/api/me',
+      url: `${apiOrigin}/api/me`,
       failOnStatusCode: false,
     }).then((response) => {
       expect(response.status).to.eq(403);
@@ -43,7 +45,7 @@ describe('local app stack', () => {
   it('logs in and exposes the test user through the API', () => {
     login();
 
-    cy.request('http://localhost:8080/api/me').then((response) => {
+    cy.request(`${apiOrigin}/api/me`).then((response) => {
       expect(response.status).to.eq(200);
       expect(response.body).to.include({ id: 990001, canJoinRoom: true });
       expect(response.body.displayName).to.be.oneOf(['Cypress Test User', 'cypress']);
@@ -99,11 +101,11 @@ describe('local app stack', () => {
 
     loginAs(recipientId);
     loginAs(requesterId);
-    cy.request('POST', 'http://localhost:8080/api/friends/requests', { userId: recipientId })
+    cy.request('POST', `${apiOrigin}/api/friends/requests`, { userId: recipientId })
       .its('status').should('eq', 201);
 
     loginAs(recipientId);
-    cy.request('http://localhost:8080/api/notifications').then((response) => {
+    cy.request(`${apiOrigin}/api/notifications`).then((response) => {
       expect(response.status).to.eq(200);
       expect(response.body.notifications.some((notification) => (
         notification.type === 'friend_request' && notification.actor.id === requesterId
