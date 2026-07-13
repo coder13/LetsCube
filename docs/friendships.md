@@ -69,24 +69,19 @@ so failures remain fail-closed. Unblocking repeats relationship cleanup before
 deactivating the block. If cleanup fails, the active block remains and the
 hidden relationship cannot reappear.
 
-Each user may have at most 100 pending outgoing requests. A MongoDB quota
-document atomically reserves pair slots before relationship creation, so
-concurrent sends to different users cannot pass the cap. A reservation remains
-an active operation until that write either persists or explicitly fails, even
-when the write is delayed beyond five minutes; reconciliation never expires an
-active operation and risks admitting a 101st request. Once the relationship is
-durable, reconciliation converts its reservation to a normal pending slot.
-Failed writes release their slots. Reconciliation rebuilds missing reservations
-from pending relationships and removes unclaimed abandoned reservations after
-five minutes. A declined pair may not be requested again for 24 hours, and a canceled pair may
-not be requested again for 60 seconds. `request_cooldown` includes
-`retryAfterSeconds`.
+New request creation is atomically rate-limited in Redis before MongoDB writes:
+each actor may create 30 requests per 10-minute window, and each normalized
+pair may create 3 requests per 24-hour window. One Lua operation checks both
+limits before it increments either counter and gives both counters a Redis TTL.
+This works across API processes, needs no reconciliation or crash cleanup, and
+fails closed with `503 request_rate_limit_unavailable` if Redis cannot execute
+the operation. A rate-limited request is `429 request_rate_limited` with
+`retryAfterSeconds`. The limiter intentionally bounds creation attempts rather
+than retaining an unbounded count of pending relationships.
 
-Quota cleanup is maintenance, not part of a committed relationship transition.
-After MongoDB durably changes a relationship or block, the API mirrors and
-invalidates immediately; cleanup then runs in the background and logs failures
-for operational follow-up. A cleanup failure therefore cannot turn a successful
-social action into an error or suppress its durable update.
+The existing per-pair resend cooldown remains: a declined pair may not be
+requested again for 24 hours, and a canceled pair may not be requested again
+for 60 seconds. `request_cooldown` includes `retryAfterSeconds`.
 
 ## REST API
 
