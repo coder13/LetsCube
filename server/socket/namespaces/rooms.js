@@ -1,14 +1,23 @@
 const _ = require('lodash');
 const bcrypt = require('bcrypt');
-const Protocol = require('../../../client/src/lib/protocol');
+const Protocol = require('../../../client/src/lib/protocol.json');
 const ChatMessage = require('../lib/ChatMessage');
 const { parseCommand } = require('../lib/commands');
+const config = require('../../runtimeConfig');
 const logger = require('../../logger');
+const metrics = require('../../metrics');
+const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const { isRoomTypeEnabled: checkRoomTypeEnabled } = require('../lib/roomAvailability');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
+const { createReconnectGrace } = require('../lib/reconnectGrace');
+const {
+  createResultSubmissionService,
+  ResultSubmissionError,
+} = require('../lib/resultSubmission');
 const {
   createSafeSocketHandler,
   optionalAcknowledgment,
@@ -33,12 +42,14 @@ const roomMask = (room) => ({
 
 // Data for people in room
 const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
+const isRoomTypeEnabled = (type) => checkRoomTypeEnabled(type, config.grandPrix.enabled);
 
 const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
 
 const getRooms = (userId) => Room.find().populate('users').populate('admin').populate('owner')
   .then((rooms) => rooms.filter((room) => (
-    userId ? !room.banned.get(userId.toString()) : true
+    isRoomTypeEnabled(room.type)
+      && (userId ? !room.banned.get(userId.toString()) : true)
   )).map(roomMask));
 
 const roomTimerObj = {};
@@ -59,44 +70,97 @@ module.exports = (io, middlewares) => {
     return [...sockets].some((socketId) => socketId !== currentSocketId);
   };
 
-  async function markNormalRoomsStaleOnStartup() {
-    const rooms = await Room.find({ type: 'normal' })
+  const hasActiveSocketsForUserRoom = async (userId, roomId) => (
+    (await socketsForUserRoom(userId, roomId)).size > 0
+  );
+
+  async function listActiveRoomUsers() {
+    const rooms = await Room.find()
       .populate('users')
       .populate('admin')
       .populate('owner');
 
-    await Promise.all(rooms.map(async (room) => {
-      room.users.forEach((user) => {
-        room.inRoom.set(user.id.toString(), false);
-        room.waitingFor.set(user.id.toString(), false);
-      });
-
-      room.admin = null;
-      await room.updateStale(true);
-    }));
-
-    logger.info('Marked normal rooms stale on socket startup', {
-      rooms: rooms.length,
-    });
+    return rooms.flatMap((room) => room.usersInRoom.map((user) => ({
+      roomId: room._id,
+      userId: user.id,
+      leaveReason: 'disconnect',
+    })));
   }
 
-  const normalRoomsReady = markNormalRoomsStaleOnStartup().catch((err) => {
-    logger.error(err);
-  });
+  async function createAndSendNewScramble(room) {
+    const updatedRoom = await room.newAttempt();
+    logger.debug('Sending new scramble to room', { roomId: room.id });
+    ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
+      waitingFor: updatedRoom.waitingFor,
+      attempt: updatedRoom.attempts[updatedRoom.attempts.length - 1],
+    });
+    return updatedRoom;
+  }
 
   function sendNewScramble(room) {
-    return room.newAttempt().then((r) => {
-      logger.debug('Sending new scramble to room', { roomId: room.id });
-      ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
-        waitingFor: r.waitingFor,
-        attempt: r.attempts[r.attempts.length - 1],
-      });
-
-      return r;
-    }).catch((err) => {
+    return createAndSendNewScramble(room).catch((err) => {
       logger.error(err);
     });
   }
+
+  const resultSubmissions = createResultSubmissionService({
+    advanceRoom: createAndSendNewScramble,
+    fetchRoom,
+  });
+
+  function sendGlobalRoomUpdate(room) {
+    if (isRoomTypeEnabled(room.type)) {
+      ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+    }
+  }
+
+  async function finalizeUserDeparture({
+    roomId, userId, connectionId, leaveReason,
+  }) {
+    const room = await fetchRoom(roomId);
+    const userKey = userId.toString();
+
+    if (!room || !room.inRoom.get(userKey)) {
+      return false;
+    }
+
+    if (leaveReason === 'disconnect'
+      && await hasActiveSocketsForUserRoom(userId, roomId)) {
+      return false;
+    }
+
+    const updatedRoom = await room.dropUser({ id: userId }, (_room) => {
+      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+    });
+
+    await metrics.endRoomVisit({
+      room: updatedRoom,
+      userId,
+      connectionId,
+      leaveReason,
+      activeUserCount: updatedRoom.usersLength,
+    });
+
+    ns().in(updatedRoom.accessCode).emit(Protocol.USER_LEFT, userId);
+    sendGlobalRoomUpdate(updatedRoom);
+
+    if (updatedRoom.doneWithScramble()) {
+      logger.debug('everyone done, sending new scramble');
+      await sendNewScramble(updatedRoom);
+    }
+
+    return true;
+  }
+
+  const reconnectGrace = createReconnectGrace({
+    graceMs: config.socketio.reconnectGraceMs,
+    hasActiveSockets: hasActiveSocketsForUserRoom,
+    finalizeDeparture: finalizeUserDeparture,
+    listActiveUsers: listActiveRoomUsers,
+    logger,
+  });
+
+  reconnectGrace.startReconciliation();
 
   const interval = 60 * 1000; // 30 seconds
 
@@ -153,16 +217,18 @@ module.exports = (io, middlewares) => {
     clearInterval(roomTimerObj[room._id]);
   }
 
-  Room.find({ type: 'grand_prix' })
-    .then((rooms) => {
-      rooms.forEach(async (room) => {
-        if (room.startTime && Date.now() < new Date(room.startTime).getTime()) {
-          awaitRoomStart(room);
-        } else {
-          startTimer(room);
-        }
+  if (config.grandPrix.enabled) {
+    Room.find({ type: 'grand_prix' })
+      .then((rooms) => {
+        rooms.forEach(async (room) => {
+          if (room.startTime && Date.now() < new Date(room.startTime).getTime()) {
+            awaitRoomStart(room);
+          } else {
+            startTimer(room);
+          }
+        });
       });
-    });
+  }
 
   async function updateClientsWithUsers() {
     const sockets = [...await ns().adapter.allRooms([])]
@@ -181,8 +247,6 @@ module.exports = (io, middlewares) => {
   }
 
   ns().on('connection', async (socket) => {
-    await normalRoomsReady;
-
     const on = createSafeSocketHandler(socket, logger, Protocol.ERROR);
 
     logger.debug(`socket ${socket.id} connected to rooms; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
@@ -271,7 +335,7 @@ module.exports = (io, middlewares) => {
     }
 
     // Only deals with removing authenticated users from a room
-    async function leaveRoom() {
+    async function leaveRoom(leaveReason) {
       try {
         const hasOtherSockets = await hasOtherSocketsForUserRoom(
           socket.userId,
@@ -282,17 +346,13 @@ module.exports = (io, middlewares) => {
           return;
         }
 
-        const room = await socket.room.dropUser(socket.user, (_room) => {
-          ns().in(socket.room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
+        reconnectGrace.cancel(socket.roomId, socket.userId);
+        await reconnectGrace.finalize({
+          roomId: socket.roomId,
+          userId: socket.userId,
+          connectionId: socket.id,
+          leaveReason,
         });
-
-        broadcast(Protocol.USER_LEFT, socket.user.id);
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
-
-        if (room.doneWithScramble()) {
-          logger.debug('everyone done, sending new scramble');
-          sendNewScramble(room);
-        }
       } catch (e) {
         logger.error(e);
       }
@@ -300,7 +360,18 @@ module.exports = (io, middlewares) => {
 
     async function joinRoom(room, cb, spectating) {
       if (socket.roomId) {
+        if (String(socket.roomId) === String(room._id)) {
+          socket.room = socket.room || room;
+          return cb(null, joinRoomMask(socket.room));
+        }
+
         logger.debug('Socket is already in room', { roomId: socket.room._id });
+        await metrics.recordRoomJoinFailure({
+          room: socket.room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          failureReason: 'already_in_room',
+        });
         return cb({
           statusCode: 400,
           message: 'Socket is already in room',
@@ -312,30 +383,58 @@ module.exports = (io, middlewares) => {
 
       if (!socket.user) {
         logger.debug('Socket is not authenticated but joining anyways', { roomId: room._id, userId: socket.userId });
+        socket.room = room;
+        await metrics.beginRoomVisit({
+          room,
+          connectionId: socket.id,
+          activeUserCount: room.usersLength,
+        });
         return cb(null, joinRoomMask(room));
       }
 
       socket.join(encodeUserRoom(socket.userId, room._id));
+      const waitedForCleanup = await reconnectGrace.cancel(room._id, socket.userId);
+      const activeRoom = waitedForCleanup ? await fetchRoom(room._id) : room;
+      if (!activeRoom) {
+        return cb({
+          statusCode: 404,
+          message: 'Room no longer exists',
+        });
+      }
 
-      const r = await room.addUser(socket.user, spectating, (_room) => {
+      const r = await activeRoom.addUser(socket.user, spectating, (_room) => {
         ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
       });
 
       if (!r) {
-        // Join the socket to the room anyways but don't add them
-        return cb(null, joinRoomMask(room));
+        // The user is already present in persisted room state.
+        socket.room = activeRoom;
+        await metrics.beginRoomVisit({
+          room: activeRoom,
+          userId: socket.userId,
+          connectionId: socket.id,
+          activeUserCount: activeRoom.usersLength,
+        });
+        return cb(null, joinRoomMask(activeRoom));
       }
 
       socket.room = r;
+      await metrics.beginRoomVisit({
+        room: r,
+        userId: socket.userId,
+        connectionId: socket.id,
+        activeUserCount: r.usersLength,
+        replaceActive: true,
+      });
       socket.emit(Protocol.JOIN, joinRoomMask(r));
       cb(null, joinRoomMask(r));
 
-      broadcast(Protocol.USER_JOIN, socket.user); // tell everyone
-      ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(r));
+      broadcast(Protocol.USER_JOIN, socket.user);
+      sendGlobalRoomUpdate(r);
 
-      if (room.doneWithScramble()) {
+      if (r.doneWithScramble()) {
         logger.debug('everyone done, sending new scramble');
-        sendNewScramble(room);
+        sendNewScramble(r);
       }
     }
 
@@ -344,49 +443,81 @@ module.exports = (io, middlewares) => {
       const acknowledgment = optionalAcknowledgment(cb);
       const { id, spectating, password } = payload || {};
 
+      const rejectJoin = async (failureReason, error, room) => {
+        await metrics.recordRoomJoinFailure({
+          room,
+          userId: socket.userId,
+          connectionId: socket.id,
+          failureReason,
+        });
+        return acknowledgment({
+          ...error,
+          reason: failureReason,
+        }, room ? roomMask(room) : undefined);
+      };
+
       try {
         const room = await fetchRoom(id);
         if (!room) {
-          return acknowledgment({
+          return rejectJoin('not_found', {
             statusCode: 404,
             message: `Could not find room with id ${id}`,
           });
         }
 
+        if (!isRoomTypeEnabled(room.type)) {
+          return rejectJoin('grand_prix_disabled', {
+            statusCode: 403,
+            message: 'Grand Prix rooms are disabled',
+          }, room);
+        }
+
+        if (socket.roomId) {
+          if (String(socket.roomId) === String(room._id)) {
+            socket.room = room;
+            return acknowledgment(null, joinRoomMask(room));
+          }
+
+          return rejectJoin('already_in_room', {
+            statusCode: 400,
+            message: 'Socket is already in room',
+          }, room);
+        }
+
         if (room.private && !password) {
-          return acknowledgment({
+          return rejectJoin('password_required', {
             statusCode: 403,
             message: 'Room requires password to join',
-          }, roomMask(room));
+          }, room);
         }
 
         if (room.private && !(await room.authenticate(password))) {
-          return acknowledgment({
+          return rejectJoin('invalid_password', {
             statusCode: 403,
             message: 'Invalid password',
-          }, roomMask(room));
+          }, room);
         }
 
         if (socket.userId && room.banned.get(socket.userId.toString())) {
           logger.debug(`Banned user ${socket.user.id} is trying to join room ${room._id}`);
-          return acknowledgment({
+          return rejectJoin('banned', {
             statusCode: 401,
             message: 'Banned',
             banned: true,
-          }, roomMask(room));
+          }, room);
         }
 
         if (room.requireRevealedIdentity && (!socket.user || !socket.user.showWCAID)) {
-          return acknowledgment({
+          return rejectJoin('identity_required', {
             statusCode: 403,
             message: 'Must be showing WCA Identity to join room.',
-          }, roomMask(room));
+          }, room);
         }
 
         return await joinRoom(room, acknowledgment, spectating);
       } catch (e) {
         logger.error(e);
-        return acknowledgment({
+        return rejectJoin('internal_error', {
           statusCode: 500,
           message: 'Failed to join room',
         });
@@ -403,10 +534,10 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      if (options.type === 'grand_prix') {
+      if (options.type === 'grand_prix' && !config.grandPrix.enabled) {
         return acknowledgment({
           statusCode: 403,
-          message: 'Not allowed to make a Grand Prix Room',
+          message: 'Grand Prix rooms are disabled',
         });
       }
 
@@ -428,6 +559,10 @@ module.exports = (io, middlewares) => {
       newRoom.owner = socket.user;
 
       const room = await newRoom.save();
+      await metrics.recordRoomCreated({
+        room,
+        userId: socket.userId,
+      });
       ns().emit(Protocol.ROOM_CREATED, roomMask(room));
       return joinRoom(room, (err, r) => {
         if (err) {
@@ -463,6 +598,7 @@ module.exports = (io, middlewares) => {
 
         const res = await Room.deleteOne({ _id: room._id });
         if (res.deletedCount > 0) {
+          await markRoomDeleted(room._id);
           socket.room = undefined;
           acknowledgment(null);
           ns().emit(Protocol.ROOM_DELETED, id);
@@ -519,43 +655,89 @@ module.exports = (io, middlewares) => {
       }
     });
 
-    on(Protocol.SUBMIT_RESULT, async ({ id, result }) => {
-      if (!socket.user || !socket.roomId) {
-        return;
-      }
-
-      try {
-        if (!socket.room.attempts[id]) {
-          socket.emit(Protocol.ERROR, {
-            statusCode: 400,
+    on(Protocol.SUBMIT_RESULT, async (payload = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+      const rejectSubmission = (error) => {
+        if (typeof cb === 'function') {
+          return acknowledgment(error);
+        }
+        if (socket.connected) {
+          return socket.emit(Protocol.ERROR, {
+            ...error,
             event: Protocol.SUBMIT_RESULT,
-            message: 'Invalid ID for attempt submission',
           });
-          return;
         }
+        return undefined;
+      };
 
-        if (socket.room.type === 'grand_prix') {
-          result.penalties.DNF = result.penalties.DNF
-            || id < socket.room.attempts.length - 1;
-        }
-        socket.room.attempts[id].results.set(socket.user.id.toString(), result);
-        socket.room.waitingFor.set(socket.user.id.toString(), false);
-
-        const r = await socket.room.save();
-
-        ns().in(r.accessCode).emit(Protocol.NEW_RESULT, {
-          id,
-          result,
-          userId: socket.user.id,
+      if (!socket.user) {
+        return rejectSubmission({
+          statusCode: 401,
+          message: 'Must be logged in to submit a result',
+          retryable: false,
         });
-
-        if (r.doneWithScramble()) {
-          logger.debug('everyone done, sending new scramble');
-          sendNewScramble(r);
-        }
-      } catch (e) {
-        logger.error(e);
       }
+      if (!socket.roomId) {
+        return rejectSubmission({
+          statusCode: 409,
+          message: 'Must rejoin the room before submitting a result',
+          retryable: true,
+        });
+      }
+
+      const {
+        id, attemptKey, result, submissionId,
+      } = payload || {};
+      let submission;
+      try {
+        submission = await resultSubmissions.submit({
+          roomId: socket.roomId,
+          userId: socket.user.id,
+          attemptId: id,
+          attemptKey,
+          result,
+          submissionId,
+          onSaved: ({ room, result: savedResult }) => {
+            socket.room = room;
+            try {
+              ns().in(room.accessCode).emit(Protocol.NEW_RESULT, {
+                id,
+                result: savedResult,
+                userId: socket.user.id,
+              });
+            } catch (err) {
+              logger.error(err);
+            }
+            Promise.resolve()
+              .then(() => metrics.recordRoomResult({
+                room,
+                userId: socket.userId,
+              }))
+              .catch((err) => logger.error(err));
+          },
+        });
+      } catch (err) {
+        if (err.cause) {
+          logger.error(err.cause);
+        } else if (!(err instanceof ResultSubmissionError)) {
+          logger.error(err);
+        }
+        const error = err instanceof ResultSubmissionError
+          ? err.toResponse()
+          : {
+            statusCode: 500,
+            message: 'Failed to save result',
+            retryable: true,
+          };
+        return rejectSubmission(error);
+      }
+
+      socket.room = submission.room;
+      acknowledgment(null, {
+        submissionId: submission.submissionId,
+        status: submission.status,
+      });
+      return undefined;
     });
 
     on(Protocol.SEND_EDIT_RESULT, async (result) => {
@@ -600,6 +782,14 @@ module.exports = (io, middlewares) => {
       if (!checkAdmin()) {
         return;
       }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.REQUEST_SCRAMBLE,
+          message: 'Grand Prix rooms are disabled',
+        });
+        return;
+      }
 
       sendNewScramble(socket.room);
     });
@@ -608,36 +798,97 @@ module.exports = (io, middlewares) => {
       if (!checkAdmin()) {
         return;
       }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.CHANGE_EVENT,
+          message: 'Grand Prix rooms are disabled',
+        });
+        return;
+      }
 
       socket.room.changeEvent(event).then((r) => {
         ns().in(r.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(socket.room));
       }).catch(logger.error);
     });
 
-    on(Protocol.EDIT_ROOM, async (options) => {
-      if (!checkAdmin()) {
-        return;
+    on(Protocol.EDIT_ROOM, async (options = {}, cb) => {
+      const acknowledgment = optionalAcknowledgment(cb);
+      const rejectEdit = (error) => {
+        const response = {
+          ...error,
+          event: Protocol.EDIT_ROOM,
+        };
+
+        if (typeof cb === 'function') {
+          return acknowledgment(response);
+        }
+
+        return socket.emit(Protocol.ERROR, response);
+      };
+
+      if (!socket.user) {
+        logger.debug('Unauthenticated user attempting to edit a room');
+        return rejectEdit({
+          statusCode: 403,
+          message: 'Must be logged in',
+        });
       }
 
-      if (options.type === 'grand_prix') {
+      if (!socket.room) {
+        logger.debug('User not in a room attempting to edit it');
+        return rejectEdit({
+          statusCode: 400,
+          message: 'Must be in a room',
+        });
+      }
+
+      if (socket.room.admin.id !== socket.user.id) {
+        logger.debug('Non-admin attempting to edit a room');
+        return rejectEdit({
+          statusCode: 403,
+          message: 'Must be admin of room',
+        });
+      }
+
+      if (options.type === 'grand_prix' && !config.grandPrix.enabled) {
         logger.error(`${socket.id} attempted to edit room to grand_prix`);
-        return;
+        return rejectEdit({
+          statusCode: 403,
+          message: 'Grand Prix rooms are disabled',
+        });
       }
 
       try {
         const room = await socket.room.edit(options);
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
+        acknowledgment(null, joinRoomMask(room));
 
         Room.find().then((rooms) => {
-          ns().emit(Protocol.UPDATE_ROOMS, rooms.map(roomMask));
+          ns().emit(
+            Protocol.UPDATE_ROOMS,
+            rooms.filter((candidate) => isRoomTypeEnabled(candidate.type)).map(roomMask),
+          );
         });
       } catch (e) {
-        (logger.error(e));
+        logger.error(e);
+        return rejectEdit({
+          statusCode: e.statusCode || 500,
+          message: e.statusCode ? e.message : 'Failed to edit room',
+        });
       }
     });
 
     on(Protocol.START_ROOM, async () => {
       if (!checkAdmin()) {
+        return;
+      }
+      if (!isRoomTypeEnabled(socket.room.type)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 403,
+          event: Protocol.START_ROOM,
+          message: 'Grand Prix rooms are disabled',
+        });
         return;
       }
 
@@ -668,6 +919,13 @@ module.exports = (io, middlewares) => {
       try {
         const room = await socket.room.dropUser({ id: userId });
 
+        await metrics.endRoomVisit({
+          room,
+          userId,
+          leaveReason: 'kick',
+          activeUserCount: room.usersLength,
+        });
+
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.KICKED);
         removeUserFromRoomSockets(ns(), userId, socket.room);
 
@@ -676,7 +934,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(socket.room.accessCode).emit(Protocol.USER_LEFT, userId);
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -695,6 +953,13 @@ module.exports = (io, middlewares) => {
       try {
         const room = await socket.room.banUser(userId);
 
+        await metrics.endRoomVisit({
+          room,
+          userId,
+          leaveReason: 'ban',
+          activeUserCount: room.usersLength,
+        });
+
         ns().in(encodeUserRoom(userId, socket.room._id)).emit(Protocol.BANNED);
         removeUserFromRoomSockets(ns(), userId, socket.room);
 
@@ -703,7 +968,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
 
         if (room.doneWithScramble()) {
           logger.debug('everyone done, sending new scramble');
@@ -727,7 +992,7 @@ module.exports = (io, middlewares) => {
         }
 
         ns().in(room.accessCode).emit(Protocol.UPDATE_ROOM, joinRoomMask(room));
-        ns().emit(Protocol.GLOBAL_ROOM_UPDATED, roomMask(room));
+        sendGlobalRoomUpdate(room);
       } catch (e) {
         logger.error(e);
       }
@@ -765,7 +1030,19 @@ module.exports = (io, middlewares) => {
         logger.info(`socket ${socket.id} disconnected; Left room: ${socket.room ? socket.room.name : 'Null'}`, { roomId: socket.roomId });
 
         if (socket.user && socket.room) {
-          await leaveRoom();
+          reconnectGrace.schedule({
+            roomId: socket.roomId,
+            userId: socket.userId,
+            connectionId: socket.id,
+            leaveReason: 'disconnect',
+          });
+        } else if (socket.room) {
+          await metrics.endRoomVisit({
+            room: socket.room,
+            connectionId: socket.id,
+            leaveReason: 'disconnect',
+            activeUserCount: socket.room.usersLength,
+          });
         }
 
         updateClientsWithUsers();
@@ -777,8 +1054,15 @@ module.exports = (io, middlewares) => {
     on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
         if (socket.user) {
-          await leaveRoom();
+          await leaveRoom('explicit');
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
+        } else {
+          await metrics.endRoomVisit({
+            room: socket.room,
+            connectionId: socket.id,
+            leaveReason: 'explicit',
+            activeUserCount: socket.room.usersLength,
+          });
         }
 
         socket.leave(socket.room.accessCode);

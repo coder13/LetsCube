@@ -2,6 +2,7 @@ export const ROOM_UPDATED = 'room/updated';
 export const RESET_ROOM = 'room/reset';
 export const DELETE_ROOM = 'room/delete';
 export const JOIN_ROOM = 'room/join';
+export const ROOM_JOIN_FAILED = 'room/join_failed';
 export const LEAVE_ROOM = 'room/leave';
 export const SUBMIT_RESULT = 'room/submit_result';
 export const NEW_RESULT = 'room/new_result';
@@ -27,6 +28,11 @@ export const NEXT_SOLVE_AT = 'room/next_solve_at';
 export const START_ROOM = 'room/start_room';
 export const PAUSE_ROOM = 'room/pause_room';
 export const TOGGLE_FOLLOW_USER = 'room/toggle_follow_user';
+export const RESULT_SUBMISSION_PENDING = 'room/result_submission_pending';
+export const RESULT_SUBMISSION_SENDING = 'room/result_submission_sending';
+export const RESULT_SUBMISSION_FAILED = 'room/result_submission_failed';
+export const RESULT_SUBMISSION_CLEARED = 'room/result_submission_cleared';
+export const DISCARD_PENDING_RESULT = 'room/discard_pending_result';
 
 export const roomUpdated = (room) => ({
   type: ROOM_UPDATED,
@@ -43,17 +49,51 @@ export const deleteRoom = (id) => ({
   id,
 });
 
-export const joinRoom = ({ id, spectating, password }) => ({
+export const joinRoom = ({
+  id, spectating, password, reconnecting = false,
+}) => ({
   type: JOIN_ROOM,
   id,
   spectating,
   password,
+  reconnecting,
+});
+
+export const roomJoinFailed = (error) => ({
+  type: ROOM_JOIN_FAILED,
+  error,
 });
 
 // We're submitting a new result
 export const submitResult = (result) => ({
   type: SUBMIT_RESULT,
   result,
+});
+
+export const resultSubmissionPending = (pendingResult) => ({
+  type: RESULT_SUBMISSION_PENDING,
+  pendingResult,
+});
+
+export const resultSubmissionSending = (submissionId) => ({
+  type: RESULT_SUBMISSION_SENDING,
+  submissionId,
+});
+
+export const resultSubmissionFailed = (submissionId, error) => ({
+  type: RESULT_SUBMISSION_FAILED,
+  submissionId,
+  error,
+});
+
+export const resultSubmissionCleared = (submissionId) => ({
+  type: RESULT_SUBMISSION_CLEARED,
+  submissionId,
+});
+
+export const discardPendingResult = (submissionId) => ({
+  type: DISCARD_PENDING_RESULT,
+  submissionId,
 });
 
 // A new result came in

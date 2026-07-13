@@ -3,9 +3,17 @@
     "port": 8080
   },
   "socketio": {
-    "port": 9000
+    "port": 9000,
+    "reconnectGraceMs": 60000
   },
   "mongodb": "mongodb://127.0.0.1/letscube",
+  "postgres": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "database": "letscube",
+    "user": "letscube",
+    "password": "letscube"
+  },
   "wcaSource": "https://staging.worldcubeassociation.org",
   "auth": {
     "secret": "",

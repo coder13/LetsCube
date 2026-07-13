@@ -228,6 +228,10 @@ class Timer extends React.Component {
   setStatus (status) {
     this.setState({ status });
 
+    if (status === STATUS.TIMING) {
+      this.props.onPriming();
+    }
+
     if (STATUSES.indexOf(status) > -1) {
       this.props.onStatusChange(status);
     }

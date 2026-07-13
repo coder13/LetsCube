@@ -7,8 +7,8 @@ import {
 } from '@material-ui/core/colors';
 import {
   createMuiTheme,
-  ThemeProvider as MuiThemeProvider,
 } from '@material-ui/core/styles';
+import MuiThemeProvider from '@material-ui/styles/ThemeProvider';
 import useMediaQuery from '@material-ui/core/useMediaQuery';
 
 const defaultTheme = createMuiTheme();

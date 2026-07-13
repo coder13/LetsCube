@@ -2,6 +2,8 @@ const express = require('express');
 const CustomStrategy = require('passport-custom').Strategy;
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
+const metrics = require('../metrics');
+const { buildWcaUserUpdate } = require('./wcaProfile');
 
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
@@ -20,10 +22,11 @@ module.exports = (app, passport) => {
     const { code, redirectUri } = req.body;
 
     if (!code) {
-      done(new Error({
-        status: 400,
-        message: 'Invalid code passed',
-      }));
+      const err = new Error('Invalid code passed');
+      Object.defineProperty(err, 'authFailureReason', {
+        value: 'missing_code',
+      });
+      done(err);
       return;
     }
 
@@ -35,7 +38,6 @@ module.exports = (app, passport) => {
           id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
           name: 'Cypress Test User',
           username: 'cypress',
-          email: 'cypress@example.com',
           wcaId: '2026TEST01',
           accessToken: `test-token-${code}`,
           avatar: {},
@@ -87,14 +89,7 @@ module.exports = (app, passport) => {
 
       User.findOneAndUpdate({
         id: +profile.id,
-      }, {
-        id: +profile.id,
-        name: profile.name,
-        email: profile.email,
-        wcaId: profile.wca_id,
-        accessToken: tokenRes.access_token,
-        avatar: profile.avatar,
-      }, {
+      }, buildWcaUserUpdate(profile, tokenRes.access_token), {
         upsert: true,
         useFindAndModify: false,
         new: true,
@@ -118,19 +113,24 @@ module.exports = (app, passport) => {
 
   router.post('/code',
     (req, res, next) => {
-      passport.authenticate('custom', (err, user) => {
+      passport.authenticate('custom', async (err, user) => {
         if (err) {
+          await metrics.recordAuthFailure(
+            err.authFailureReason || 'provider_or_persistence_error',
+          );
           return res.status(500).json(err);
         }
 
         if (!user) {
+          await metrics.recordAuthFailure('no_user');
           return res.status(401).json({
             message: 'Authentication failed',
           });
         }
 
-        req.login(user, (loginErr) => {
+        req.login(user, async (loginErr) => {
           if (loginErr) {
+            await metrics.recordAuthFailure('session_login_error');
             return res.json(loginErr);
           }
 

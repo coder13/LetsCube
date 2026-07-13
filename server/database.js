@@ -12,7 +12,7 @@ module.exports.connect = async () => {
     logger.debug('[MONGODB] Connected to database.', { url: config.mongodb });
   }).catch((err) => {
     logger.error('[MONGODB] Error when connecting to database', err);
-    process.exit();
+    process.exit(1);
   });
 
   return mongoose;

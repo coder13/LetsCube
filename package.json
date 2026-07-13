@@ -3,9 +3,11 @@
   "packageManager": "yarn@1.22.22",
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "packages/*"
   ],
   "resolutions": {
+    "@hono/node-server": "1.19.13",
     "cheerio": "1.0.0-rc.12"
   },
   "scripts": {

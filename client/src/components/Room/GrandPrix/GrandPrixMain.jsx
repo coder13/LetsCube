@@ -9,7 +9,6 @@ import Divider from '@material-ui/core/Divider';
 import Typography from '@material-ui/core/Typography';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Button from '@material-ui/core/Button';
-import { Cube } from 'react-cube-svg';
 import { formatISO9075 } from 'date-fns';
 import calcStats from '../../../lib/stats';
 import {
@@ -19,12 +18,14 @@ import {
   toggleFollowUser,
 } from '../../../store/room/actions';
 import { getRegisteredUsers } from '../../../store/room/selectors';
+import { isPendingResult } from '../../../store/room/resultOutbox';
 import { StatsDialogProvider } from '../Common/StatsDialogProvider';
 import { EditDialogProvider } from '../Common/EditDialogProvider';
 import TimesTable from '../Common/TimesTable';
 import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../common/Scramble';
+import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from '../Common/UserStats';
 import UserSelectorDialog from '../Common/UserSelectorDialog';
 
@@ -184,7 +185,7 @@ function Main({ room, user }) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-  const [currentAttemptId, setCurrentAttemptId] = useState(undefined);
+  const [currentAttempt, setCurrentAttempt] = useState(undefined);
   const [followUserDialogOpen, setFollowUserDialogOpen] = useState(false);
 
   const {
@@ -204,14 +205,16 @@ function Main({ room, user }) {
     }
 
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
+    const submittedAttempt = currentAttempt || latestAttempt;
     dispatch(submitResult({
-      id: currentAttemptId || latestAttempt.id,
+      id: submittedAttempt.id,
+      attemptKey: submittedAttempt._id,
       result: {
         time: event.time,
         penalties: event.penalties,
       },
     }));
-    setCurrentAttemptId(null);
+    setCurrentAttempt(null);
   };
 
   const onTimerFocused = () => {
@@ -228,7 +231,7 @@ function Main({ room, user }) {
 
   const handlePriming = () => {
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
-    setCurrentAttemptId(latestAttempt.id);
+    setCurrentAttempt(latestAttempt);
   };
 
   const handleToggleUserFollow = (userId) => {
@@ -237,10 +240,11 @@ function Main({ room, user }) {
 
   const latestAttempt = attempts && attempts.length && attempts[attempts.length - 1];
   const showScrambleBox = latestAttempt && !latestAttempt.results[user.id];
-  const timerDisabled = !room.timerFocused || !room.competing[user.id] || !showScrambleBox;
+  const timerDisabled = !room.timerFocused || !room.competing[user.id] || !showScrambleBox
+    || isPendingResult(room.resultSubmission && room.resultSubmission.pendingResult);
 
   const stats = calcStats(attempts, users);
-  const showScramble = latestAttempt.scrambles && room.event === '333';
+  const showScramble = latestAttempt.scrambles && latestAttempt.scrambles.length;
 
   return (
     <ClickAwayListener onClickAway={() => { onTimerDefocused(); }}>
@@ -319,7 +323,8 @@ function Main({ room, user }) {
                     }}
                     variant="outlined"
                   >
-                    <Cube
+                    <ScramblePreview
+                      event={room.event}
                       size={240}
                       scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                     />
@@ -369,8 +374,14 @@ Main.propTypes = {
     statuses: PropTypes.shape(),
     registered: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
+      _id: PropTypes.string,
       id: PropTypes.number,
     })),
+    resultSubmission: PropTypes.shape({
+      pendingResult: PropTypes.shape({
+        submissionId: PropTypes.string,
+      }),
+    }),
     admin: PropTypes.shape({
       id: PropTypes.number,
     }),
@@ -399,6 +410,9 @@ Main.defaultProps = {
     statues: {},
     registered: {},
     attempts: [],
+    resultSubmission: {
+      pendingResult: null,
+    },
     admin: {
       id: undefined,
     },

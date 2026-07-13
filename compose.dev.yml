@@ -1,4 +1,8 @@
 services:
+  migrate:
+    profiles:
+      - migrations
+
   client:
     image: node:22-bookworm
     working_dir: /app

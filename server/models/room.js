@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const { Events } = require('../../client/src/lib/events');
+const { generateScramble } = require('letscube-scrambles');
+const { mirrorRoomChanges } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
@@ -17,6 +17,7 @@ const Result = new mongoose.Schema({
     required: true,
   },
   penalties: Object,
+  submissionId: String,
 }, {
   timestamps: true,
 });
@@ -123,10 +124,6 @@ Room.index({
   expireAt: 1,
 }, {
   expireAfterSeconds: 0,
-});
-
-Room.virtual('scrambler').get(function () {
-  return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
 Room.virtual('usersInRoom').get(function () {
@@ -266,16 +263,16 @@ Room.methods.doneWithScramble = function () {
   return (this.waitingForCount === 0 || this.attempts.length === 0) && this.usersInRoom.length > 0;
 };
 
-Room.methods.genAttempt = function () {
+Room.methods.genAttempt = async function () {
   return {
     id: this.attempts.length,
-    scrambles: this.scrambler.get(1).map((i) => i.scramble_string),
+    scrambles: [await generateScramble(this.event)],
     results: {},
   };
 };
 
-Room.methods.newAttempt = function () {
-  const attempt = this.genAttempt();
+Room.methods.newAttempt = async function () {
+  const attempt = await this.genAttempt();
 
   this.attempts = this.attempts.concat([attempt]);
 
@@ -293,9 +290,23 @@ Room.methods.changeEvent = function (event) {
 };
 
 Room.methods.edit = async function (options) {
+  // Older clients sent the room access code when the password field was unchanged.
+  const legacyUnchangedPassword = !!this.password
+    && options.password === this.accessCode;
+  const replacesPassword = typeof options.password === 'string'
+    && options.password.length > 0
+    && !legacyUnchangedPassword;
+  if (options.private && !replacesPassword && !this.password) {
+    const error = new Error('A password is required to make a room private');
+    error.statusCode = 400;
+    throw error;
+  }
+
   this.name = options.name;
   if (options.private) {
-    this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    if (replacesPassword) {
+      this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    }
   } else {
     this.password = null;
   }
@@ -326,5 +337,77 @@ Room.methods.updateAdminIfNeeded = function (cb) {
   }
 };
 
+const collectPostgresChanges = (room) => {
+  const changesByAttempt = new Map();
+  const participantUserIds = new Set();
+  const ensureAttempt = (attemptIndex) => {
+    if (!changesByAttempt.has(attemptIndex)) {
+      changesByAttempt.set(attemptIndex, {
+        attemptIndex,
+        resultUserIds: new Set(),
+        resultsMapModified: false,
+        syncAllResults: false,
+      });
+    }
+    return changesByAttempt.get(attemptIndex);
+  };
+
+  room.modifiedPaths({ includeChildren: true }).forEach((path) => {
+    const participantMatch = path.match(
+      /^(?:competing|waitingFor|banned|inRoom|registered)\.([^.]+)/,
+    );
+    if (participantMatch) {
+      participantUserIds.add(participantMatch[1]);
+    }
+
+    const resultMatch = path.match(/^attempts\.(\d+)\.results(?:\.([^.]+))?/);
+    if (resultMatch) {
+      const change = ensureAttempt(Number(resultMatch[1]));
+      if (resultMatch[2]) {
+        change.resultUserIds.add(resultMatch[2]);
+      } else {
+        change.resultsMapModified = true;
+      }
+      return;
+    }
+
+    const attemptMatch = path.match(/^attempts\.(\d+)\.(?:id|scrambles)(?:\.|$)/);
+    if (attemptMatch) {
+      ensureAttempt(Number(attemptMatch[1]));
+    }
+  });
+
+  (room.attempts || []).forEach((attempt, attemptIndex) => {
+    if (attempt.isNew) {
+      ensureAttempt(attemptIndex).syncAllResults = true;
+    }
+  });
+
+  const attempts = [...changesByAttempt.values()].map((change) => ({
+    attemptIndex: change.attemptIndex,
+    resultUserIds: [...change.resultUserIds],
+    syncAllResults: change.syncAllResults
+      || (change.resultsMapModified && change.resultUserIds.size === 0),
+  }));
+
+  return {
+    attempts,
+    participantUserIds: [...participantUserIds],
+    replaceAttempts: !room.isNew && room.isModified('event'),
+    syncAllParticipants: room.isNew,
+    syncRoomOwners: room.isNew || room.isModified('owner') || room.isModified('admin'),
+  };
+};
+
+Room.pre('save', function capturePostgresChanges() {
+  this.$locals.postgresChanges = collectPostgresChanges(this);
+});
+
+Room.post('save', async (room) => {
+  // PostgreSQL failures are logged and swallowed by the migration-phase writer.
+  await mirrorRoomChanges(room, room.$locals.postgresChanges);
+});
+
 module.exports.Attempt = Attempt;
+module.exports.collectPostgresChanges = collectPostgresChanges;
 module.exports.Room = Room;
