@@ -17,7 +17,7 @@ const decodeCursor = (value) => {
   if (!value || typeof value !== 'string') return null;
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
-    return typeof parsed.usernameNormalized === 'string' && validId(parsed.id) ? parsed : null;
+    return validId(parsed.id) ? parsed : null;
   } catch (err) {
     return null;
   }
@@ -25,7 +25,6 @@ const decodeCursor = (value) => {
 
 const encodeCursor = (user) => Buffer.from(JSON.stringify({
   id: user.id,
-  usernameNormalized: user.usernameNormalized,
 })).toString('base64url');
 
 const relationshipDetails = (actorId, targetId, relationship) => {
@@ -67,9 +66,24 @@ const createDiscoveryService = ({
 
   const publicProfile = async (actor, targetValue) => {
     const viewerId = actorId(actor);
-    const targetId = toId(targetValue);
-    if (!validId(targetId)) return null;
-    const target = await lean(userModel.findOne({ id: targetId }));
+    if (typeof targetValue !== 'string' || targetValue.includes('@')) return null;
+    const query = targetValue.normalize('NFKC').trim();
+    if (!query) return null;
+    let targetQuery;
+    if (WCA_ID.test(query)) {
+      targetQuery = { showWCAID: true, wcaId: query.toUpperCase() };
+    } else {
+      try {
+        targetQuery = {
+          usernameNormalized: normalizeUsername(query, { allowEmpty: false }).usernameNormalized,
+        };
+      } catch (err) {
+        return null;
+      }
+    }
+    await searchLimiter.consume({ actorId: viewerId });
+    const target = await lean(userModel.findOne(targetQuery));
+    const targetId = target && target.id;
     if (!target || (await blockedIds(viewerId)).has(targetId)) return null;
     const relationship = viewerId === targetId ? null : await lean(
       relationshipModel.findOne({ pairKey: pairKey(viewerId, targetId) }),
@@ -111,22 +125,17 @@ const createDiscoveryService = ({
     }
     const cursor = decodeCursor(cursorValue);
     if (cursor) {
-      conditions.push({
-        $or: [
-          { usernameNormalized: { $gt: cursor.usernameNormalized } },
-          { usernameNormalized: cursor.usernameNormalized, id: { $gt: cursor.id } },
-        ],
-      });
+      conditions.push({ id: { $gt: cursor.id } });
     }
     const users = await lean(userModel.find({ $and: conditions })
-      .sort({ usernameNormalized: 1, id: 1 }).limit(limit + 1));
+      .sort({ id: 1 }).limit(limit + 1));
     const blocked = await blockedIds(viewerId);
     const visible = users.filter((user) => !blocked.has(user.id));
     const page = visible.slice(0, limit).map((user) => publicUserProjection(user));
     const hasMore = users.length > limit;
     return {
       nextCursor: hasMore && page.length
-        ? encodeCursor(users[Math.min(users.length, limit) - 1])
+        ? encodeCursor(users[limit - 1])
         : null,
       results: page,
     };

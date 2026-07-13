@@ -7,6 +7,7 @@ const publicUserProjection = (user) => {
     id: user.id,
     username: user.username || null,
     displayName: user.preferRealName ? user.name : (user.username || null),
+    profileKey: user.usernameNormalized || (user.showWCAID ? user.wcaId : null),
   };
 
   if (user.showWCAID) {
