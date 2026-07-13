@@ -1,69 +1,111 @@
-The project is split into 2 parts: the server, and the client.
+# Contributing to Let's Cube
 
-# Sending a Pull Request
+Thank you for helping improve Let's Cube. Keep changes focused, preserve the
+existing behavior outside the task, and include tests when behavior changes.
 
-1. Fork the repo
-2. Clone it to your machine
+## Before You Start
 
-```bash
-git clone git@github.com:<yourusername>/letscube.git
-cd letscube
-git remote add upstream git@github.com:coder13/letscube.git
+Read the [development guide](docs/development.md) and the documentation for the
+area being changed. The repository targets Node `22.17.0`, Yarn classic, and
+Docker Compose.
+
+Install dependencies once from the repository root:
+
+```sh
+nvm use
+corepack enable
+yarn install --frozen-lockfile
 ```
 
-3. Sync your local `master` branch with upstream:
-```bash
-get checkout master
-git pull upstream master
+Do not run separate installs or create lockfiles inside workspaces.
+
+## Branches
+
+Create branches from the latest `master`:
+
+```sh
+git fetch origin
+git switch -c your-branch origin/master
 ```
 
-4. Create a new feature branch:
-```bash
-git checkout -b feature-branch
+If you use a fork, replace `origin` with the remote that tracks the canonical
+repository. Pull requests should target `master`.
+
+Keep each pull request limited to one coherent change. Before publishing,
+inspect both the commit list and the complete diff against `master` to make sure
+the branch does not include work inherited from another feature branch.
+
+## Code Style
+
+- Follow the surrounding JavaScript and React patterns.
+- The client and server use ESLint configurations based on Airbnb's style.
+- Prefer small modules organized by responsibility over broad rewrites.
+- Add comments only when they explain a non-obvious constraint or decision.
+- Avoid unrelated formatting, dependency, or generated-file churn.
+
+The repository contains modernized and legacy areas side by side. A change does
+not need to modernize adjacent code unless that work is part of its purpose.
+
+## Tests And Checks
+
+Run focused checks while iterating:
+
+```sh
+yarn turbo run lint --filter=letscube-client
+yarn turbo run test:ci --filter=letscube-client
+
+yarn turbo run lint --filter=letscube-server
+yarn turbo run test:ci --filter=letscube-server
+
+yarn turbo run lint --filter=letscube-scrambles
+yarn turbo run test:ci --filter=letscube-scrambles
 ```
 
-5. Commit and push the changes:
-```bash
-git push -u
+Run the broad checks before requesting review when the change crosses workspace
+boundaries:
+
+```sh
+yarn lint
+yarn test
+yarn build
 ```
 
-7. Go to the [repository](https://github.com/coder13/letscube) and make a Pull Request to the `dev` branch.
+Use `yarn cypress:run` for behavior that spans the browser, API, and Socket.IO
+server. See [Development](docs/development.md#full-stack-cypress) for the local
+stack expected by Cypress.
 
-# Installing and Running:
+Every behavior change should have a test at the narrowest useful layer. UI
+changes should include screenshots or a short recording in the pull request.
 
-`npm install` in the root directory installs the pre-commit hook.
+## Database Changes
 
-## to start the bash server:
+PostgreSQL schema changes must be represented in Prisma and committed as a
+migration. Validate them with:
 
-```bash
-cd server/
-npm install
-npm start
+```sh
+yarn workspace letscube-server postgres:schema:validate
+yarn workspace letscube-server postgres:migrate
+yarn workspace letscube-server postgres:schema:check
 ```
 
-## to start the client dev server:
+Migrations must remain compatible with the previously deployed application
+image because application rollback does not reverse database migrations. Read
+[Data and migrations](docs/data.md) before changing persistence.
 
-```bash
-cd client/
-npm install
-npm start
-```
-# Pre-commit hook
+## Pull Requests
 
-When installed properly, the pre-commit hook won't let you commit without the client and server being properly linted and tests being ran.
+A pull request should include:
 
-# Linting
+- the problem and intended behavior;
+- a concise summary of the implementation;
+- the checks that passed, failed, or were not run;
+- migration, deployment, or compatibility considerations;
+- screenshots for visible UI changes; and
+- links to relevant issues.
 
-Both the client and the server use eslint and a slight variation of [airbnb's style guide](https://github.com/airbnb/javascript).
+Write commit subjects in the imperative mood. Include a short commit body that
+explains what changed and why.
 
-# Tests
-
-LetsCube is currently using Jest and Enzyme for testing. Right now there is very minimal tests but I would like to add much more coverage in time. For any complicated computational code, it should be tested to make sure there are no errors.
-
-# Nit picky stuff:
-
-This project uses React: A component should be made whenever something gets too complicated (like with the timesTable) or if it's going to be used repeatedly. 
-
-Redux: I'd like to keep the number of reducers relatively low. Please get in contact with me before adding another reducer.
-
-Socket.IO: A common code pattern I found myself using is socket events to send information from a client and a separate event to echo the data to clients. If not done properly and one event was used for both, an infinite loop would happen. Take this into consideration when creating events that echo to other users.
+Do not include credentials, production data, access tokens, or private logs. If
+you discover a vulnerability, follow [SECURITY.md](SECURITY.md) instead of
+opening a public issue.
