@@ -33,9 +33,11 @@ module.exports = (app, passport) => {
 
     if (process.env.LETSCUBE_TEST_AUTH === 'true') {
       try {
+        const testUserMatch = /^cypress-test-user-(\d+)$/.exec(code);
         const user = await upsertTestUser(User, {
           code,
-          userId: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
+          userId: testUserMatch
+            ? Number(testUserMatch[1]) : +(process.env.LETSCUBE_TEST_USER_ID || 990001),
         });
 
         done(null, user.toObject());

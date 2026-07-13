@@ -12,9 +12,11 @@ import Avatar from '@material-ui/core/Avatar';
 import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
 import MenuItem from '@material-ui/core/MenuItem';
+import Badge from '@material-ui/core/Badge';
 import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 import { getWcaAuthorizationUrl } from '../lib/wcaAuth';
+import NotificationsIcon from '@material-ui/icons/Notifications';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -42,10 +44,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function Header({ user, room }) {
+function Header({ user, room, notifications }) {
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -55,6 +58,8 @@ function Header({ user, room }) {
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  const closeNotifications = () => setNotificationAnchorEl(null);
 
   const login = () => {
     const redirectUri = `${document.location.origin}/wca-redirect`;
@@ -93,6 +98,41 @@ function Header({ user, room }) {
         { loggedIn
           ? (
             <div style={{ display: 'flex' }}>
+              {notifications.enabled && (
+                <>
+                  <IconButton
+                    aria-label="Notifications"
+                    aria-controls="notification-menu"
+                    aria-haspopup="true"
+                    color="inherit"
+                    onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
+                  >
+                    <Badge badgeContent={notifications.unreadCount} color="secondary">
+                      <NotificationsIcon />
+                    </Badge>
+                  </IconButton>
+                  <Menu
+                    anchorEl={notificationAnchorEl}
+                    id="notification-menu"
+                    keepMounted
+                    onClose={closeNotifications}
+                    open={Boolean(notificationAnchorEl)}
+                  >
+                    {notifications.notifications.length === 0 && <MenuItem disabled>No notifications</MenuItem>}
+                    {notifications.notifications.slice(0, 5).map((notification) => (
+                      <MenuItem
+                        component={Link}
+                        key={notification.id}
+                        onClick={closeNotifications}
+                        to="/notifications"
+                      >
+                        {notification.type === 'friend_request' ? 'Friend request' : 'Notification'}
+                      </MenuItem>
+                    ))}
+                    <MenuItem component={Link} onClick={closeNotifications} to="/notifications">View all notifications</MenuItem>
+                  </Menu>
+                </>
+              )}
               <IconButton onClick={handleMenu} color="inherit">
                 <Avatar src={user.avatar.thumb_url} />
               </IconButton>
@@ -136,6 +176,11 @@ Header.propTypes = {
     name: PropTypes.string,
     event: PropTypes.string,
   }),
+  notifications: PropTypes.shape({
+    enabled: PropTypes.bool,
+    notifications: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, type: PropTypes.string })),
+    unreadCount: PropTypes.number,
+  }),
 };
 
 Header.defaultProps = {
@@ -152,12 +197,18 @@ Header.defaultProps = {
     name: undefined,
     event: undefined,
   },
+  notifications: {
+    enabled: false,
+    notifications: [],
+    unreadCount: 0,
+  },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
   user: state.user,
   roomName: state.room.name,
+  notifications: state.notifications,
 });
 
 export default connect(mapStateToProps)(Header);

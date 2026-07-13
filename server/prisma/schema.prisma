@@ -31,6 +31,27 @@ model User {
   @@schema("app")
 }
 
+model SocialNotification {
+  id                 String   @id @db.Uuid
+  mongoId            String   @unique(map: "social_notifications_mongo_id_key") @map("mongo_id")
+  recipientWcaUserId BigInt   @map("recipient_wca_user_id")
+  actorWcaUserId     BigInt   @map("actor_wca_user_id")
+  type               String
+  sourceType         String   @map("source_type")
+  sourceId           String   @map("source_id")
+  dedupeKey          String   @unique(map: "social_notifications_dedupe_key_key") @map("dedupe_key")
+  readAt             DateTime? @map("read_at") @db.Timestamptz(6)
+  expiresAt          DateTime @map("expires_at") @db.Timestamptz(6)
+  sourceCreatedAt    DateTime? @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt    DateTime @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt         DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+
+  @@index([recipientWcaUserId, readAt, sourceCreatedAt(sort: Desc), mongoId(sort: Desc)], map: "social_notifications_recipient_read_created_idx")
+  @@index([expiresAt], map: "social_notifications_expiry_idx")
+  @@map("social_notifications")
+  @@schema("app")
+}
+
 model FriendRelationship {
   id                String    @id @db.Uuid
   pairKey           String    @unique(map: "friend_relationships_pair_key_key") @map("pair_key")

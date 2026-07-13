@@ -4,9 +4,9 @@ const upsertTestUser = (User, { code, userId }) => User.findOneAndUpdate({
   id: userId,
 }, {
   id: userId,
-  name: 'Cypress Test User',
-  ...normalizeUsername('cypress'),
-  wcaId: '2026TEST01',
+  name: `Cypress Test User ${userId}`,
+  ...normalizeUsername(`cypress-${userId}`),
+  wcaId: `2026TEST${userId}`,
   accessToken: `test-token-${code}`,
   avatar: {},
 }, {

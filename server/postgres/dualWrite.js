@@ -202,6 +202,34 @@ const mirrorBlock = (block, blocker, blocked) => withTransaction(async (client) 
   return block.pairKey;
 });
 
+// Notifications intentionally mirror numeric user references only. Do not call
+// upsertUser here: notifications have no email contract, including indirectly.
+const mirrorNotification = (notification) => withTransaction((client) => client.query(`
+  INSERT INTO app.social_notifications (
+    id, mongo_id, recipient_wca_user_id, actor_wca_user_id, type, source_type,
+    source_id, dedupe_key, read_at, expires_at, source_created_at, source_updated_at
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+  ON CONFLICT (mongo_id) DO UPDATE SET
+    read_at = EXCLUDED.read_at,
+    expires_at = EXCLUDED.expires_at,
+    source_updated_at = EXCLUDED.source_updated_at,
+    ingested_at = now()
+  WHERE app.social_notifications.source_updated_at <= EXCLUDED.source_updated_at
+`, [
+  stableId('social-notification', notification._id.toString()),
+  notification._id.toString(),
+  notification.recipientId,
+  notification.actorId,
+  notification.type,
+  notification.sourceType,
+  notification.sourceId,
+  notification.dedupeKey,
+  notification.readAt || null,
+  notification.expiresAt,
+  notification.createdAt || null,
+  sourceDate(notification.updatedAt, notification.createdAt),
+]));
+
 const upsertRoomState = async (client, room, options = {}) => {
   if (!room || !room._id) {
     return null;
@@ -639,6 +667,7 @@ module.exports = {
   markRoomDeleted,
   mirrorBlock,
   mirrorMetricEvent,
+  mirrorNotification,
   mirrorRelationship,
   mirrorRoom,
   mirrorRoomChanges,

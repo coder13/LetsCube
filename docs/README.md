@@ -11,3 +11,4 @@ The backend is built with NodeJS, Express and MongoDB, and they are both connect
 ## Feature contracts
 
 - [Friendship and blocking lifecycle](friendships.md)
+- [In-app social notifications](notifications.md)

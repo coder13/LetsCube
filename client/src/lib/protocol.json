@@ -8,6 +8,8 @@
   "HEALTH_CHECK": "health_check",
   "HEALTH_STATUS": "health_status",
   "FRIEND_STATE_INVALIDATED": "friend_state_invalidated",
+  "NOTIFICATION_CREATED": "notification_created",
+  "NOTIFICATION_UPDATED": "notification_updated",
   "ERROR": "errorrr",
   "UPDATE_ROOMS": "update_rooms",
   "UPDATE_ROOM": "update_room",

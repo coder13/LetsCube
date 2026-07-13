@@ -6,6 +6,13 @@ describe('local app stack', () => {
     });
   };
 
+  const loginAs = (userId) => {
+    cy.request('POST', 'http://localhost:8080/auth/code', {
+      code: `cypress-test-user-${userId}`,
+      redirectUri: 'http://localhost:3000/wca-redirect',
+    });
+  };
+
   it('shows the lobby without a logged-in session', () => {
     cy.visit('/');
 
@@ -84,5 +91,30 @@ describe('local app stack', () => {
     cy.get('input[placeholder="Send Message"]').type(`${message}{enter}`);
 
     cy.contains(message, { timeout: 10000 }).should('be.visible');
+  });
+
+  it('delivers and acts on a friend request notification for two users', () => {
+    const requesterId = 990001;
+    const recipientId = 990002;
+
+    loginAs(recipientId);
+    loginAs(requesterId);
+    cy.request('POST', 'http://localhost:8080/api/friends/requests', { userId: recipientId })
+      .its('status').should('eq', 201);
+
+    loginAs(recipientId);
+    cy.request('http://localhost:8080/api/notifications').then((response) => {
+      expect(response.status).to.eq(200);
+      expect(response.body.notifications.some((notification) => (
+        notification.type === 'friend_request' && notification.actor.id === requesterId
+      ))).to.eq(true);
+    });
+
+    cy.visit('/notifications');
+    cy.get('button[aria-label="accept friend request"]').click();
+
+    loginAs(requesterId);
+    cy.visit('/notifications');
+    cy.contains('accepted your friend request.', { timeout: 10000 }).should('be.visible');
   });
 });

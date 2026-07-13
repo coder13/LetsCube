@@ -12,6 +12,7 @@ const {
   mirrorRelationship,
 } = require('../postgres/dualWrite');
 const { publishSocialInvalidation } = require('../realtime/socialEvents');
+const notificationService = require('./notificationService');
 const publicUserProjection = require('./publicUser');
 const {
   ACTIONS,
@@ -71,6 +72,7 @@ const createRelationshipService = ({
     mirrorRelationship,
   },
   notifier = publishSocialInvalidation,
+  notifications = notificationService,
   now = () => new Date(),
 } = {}) => {
   const runInBackground = (operation) => {
@@ -238,6 +240,21 @@ const createRelationshipService = ({
 
       if (transition.kind !== 'noop') {
         runInBackground(mirrors.mirrorRelationship(persisted, [actorUser, targetUser]));
+      }
+      if (transition.outcome === 'request_created') {
+        await notifications.createFriendRequest({
+          actor: actorUser,
+          recipient: targetUser,
+          relationship: persisted,
+        });
+      }
+      if (transition.outcome === 'request_accepted'
+        || transition.outcome === 'crossed_request_accepted') {
+        await notifications.createFriendRequestAccepted({
+          actor: actorUser,
+          recipient: targetUser,
+          relationship: persisted,
+        });
       }
       if (transition.kind !== 'noop') {
         invalidate([actorId, targetId]);

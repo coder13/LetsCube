@@ -11,6 +11,7 @@ const {
   markRoomDeleted,
   mirrorBlock,
   mirrorMetricEvent,
+  mirrorNotification,
   mirrorRelationship,
   mirrorRoom,
   mirrorRoomChanges,
@@ -247,6 +248,28 @@ describe('PostgreSQL dual writer', () => {
     postgres.withTransaction.mockResolvedValueOnce(null);
     await expect(mirrorRelationship({ pairKey: '1234:5678' }, []))
       .resolves.toBeNull();
+  });
+
+  it('mirrors notification references without email or user upserts', async () => {
+    await mirrorNotification({
+      _id: '507f1f77bcf86cd799439011',
+      actorId: 5678,
+      createdAt: new Date('2026-07-12T20:00:00.000Z'),
+      dedupeKey: 'friend-request:relationship-1:0',
+      expiresAt: new Date('2026-08-11T20:00:00.000Z'),
+      recipientId: 1234,
+      sourceId: 'relationship-1',
+      sourceType: 'friend_relationship',
+      type: 'friend_request',
+      updatedAt: new Date('2026-07-12T20:00:00.000Z'),
+    });
+
+    const [sql, values] = client.query.mock.calls[0];
+    expect(sql).toContain('INSERT INTO app.social_notifications');
+    expect(values).toContain(1234);
+    expect(values).toContain(5678);
+    expect(values).not.toContain('solver@example.com');
+    expect(client.query.mock.calls.some(([statement]) => statement.includes('INSERT INTO app.users'))).toBe(false);
   });
 
   it('rejects deliberately reordered stale relationship and block mirrors', async () => {

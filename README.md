@@ -116,3 +116,6 @@ for the required collision audit, production order, and rollback procedure.
 Friend relationships and directional blocks use revisioned tombstone rows;
 strictly older mirrors are ignored so reordered background writes cannot
 resurrect a removed relationship or a deactivated block.
+Social notifications mirror only numeric recipient and actor references plus
+their typed resource metadata; the notification mirror does not read or write
+email addresses.
