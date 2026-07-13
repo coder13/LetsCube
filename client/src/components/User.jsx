@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { makeStyles } from '@material-ui/core/styles';
 import Popover from '@material-ui/core/Popover';
 import Typography from '@material-ui/core/Typography';
+import { Link } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -55,7 +56,8 @@ function User({ user, admin, className }) {
         aria-haspopup="true"
         onMouseEnter={handlePopoverOpen}
         onMouseLeave={handlePopoverClose}
-        component="span"
+        component={user.id ? Link : 'span'}
+        to={user.id ? `/users/${user.id}` : undefined}
         variant="subtitle2"
       >
         {user.displayName}
@@ -106,6 +108,7 @@ function User({ user, admin, className }) {
 
 User.propTypes = {
   user: PropTypes.shape({
+    id: PropTypes.number,
     displayName: PropTypes.string,
     username: PropTypes.string,
     wcaId: PropTypes.string,

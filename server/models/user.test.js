@@ -39,6 +39,13 @@ describe('user username schema', () => {
     expect(UserSchema.options.autoIndex).toBe(false);
   });
 
+  it('indexes explicit visible WCA ID lookup separately from private identity data', () => {
+    expect(UserSchema.indexes()).toContainEqual([
+      { showWCAID: 1, wcaId: 1 },
+      expect.objectContaining({ name: 'users_visible_wca_id_lookup' }),
+    ]);
+  });
+
   it('normalizes direct username writes through the shared validation path', async () => {
     const user = new User({
       id: 1,

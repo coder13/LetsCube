@@ -4,6 +4,7 @@ const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 const { updateUsername } = require('./username');
 const createFriendsRouter = require('./api/friends');
+const createUsersRouter = require('./api/users');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -32,8 +33,13 @@ module.exports = (app) => {
 
   if (app.get('config').socialFeatures.enabled) {
     router.use('/friends', createFriendsRouter());
+    router.use('/users', createUsersRouter());
   } else {
     router.use('/friends', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+    router.use('/users', (req, res) => res.status(404).json({
       code: 'feature_disabled',
       message: 'This feature is not available',
     }));
