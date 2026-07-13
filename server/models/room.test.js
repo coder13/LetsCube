@@ -275,7 +275,6 @@ describe('room security helpers', () => {
     const model = {
       findOneAndUpdate: jest.fn(() => query),
     };
-    const updatedAt = new Date('2026-07-13T04:30:00.000Z');
     const room = {
       _id: 'room-one',
       owner,
@@ -284,7 +283,6 @@ describe('room security helpers', () => {
       inRoom: new Map([['101', true], ['202', true]]),
       type: 'normal',
       membershipRevision: 7,
-      updatedAt,
       constructor: model,
     };
 
@@ -294,7 +292,6 @@ describe('room security helpers', () => {
       _id: room._id,
       'inRoom.101': true,
       membershipRevision: 7,
-      updatedAt,
     }, {
       $set: {
         'inRoom.101': false,

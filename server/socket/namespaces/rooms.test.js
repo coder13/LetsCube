@@ -71,6 +71,7 @@ const makeRoom = (overrides = {}) => ({
   inRoom: new Map(),
   banned: new Map(),
   registered: new Map(),
+  membershipRevision: 7,
   requireRevealedIdentity: false,
   usersLength: 1,
   authenticate: jest.fn().mockResolvedValue(true),
@@ -378,6 +379,7 @@ describe('room namespace departures and moderation', () => {
       roomId: room._id,
       userId: 101,
       connectionId: 'host-socket',
+      membershipRevision: room.membershipRevision,
       leaveReason: 'explicit',
     });
 
@@ -385,7 +387,7 @@ describe('room namespace departures and moderation', () => {
     expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
   });
 
-  it('emits metrics and leave events only for the process that claims a departure', async () => {
+  it('does not let a losing departure remove a later rejoin', async () => {
     const room = makeRoom({
       private: false,
       password: null,
@@ -394,41 +396,47 @@ describe('room namespace departures and moderation', () => {
     const updatedRoom = {
       ...room,
       inRoom: new Map([['101', false]]),
+      membershipRevision: 8,
       usersLength: 0,
       doneWithScramble: jest.fn().mockReturnValue(false),
     };
-    let claimed = false;
-    room.dropUserAtomically = jest.fn(async () => {
-      if (claimed) {
-        return null;
-      }
-      claimed = true;
-      return { room: updatedRoom, adminChanged: false };
+    room.dropUserAtomically = jest.fn().mockResolvedValue({
+      room: updatedRoom,
+      adminChanged: false,
     });
     const connect = setup(new Map([[room._id, room]]));
-    const persistedRoom = {
-      ...room,
-      inRoom: new Map([['101', false]]),
-    };
-    Room.findById.mockImplementation(() => queryResult(claimed ? persistedRoom : room));
+    let persistedRoom = room;
+    Room.findById.mockImplementation(() => queryResult(persistedRoom));
     const reconnectGrace = createReconnectGrace.mock.results[0].value;
 
-    await Promise.all([
-      reconnectGrace.finalizeDeparture({
-        roomId: room._id,
-        userId: 101,
-        connectionId: 'socket-on-process-a',
-        leaveReason: 'explicit',
-      }),
-      reconnectGrace.finalizeDeparture({
-        roomId: room._id,
-        userId: 101,
-        connectionId: 'socket-on-process-b',
-        leaveReason: 'explicit',
-      }),
-    ]);
+    await expect(reconnectGrace.finalizeDeparture({
+      roomId: room._id,
+      userId: 101,
+      connectionId: 'winner-socket',
+      membershipRevision: 7,
+      leaveReason: 'explicit',
+    })).resolves.toBe(true);
 
-    expect(room.dropUserAtomically).toHaveBeenCalledTimes(2);
+    const rejoinedRoom = {
+      ...room,
+      admin: { id: 101 },
+      inRoom: new Map([['101', true]]),
+      membershipRevision: 9,
+    };
+    persistedRoom = rejoinedRoom;
+
+    await expect(reconnectGrace.finalizeDeparture({
+      roomId: room._id,
+      userId: 101,
+      connectionId: 'loser-socket',
+      membershipRevision: 7,
+      leaveReason: 'explicit',
+    })).resolves.toBe(false);
+
+    expect(room.dropUserAtomically).toHaveBeenCalledTimes(1);
+    expect(rejoinedRoom.inRoom.get('101')).toBe(true);
+    expect(rejoinedRoom.admin).toEqual({ id: 101 });
+    expect(rejoinedRoom.membershipRevision).toBe(updatedRoom.membershipRevision + 1);
     expect(metrics.endRoomVisit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
@@ -468,6 +476,7 @@ describe('room namespace departures and moderation', () => {
     expect(reconnectGrace.finalize).toHaveBeenCalledWith(expect.objectContaining({
       roomId: room._id,
       userId: 101,
+      membershipRevision: room.membershipRevision,
       leaveReason: 'explicit',
     }));
   });

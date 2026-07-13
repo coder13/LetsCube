@@ -87,6 +87,7 @@ module.exports = (io, middlewares) => {
     return rooms.flatMap((room) => room.usersInRoom.map((user) => ({
       roomId: room._id,
       userId: user.id,
+      membershipRevision: room.membershipRevision,
       leaveReason: 'disconnect',
     })));
   }
@@ -125,32 +126,24 @@ module.exports = (io, middlewares) => {
   }
 
   async function finalizeUserDeparture({
-    roomId, userId, connectionId, leaveReason,
+    roomId, userId, connectionId, leaveReason, membershipRevision,
   }) {
     const userKey = userId.toString();
 
-    // The compare-and-set in dropUserAtomically is the cross-process claim.
-    // A losing process re-reads so it never overwrites a concurrent rejoin.
-    async function claimDeparture() {
-      const room = await fetchRoom(roomId);
-      if (!room || !room.inRoom.get(userKey)) {
-        return null;
-      }
-
-      if (leaveReason === 'disconnect'
-        && await hasActiveSocketsForUserRoom(userId, roomId)) {
-        return null;
-      }
-
-      const departure = await room.dropUserAtomically({ id: userId });
-      if (!departure) {
-        return claimDeparture();
-      }
-
-      return departure;
+    const room = await fetchRoom(roomId);
+    if (!room || !room.inRoom.get(userKey)
+      || room.membershipRevision !== membershipRevision) {
+      return false;
     }
 
-    const departure = await claimDeparture();
+    if (leaveReason === 'disconnect'
+      && await hasActiveSocketsForUserRoom(userId, roomId)) {
+      return false;
+    }
+
+    // The membership revision is the departure generation. A failed claim is
+    // terminal: retrying it after a rejoin would remove the new membership.
+    const departure = await room.dropUserAtomically({ id: userId }, membershipRevision);
     if (!departure) {
       return false;
     }
@@ -378,6 +371,7 @@ module.exports = (io, middlewares) => {
           roomId: socket.roomId,
           userId: socket.userId,
           connectionId: socket.id,
+          membershipRevision: socket.room.membershipRevision,
           leaveReason,
         });
       } catch (e) {
@@ -1077,6 +1071,7 @@ module.exports = (io, middlewares) => {
             roomId: socket.roomId,
             userId: socket.userId,
             connectionId: socket.id,
+            membershipRevision: socket.room.membershipRevision,
             leaveReason: 'disconnect',
           });
         } else if (socket.room) {

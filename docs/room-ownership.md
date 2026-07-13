@@ -37,8 +37,8 @@ rejoins, they reclaim admin before the join is acknowledged.
 The final persisted departure is a MongoDB compare-and-set keyed by the active
 membership revision. This applies across Socket.IO processes: exactly one
 process can claim a leave, emit its room events, and record its metrics. A
-concurrent rejoin advances the revision, so a losing leave retries from current
-state and cannot overwrite the new membership.
+concurrent rejoin advances the revision, so a losing leave is terminal and
+cannot overwrite the new membership.
 
 An empty room persists `admin: null`, but the established `UPDATE_ADMIN`
 Socket.IO event is emitted only for a non-null active admin. Spectators and

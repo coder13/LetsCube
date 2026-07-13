@@ -244,9 +244,13 @@ Room.methods.dropUser = async function (user, updateAdmin) {
   return this.save();
 };
 
-Room.methods.dropUserAtomically = async function (user) {
+Room.methods.dropUserAtomically = async function (
+  user,
+  expectedMembershipRevision = this.membershipRevision || 0,
+) {
   const userKey = user.id.toString();
-  if (!this.inRoom.get(userKey)) {
+  const membershipRevision = this.membershipRevision || 0;
+  if (!this.inRoom.get(userKey) || expectedMembershipRevision !== membershipRevision) {
     return null;
   }
 
@@ -260,14 +264,10 @@ Room.methods.dropUserAtomically = async function (user) {
     admin: this.admin,
   });
   const adminChanged = !sameUser(this.admin, nextAdmin);
-  const membershipRevision = this.membershipRevision || 0;
   const condition = {
     _id: this._id,
     [`inRoom.${userKey}`]: true,
   };
-  if (this.updatedAt) {
-    condition.updatedAt = this.updatedAt;
-  }
   if (membershipRevision > 0) {
     condition.membershipRevision = membershipRevision;
   } else {
