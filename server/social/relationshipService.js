@@ -146,14 +146,19 @@ const createRelationshipService = ({
       }));
       const pendingPairKeys = new Set(pendingRelationships.map(({ pairKey }) => pairKey));
       const staleBefore = new Date(now().getTime() - RESERVATION_STALE_AFTER_MS);
-      const reservations = (quota.reservations || []).filter((reservation) => (
-        pendingPairKeys.has(reservation.pairKey)
-        || new Date(reservation.reservedAt) > staleBefore
-      ));
+      const reservations = (quota.reservations || []).flatMap((reservation) => {
+        if (pendingPairKeys.has(reservation.pairKey)) {
+          return [{ ...reservation, activeOperation: false }];
+        }
+        if (reservation.activeOperation || new Date(reservation.reservedAt) > staleBefore) {
+          return [reservation];
+        }
+        return [];
+      });
       const reservedPairKeys = new Set(reservations.map(({ pairKey }) => pairKey));
       pendingPairKeys.forEach((pairKey) => {
         if (!reservedPairKeys.has(pairKey)) {
-          reservations.push({ pairKey, reservedAt: now() });
+          reservations.push({ activeOperation: false, pairKey, reservedAt: now() });
         }
       });
 
@@ -192,7 +197,13 @@ const createRelationshipService = ({
         $expr: { $lt: [{ $size: '$reservations' }, MAX_OUTGOING_REQUESTS] },
       }, {
         $inc: { revision: 1 },
-        $push: { reservations: { pairKey, reservedAt: now() } },
+        $push: {
+          reservations: {
+            activeOperation: true,
+            pairKey,
+            reservedAt: now(),
+          },
+        },
       }, {
         new: true,
         useFindAndModify: false,
@@ -241,6 +252,10 @@ const createRelationshipService = ({
         ? Promise.resolve()
         : releaseReservation(userId, pair.pairKey)
     )));
+  };
+
+  const reconcilePairReservationsInBackground = (pair, relationship) => {
+    runInBackground(reconcilePairReservations(pair, relationship));
   };
 
   const persistTransition = async (current, transition) => {
@@ -361,11 +376,11 @@ const createRelationshipService = ({
 
       if (await pairIsBlocked(pair.pairKey)) {
         const removed = await tombstoneRelationship(pair, now());
-        await reconcilePairReservations(pair, removed);
         if (removed) {
           runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
         }
         invalidate([actorId, targetId]);
+        reconcilePairReservationsInBackground(pair, removed);
         record(actorId, action, 'unavailable');
         throw new SocialError(
           409,
@@ -374,13 +389,13 @@ const createRelationshipService = ({
         );
       }
 
-      await reconcilePairReservations(pair, persisted);
       if (transition.kind !== 'noop') {
         runInBackground(mirrors.mirrorRelationship(persisted, [actorUser, targetUser]));
       }
       if (transition.kind !== 'noop') {
         invalidate([actorId, targetId]);
       }
+      reconcilePairReservationsInBackground(pair, persisted);
       record(actorId, action, transition.outcome);
 
       return {
@@ -424,13 +439,13 @@ const createRelationshipService = ({
       useFindAndModify: false,
     }));
 
-    runInBackground(mirrors.mirrorBlock(blockDocument, actorUser, targetUser));
     const removed = await tombstoneRelationship(pair, blockedAt);
-    await reconcilePairReservations(pair, removed);
+    runInBackground(mirrors.mirrorBlock(blockDocument, actorUser, targetUser));
     if (removed) {
       runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
     }
     invalidate([actorId, targetId]);
+    reconcilePairReservationsInBackground(pair, removed);
     record(actorId, 'block', 'blocked');
     return { outcome: 'blocked' };
   };
@@ -440,7 +455,6 @@ const createRelationshipService = ({
       actorId, pair, targetId, targetUser,
     } = await loadUsers(actorUser, targetValue);
     const removed = await tombstoneRelationship(pair, now());
-    await reconcilePairReservations(pair, removed);
     if (removed) {
       runInBackground(mirrors.mirrorRelationship(removed, [actorUser, targetUser]));
     }
@@ -467,6 +481,7 @@ const createRelationshipService = ({
       runInBackground(mirrors.mirrorBlock(blockDocument, actorUser, targetUser));
     }
     invalidate([actorId, targetId]);
+    reconcilePairReservationsInBackground(pair, removed);
     record(actorId, 'unblock', 'unblocked');
     return { outcome: 'unblocked' };
   };

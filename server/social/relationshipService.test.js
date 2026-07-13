@@ -4,6 +4,7 @@
 const { createRelationshipService, MAX_OUTGOING_REQUESTS } = require('./relationshipService');
 
 const clone = (value) => (value ? JSON.parse(JSON.stringify(value)) : value);
+const flushBackground = () => new Promise(setImmediate);
 
 const createModels = () => {
   const users = new Map([
@@ -200,12 +201,14 @@ const createService = () => {
   };
   const notifier = jest.fn().mockResolvedValue(true);
   const now = jest.fn(() => new Date('2026-07-12T12:00:00.000Z'));
+  const socialLogger = { error: jest.fn() };
   const service = createRelationshipService({
     ...models,
     metricRecorder,
     mirrors,
     notifier,
     now,
+    socialLogger,
   });
   return {
     ...models,
@@ -213,6 +216,7 @@ const createService = () => {
     mirrors,
     notifier,
     now,
+    socialLogger,
     service,
   };
 };
@@ -459,6 +463,148 @@ describe('relationship service', () => {
     expect(quotas.get(1).reservations).toEqual([
       expect.objectContaining({ pairKey: '1:2' }),
     ]);
+  });
+
+  it('does not expire a delayed in-flight reservation and exceed the pending limit', async () => {
+    const {
+      now, quotas, relationshipModel, relationships, service, users,
+    } = createService();
+    const baseTime = new Date('2026-07-12T12:00:00.000Z');
+    const delayedTime = new Date('2026-07-12T12:06:00.000Z');
+    for (let index = 0; index < 99; index += 1) {
+      const pairKey = `1:${1000 + index}`;
+      relationships.set(pairKey, {
+        _id: `existing-${index}`,
+        highUserId: 1000 + index,
+        lowUserId: 1,
+        pairKey,
+        requestedBy: 1,
+        revision: 0,
+        stateChangedAt: baseTime,
+        status: 'pending',
+      });
+    }
+    quotas.set(1, {
+      _id: 'quota-1',
+      reservations: Array.from({ length: 99 }, (_, index) => ({
+        activeOperation: false,
+        pairKey: `1:${1000 + index}`,
+        reservedAt: baseTime,
+      })),
+      revision: 0,
+      userId: 1,
+    });
+
+    let finishPersistence;
+    const persistenceStarted = new Promise((resolve) => {
+      relationshipModel.create.mockImplementationOnce(async (relationship) => {
+        await new Promise((resolvePersistence) => {
+          finishPersistence = resolvePersistence;
+          resolve();
+        });
+        const timestamp = delayedTime;
+        const created = {
+          ...clone(relationship),
+          _id: 'delayed-relationship',
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        relationships.set(created.pairKey, created);
+        return clone(created);
+      });
+    });
+
+    const delayedSend = service.sendRequest(users.get(1), 2);
+    await persistenceStarted;
+    // The request's reservation is older than the stale window, but its write has not finished.
+    // It must remain counted until that operation either persists or explicitly releases it.
+    now.mockReturnValue(delayedTime);
+    await expect(service.sendRequest(users.get(1), 3)).rejects.toMatchObject({
+      code: 'outgoing_request_limit',
+    });
+
+    finishPersistence();
+    await delayedSend;
+    expect([...relationships.values()].filter(({ status }) => status === 'pending')).toHaveLength(100);
+  });
+
+  it('publishes durable transitions when background quota cleanup fails', async () => {
+    const {
+      mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
+    } = createService();
+
+    await service.sendRequest(users.get(1), 2);
+    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
+
+    await expect(service.acceptRequest(users.get(2), 1)).resolves.toMatchObject({
+      outcome: 'request_accepted',
+    });
+    await flushBackground();
+
+    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'accepted' }));
+    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pairKey: '1:2', status: 'accepted' }),
+      expect.any(Array),
+    );
+    expect(notifier).toHaveBeenLastCalledWith({ userIds: [2, 1] });
+    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('does not turn a durable cancellation into an error when quota cleanup fails', async () => {
+    const {
+      mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
+    } = createService();
+
+    await service.sendRequest(users.get(1), 2);
+    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
+
+    await expect(service.cancelRequest(users.get(1), 2)).resolves.toMatchObject({
+      outcome: 'request_canceled',
+    });
+    await flushBackground();
+
+    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'canceled' }));
+    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pairKey: '1:2', status: 'canceled' }),
+      expect.any(Array),
+    );
+    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
+    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('keeps block durable and observable when its background quota cleanup fails', async () => {
+    const {
+      blocks, mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
+    } = createService();
+
+    await service.sendRequest(users.get(1), 2);
+    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
+
+    await expect(service.block(users.get(1), 2)).resolves.toMatchObject({ outcome: 'blocked' });
+    await flushBackground();
+
+    expect(blocks.get('1:2')).toEqual(expect.objectContaining({ active: true }));
+    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'removed' }));
+    expect(mirrors.mirrorBlock).toHaveBeenCalledWith(
+      expect.objectContaining({ active: true, pairKey: '1:2' }),
+      expect.any(Object),
+      expect.any(Object),
+    );
+    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
+    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
+
+    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
+    await expect(service.unblock(users.get(1), 2)).resolves.toMatchObject({ outcome: 'unblocked' });
+    await flushBackground();
+
+    expect(blocks.get('1:2')).toEqual(expect.objectContaining({ active: false }));
+    expect(mirrors.mirrorBlock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ active: false, pairKey: '1:2' }),
+      expect.any(Object),
+      expect.any(Object),
+    );
+    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
+    expect(socialLogger.error).toHaveBeenCalledTimes(2);
   });
 
   it('keeps a block active when unblock cannot tombstone a hidden relationship', async () => {
