@@ -19,12 +19,9 @@ const validate = (username) => {
     return '';
   }
 
-  if (username.indexOf(' ') > -1) {
-    return 'Username cannot contains spaces';
-  }
-
-  if (username.length >= 16) {
-    return 'Username cannot be longer than 16 characters';
+  const normalizedUsername = username.normalize('NFKC').trim();
+  if (normalizedUsername.length > 15 || !/^[A-Za-z0-9_-]+$/.test(normalizedUsername)) {
+    return 'Use 1–15 letters, numbers, underscores, or hyphens';
   }
 
   return '';
