@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
+const createFriendsRouter = require('./api/friends');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -23,6 +24,8 @@ module.exports = () => {
   router.get('/me', auth, (req, res) => {
     res.json(req.user.toObject());
   });
+
+  router.use('/friends', createFriendsRouter());
 
   router.put('/updateUsername', auth, (req, res) => {
     // TODO: server side validation of username

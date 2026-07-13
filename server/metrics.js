@@ -214,6 +214,12 @@ const createMetricRecorder = ({
       ...roomProperties(room),
       roomSolveCount: countRoomSolves(room),
     }),
+    recordSocialOutcome: ({ userId, action, outcome }) => write({
+      event: METRIC_EVENTS.SOCIAL_ACTION,
+      ...actorProperties({ userId }),
+      socialAction: action,
+      socialOutcome: outcome,
+    }),
     beginRoomVisit,
     endRoomVisit,
     pseudonymize,

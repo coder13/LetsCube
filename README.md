@@ -57,7 +57,9 @@ The server stores pseudonymous room and authentication events in both the
 It records room creations, joins, join failures, leaves and visit duration,
 accepted result counts, and authentication failures. Peak room users and peak
 room solve counts are the maximum `activeUserCount` and `roomSolveCount` values
-for each pseudonymous room.
+for each pseudonymous room. Friend-system metrics contain only the pseudonymous
+actor, action category, and outcome; they never contain the other user or a
+relationship/pair identifier.
 
 Raw events expire after 90 days by default. Set `METRICS_RETENTION_DAYS` to a
 different positive number of days, or set `METRICS_ENABLED=false` to disable
