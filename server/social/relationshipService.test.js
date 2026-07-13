@@ -1,10 +1,9 @@
 /** @jest-environment node */
 /* eslint-env jest */
 
-const { createRelationshipService, MAX_OUTGOING_REQUESTS } = require('./relationshipService');
+const { createRelationshipService } = require('./relationshipService');
 
 const clone = (value) => (value ? JSON.parse(JSON.stringify(value)) : value);
-const flushBackground = () => new Promise(setImmediate);
 
 const createModels = () => {
   const users = new Map([
@@ -20,7 +19,6 @@ const createModels = () => {
   ]);
   const relationships = new Map();
   const blocks = new Map();
-  const quotas = new Map();
   let sequence = 0;
 
   const relationshipModel = {
@@ -122,59 +120,6 @@ const createModels = () => {
     }),
   };
 
-  const quotaModel = {
-    findOne: jest.fn(async ({ userId }) => clone(quotas.get(userId))),
-    findOneAndUpdate: jest.fn(async (filter, update, options = {}) => {
-      let quota = filter.userId !== undefined
-        ? quotas.get(filter.userId)
-        : [...quotas.values()].find((entry) => entry._id === filter._id);
-      if (!quota && options.upsert) {
-        quota = {
-          ...update.$setOnInsert,
-          _id: `quota-${filter.userId}`,
-        };
-        quotas.set(filter.userId, quota);
-        return clone(quota);
-      }
-      if (!quota) {
-        return null;
-      }
-      if (filter.revision !== undefined && quota.revision !== filter.revision) {
-        return null;
-      }
-      const pairFilter = filter['reservations.pairKey'];
-      if (pairFilter && pairFilter.$ne && quota.reservations
-        .some(({ pairKey }) => pairKey === pairFilter.$ne)) {
-        return null;
-      }
-      if (typeof pairFilter === 'string' && !quota.reservations
-        .some(({ pairKey }) => pairKey === pairFilter)) {
-        return null;
-      }
-      if (filter.$expr && quota.reservations.length >= MAX_OUTGOING_REQUESTS) {
-        return null;
-      }
-
-      const next = clone(quota);
-      if (update.$set) {
-        Object.assign(next, clone(update.$set));
-      }
-      if (update.$push) {
-        next.reservations.push(clone(update.$push.reservations));
-      }
-      if (update.$pull) {
-        next.reservations = next.reservations.filter(
-          ({ pairKey }) => pairKey !== update.$pull.reservations.pairKey,
-        );
-      }
-      if (update.$inc) {
-        next.revision += update.$inc.revision;
-      }
-      quotas.set(next.userId, next);
-      return clone(next);
-    }),
-  };
-
   const userModel = {
     find: jest.fn(async ({ id }) => id.$in.map((userId) => users.get(userId)).filter(Boolean)),
     findOne: jest.fn(async ({ id }) => clone(users.get(id))),
@@ -183,8 +128,6 @@ const createModels = () => {
   return {
     blockModel,
     blocks,
-    quotaModel,
-    quotas,
     relationshipModel,
     relationships,
     userModel,
@@ -201,6 +144,7 @@ const createService = () => {
   };
   const notifier = jest.fn().mockResolvedValue(true);
   const now = jest.fn(() => new Date('2026-07-12T12:00:00.000Z'));
+  const requestLimiter = { consume: jest.fn().mockResolvedValue(undefined) };
   const socialLogger = { error: jest.fn() };
   const service = createRelationshipService({
     ...models,
@@ -208,6 +152,7 @@ const createService = () => {
     mirrors,
     notifier,
     now,
+    requestLimiter,
     socialLogger,
   });
   return {
@@ -216,6 +161,7 @@ const createService = () => {
     mirrors,
     notifier,
     now,
+    requestLimiter,
     socialLogger,
     service,
   };
@@ -403,208 +349,35 @@ describe('relationship service', () => {
     expect(notifier).toHaveBeenCalledWith({ userIds: [1, 2] });
   });
 
-  it('atomically enforces the pending limit across different target pairs', async () => {
-    const {
-      quotas, service, users,
-    } = createService();
-    quotas.set(1, {
-      _id: 'quota-1',
-      reservations: Array.from({ length: 99 }, (_, index) => ({
-        pairKey: `1:${1000 + index}`,
-        reservedAt: new Date('2026-07-12T12:00:00.000Z'),
-      })),
-      revision: 0,
-      userId: 1,
-    });
-
-    const results = await Promise.allSettled([
-      service.sendRequest(users.get(1), 2),
-      service.sendRequest(users.get(1), 3),
-    ]);
-
-    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter(({ status }) => status === 'rejected')).toEqual([
-      expect.objectContaining({
-        reason: expect.objectContaining({ code: 'outgoing_request_limit' }),
-      }),
-    ]);
-    expect(quotas.get(1).reservations).toHaveLength(MAX_OUTGOING_REQUESTS);
-  });
-
-  it('releases a request reservation when relationship persistence fails', async () => {
-    const {
-      quotas, relationshipModel, service, users,
-    } = createService();
-    relationshipModel.create.mockRejectedValueOnce(new Error('mongo write failed'));
-
-    await expect(service.sendRequest(users.get(1), 2)).rejects.toThrow('mongo write failed');
-
-    expect(quotas.get(1).reservations).toEqual([]);
-  });
-
-  it('reconciles abandoned quota reservations before enforcing the cap', async () => {
-    const {
-      quotas, service, users,
-    } = createService();
-    quotas.set(1, {
-      _id: 'quota-1',
-      reservations: Array.from({ length: MAX_OUTGOING_REQUESTS }, (_, index) => ({
-        pairKey: `1:${1000 + index}`,
-        reservedAt: new Date('2026-07-12T11:54:00.000Z'),
-      })),
-      revision: 0,
-      userId: 1,
-    });
-
-    await expect(service.sendRequest(users.get(1), 2)).resolves.toMatchObject({
-      outcome: 'request_created',
-    });
-
-    expect(quotas.get(1).reservations).toEqual([
-      expect.objectContaining({ pairKey: '1:2' }),
-    ]);
-  });
-
-  it('does not expire a delayed in-flight reservation and exceed the pending limit', async () => {
-    const {
-      now, quotas, relationshipModel, relationships, service, users,
-    } = createService();
-    const baseTime = new Date('2026-07-12T12:00:00.000Z');
-    const delayedTime = new Date('2026-07-12T12:06:00.000Z');
-    for (let index = 0; index < 99; index += 1) {
-      const pairKey = `1:${1000 + index}`;
-      relationships.set(pairKey, {
-        _id: `existing-${index}`,
-        highUserId: 1000 + index,
-        lowUserId: 1,
-        pairKey,
-        requestedBy: 1,
-        revision: 0,
-        stateChangedAt: baseTime,
-        status: 'pending',
-      });
-    }
-    quotas.set(1, {
-      _id: 'quota-1',
-      reservations: Array.from({ length: 99 }, (_, index) => ({
-        activeOperation: false,
-        pairKey: `1:${1000 + index}`,
-        reservedAt: baseTime,
-      })),
-      revision: 0,
-      userId: 1,
-    });
-
-    let finishPersistence;
-    const persistenceStarted = new Promise((resolve) => {
-      relationshipModel.create.mockImplementationOnce(async (relationship) => {
-        await new Promise((resolvePersistence) => {
-          finishPersistence = resolvePersistence;
-          resolve();
-        });
-        const timestamp = delayedTime;
-        const created = {
-          ...clone(relationship),
-          _id: 'delayed-relationship',
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        };
-        relationships.set(created.pairKey, created);
-        return clone(created);
-      });
-    });
-
-    const delayedSend = service.sendRequest(users.get(1), 2);
-    await persistenceStarted;
-    // The request's reservation is older than the stale window, but its write has not finished.
-    // It must remain counted until that operation either persists or explicitly releases it.
-    now.mockReturnValue(delayedTime);
-    await expect(service.sendRequest(users.get(1), 3)).rejects.toMatchObject({
-      code: 'outgoing_request_limit',
-    });
-
-    finishPersistence();
-    await delayedSend;
-    expect([...relationships.values()].filter(({ status }) => status === 'pending')).toHaveLength(100);
-  });
-
-  it('publishes durable transitions when background quota cleanup fails', async () => {
-    const {
-      mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
-    } = createService();
+  it('applies the request limiter only when creating a new request', async () => {
+    const { requestLimiter, service, users } = createService();
 
     await service.sendRequest(users.get(1), 2);
-    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
+    await service.sendRequest(users.get(1), 2);
+    await service.sendRequest(users.get(2), 1);
 
-    await expect(service.acceptRequest(users.get(2), 1)).resolves.toMatchObject({
-      outcome: 'request_accepted',
-    });
-    await flushBackground();
-
-    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'accepted' }));
-    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pairKey: '1:2', status: 'accepted' }),
-      expect.any(Array),
-    );
-    expect(notifier).toHaveBeenLastCalledWith({ userIds: [2, 1] });
-    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
+    expect(requestLimiter.consume).toHaveBeenCalledTimes(1);
+    expect(requestLimiter.consume).toHaveBeenCalledWith({ actorId: 1, pairKey: '1:2' });
   });
 
-  it('does not turn a durable cancellation into an error when quota cleanup fails', async () => {
+  it('fails closed before persistence when the request limiter is unavailable', async () => {
     const {
-      mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
+      mirrors, notifier, relationships, requestLimiter, service, users,
     } = createService();
-
-    await service.sendRequest(users.get(1), 2);
-    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
-
-    await expect(service.cancelRequest(users.get(1), 2)).resolves.toMatchObject({
-      outcome: 'request_canceled',
+    const unavailable = Object.assign(new Error('Redis unavailable'), {
+      code: 'request_rate_limit_unavailable',
+      statusCode: 503,
     });
-    await flushBackground();
+    requestLimiter.consume.mockRejectedValueOnce(unavailable);
 
-    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'canceled' }));
-    expect(mirrors.mirrorRelationship).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pairKey: '1:2', status: 'canceled' }),
-      expect.any(Array),
-    );
-    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
-    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
-  });
+    await expect(service.sendRequest(users.get(1), 2)).rejects.toMatchObject({
+      code: 'request_rate_limit_unavailable',
+      statusCode: 503,
+    });
 
-  it('keeps block durable and observable when its background quota cleanup fails', async () => {
-    const {
-      blocks, mirrors, notifier, quotaModel, relationships, service, socialLogger, users,
-    } = createService();
-
-    await service.sendRequest(users.get(1), 2);
-    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
-
-    await expect(service.block(users.get(1), 2)).resolves.toMatchObject({ outcome: 'blocked' });
-    await flushBackground();
-
-    expect(blocks.get('1:2')).toEqual(expect.objectContaining({ active: true }));
-    expect(relationships.get('1:2')).toEqual(expect.objectContaining({ status: 'removed' }));
-    expect(mirrors.mirrorBlock).toHaveBeenCalledWith(
-      expect.objectContaining({ active: true, pairKey: '1:2' }),
-      expect.any(Object),
-      expect.any(Object),
-    );
-    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
-    expect(socialLogger.error).toHaveBeenCalledWith(expect.any(Error));
-
-    quotaModel.findOneAndUpdate.mockRejectedValueOnce(new Error('quota cleanup failed'));
-    await expect(service.unblock(users.get(1), 2)).resolves.toMatchObject({ outcome: 'unblocked' });
-    await flushBackground();
-
-    expect(blocks.get('1:2')).toEqual(expect.objectContaining({ active: false }));
-    expect(mirrors.mirrorBlock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ active: false, pairKey: '1:2' }),
-      expect.any(Object),
-      expect.any(Object),
-    );
-    expect(notifier).toHaveBeenLastCalledWith({ userIds: [1, 2] });
-    expect(socialLogger.error).toHaveBeenCalledTimes(2);
+    expect(relationships).toEqual(new Map());
+    expect(mirrors.mirrorRelationship).not.toHaveBeenCalled();
+    expect(notifier).not.toHaveBeenCalled();
   });
 
   it('keeps a block active when unblock cannot tombstone a hidden relationship', async () => {
