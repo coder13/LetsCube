@@ -63,6 +63,9 @@ WCA ID formats. An email-like input must not be treated as an identifier or
 produce an existence signal. This is a required invariant for the Friend System,
 not a future discovery mode.
 
+The server's owner/admin handoff and reconnect guarantees are documented in
+[Room ownership and administration](docs/room-ownership.md).
+
 ## Metrics
 
 The server stores pseudonymous room and authentication events in both the

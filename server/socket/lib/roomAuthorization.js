@@ -1,5 +1,11 @@
 const SUPER_ADMIN_ID = 8184;
 
+const isRoomOwner = (userId, room) => !!userId && !!room && !!room.owner
+  && +room.owner.id === +userId;
+
+const isRoomAdmin = (userId, room) => !!userId && !!room && !!room.admin
+  && +room.admin.id === +userId;
+
 const canDeleteRoom = (userId, room) => {
   if (+userId === SUPER_ADMIN_ID) {
     return true;
@@ -9,7 +15,7 @@ const canDeleteRoom = (userId, room) => {
     return false;
   }
 
-  return [room.owner, room.admin].some((user) => user && +user.id === +userId);
+  return isRoomOwner(userId, room) || isRoomAdmin(userId, room);
 };
 
 const canAccessRoom = (userId, room) => {
@@ -28,4 +34,6 @@ const canAccessRoom = (userId, room) => {
 module.exports = {
   canAccessRoom,
   canDeleteRoom,
+  isRoomAdmin,
+  isRoomOwner,
 };

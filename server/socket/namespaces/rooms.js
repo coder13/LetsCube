@@ -10,7 +10,11 @@ const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
-const { canAccessRoom, canDeleteRoom } = require('../lib/roomAuthorization');
+const {
+  canAccessRoom,
+  canDeleteRoom,
+  isRoomAdmin,
+} = require('../lib/roomAuthorization');
 const { isRoomTypeEnabled: checkRoomTypeEnabled } = require('../lib/roomAvailability');
 const { removeUserFromRoomSockets } = require('../lib/roomSockets');
 const { createReconnectGrace } = require('../lib/reconnectGrace');
@@ -83,6 +87,8 @@ module.exports = (io, middlewares) => {
     return rooms.flatMap((room) => room.usersInRoom.map((user) => ({
       roomId: room._id,
       userId: user.id,
+      membershipRevision: room.membershipRevision,
+      presenceRevision: room.presenceRevision.get(user.id.toString()),
       leaveReason: 'disconnect',
     })));
   }
@@ -114,13 +120,21 @@ module.exports = (io, middlewares) => {
     }
   }
 
+  function sendAdminUpdate(room) {
+    if (room.admin) {
+      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, room.admin);
+    }
+  }
+
   async function finalizeUserDeparture({
-    roomId, userId, connectionId, leaveReason,
+    roomId, userId, connectionId, leaveReason, membershipRevision, presenceRevision,
   }) {
-    const room = await fetchRoom(roomId);
     const userKey = userId.toString();
 
-    if (!room || !room.inRoom.get(userKey)) {
+    const room = await fetchRoom(roomId);
+    if (!room || !room.inRoom.get(userKey)
+      || room.membershipRevision !== membershipRevision
+      || room.presenceRevision.get(userKey) !== presenceRevision) {
       return false;
     }
 
@@ -129,9 +143,21 @@ module.exports = (io, middlewares) => {
       return false;
     }
 
-    const updatedRoom = await room.dropUser({ id: userId }, (_room) => {
-      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
-    });
+    // The membership revision is the departure generation. A failed claim is
+    // terminal: retrying it after a rejoin would remove the new membership.
+    const departure = await room.dropUserAtomically(
+      { id: userId },
+      membershipRevision,
+      presenceRevision,
+    );
+    if (!departure) {
+      return false;
+    }
+
+    const { room: updatedRoom, adminChanged } = departure;
+    if (adminChanged) {
+      sendAdminUpdate(updatedRoom);
+    }
 
     await metrics.endRoomVisit({
       room: updatedRoom,
@@ -323,7 +349,7 @@ module.exports = (io, middlewares) => {
       if (!isLoggedIn() || !isInRoom()) {
         logger.debug('Unauthenticated user or user not in room attempting to perform admin action');
         return false;
-      } if (socket.room.admin.id !== socket.user.id) {
+      } if (!isRoomAdmin(socket.user.id, socket.room)) {
         logger.debug('Non-admin attempting to perform admin action');
         socket.emit(Protocol.ERROR, {
           statusCode: 403,
@@ -351,6 +377,8 @@ module.exports = (io, middlewares) => {
           roomId: socket.roomId,
           userId: socket.userId,
           connectionId: socket.id,
+          membershipRevision: socket.room.membershipRevision,
+          presenceRevision: socket.room.presenceRevision.get(socket.userId.toString()),
           leaveReason,
         });
       } catch (e) {
@@ -358,7 +386,12 @@ module.exports = (io, middlewares) => {
       }
     }
 
-    async function joinRoom(room, cb, spectating) {
+    async function joinRoom(
+      room,
+      cb,
+      spectating,
+      { password, reauthorizeOnRecovery = false } = {},
+    ) {
       if (socket.roomId) {
         if (String(socket.roomId) === String(room._id)) {
           socket.room = socket.room || room;
@@ -402,20 +435,77 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      const r = await activeRoom.addUser(socket.user, spectating, (_room) => {
-        ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
-      });
-
-      if (!r) {
-        // The user is already present in persisted room state.
-        socket.room = activeRoom;
+      const presentRoom = await activeRoom.advancePresenceRevision(socket.userId);
+      if (presentRoom) {
+        socket.room = presentRoom;
         await metrics.beginRoomVisit({
-          room: activeRoom,
+          room: presentRoom,
           userId: socket.userId,
           connectionId: socket.id,
-          activeUserCount: activeRoom.usersLength,
+          activeUserCount: presentRoom.usersLength,
         });
-        return cb(null, joinRoomMask(activeRoom));
+        return cb(null, joinRoomMask(presentRoom));
+      }
+
+      const currentRoom = await fetchRoom(room._id);
+      if (!currentRoom) {
+        return cb({
+          statusCode: 404,
+          message: 'Room no longer exists',
+        });
+      }
+      if (reauthorizeOnRecovery) {
+        const rejectRecoveryJoin = (error) => {
+          socket.leave(room.accessCode);
+          socket.leave(encodeUserRoom(socket.userId, room._id));
+          delete socket.room;
+          delete socket.roomId;
+          return cb(error);
+        };
+        const userKey = socket.userId.toString();
+        if (!isRoomTypeEnabled(currentRoom.type)) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Grand Prix rooms are disabled',
+          });
+        }
+        if (currentRoom.private && (!password || !(await currentRoom.authenticate(password)))) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Invalid password',
+          });
+        }
+        if (currentRoom.banned.get(userKey)) {
+          return rejectRecoveryJoin({
+            statusCode: 401,
+            message: 'Banned',
+            banned: true,
+          });
+        }
+        if (currentRoom.requireRevealedIdentity && !socket.user.showWCAID) {
+          return rejectRecoveryJoin({
+            statusCode: 403,
+            message: 'Must be showing WCA Identity to join room.',
+          });
+        }
+      }
+      const r = await currentRoom.addUser(socket.user, spectating, sendAdminUpdate);
+      if (!r) {
+        const fencedRoom = await currentRoom.advancePresenceRevision(socket.userId);
+        if (!fencedRoom) {
+          return cb({
+            statusCode: 409,
+            message: 'Room membership changed while joining',
+          });
+        }
+        socket.room = fencedRoom;
+        await metrics.beginRoomVisit({
+          room: fencedRoom,
+          userId: socket.userId,
+          connectionId: socket.id,
+          activeUserCount: fencedRoom.usersLength,
+        });
+        return cb(null, joinRoomMask(fencedRoom));
       }
 
       socket.room = r;
@@ -514,7 +604,10 @@ module.exports = (io, middlewares) => {
           }, room);
         }
 
-        return await joinRoom(room, acknowledgment, spectating);
+        return await joinRoom(room, acknowledgment, spectating, {
+          password,
+          reauthorizeOnRecovery: true,
+        });
       } catch (e) {
         logger.error(e);
         return rejectJoin('internal_error', {
@@ -756,7 +849,7 @@ module.exports = (io, middlewares) => {
         }
 
         const { userId } = result;
-        if (userId !== socket.user.id && socket.user.id !== socket.room.admin.id) {
+        if (userId !== socket.user.id && !isRoomAdmin(socket.user.id, socket.room)) {
           socket.emit(Protocol.ERROR, {
             statusCode: 400,
             event: Protocol.SEND_EDIT_RESULT,
@@ -843,7 +936,7 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      if (socket.room.admin.id !== socket.user.id) {
+      if (!isRoomAdmin(socket.user.id, socket.room)) {
         logger.debug('Non-admin attempting to edit a room');
         return rejectEdit({
           statusCode: 403,
@@ -916,6 +1009,15 @@ module.exports = (io, middlewares) => {
         return;
       }
 
+      if (String(userId) === String(socket.user.id)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.KICK_USER,
+          message: 'Cannot kick yourself; leave the room instead',
+        });
+        return;
+      }
+
       try {
         const room = await socket.room.dropUser({ id: userId });
 
@@ -947,6 +1049,15 @@ module.exports = (io, middlewares) => {
 
     on(Protocol.BAN_USER, async (userId) => {
       if (!checkAdmin()) {
+        return;
+      }
+
+      if (String(userId) === String(socket.user.id)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.BAN_USER,
+          message: 'Cannot ban yourself; leave the room instead',
+        });
         return;
       }
 
@@ -1034,6 +1145,8 @@ module.exports = (io, middlewares) => {
             roomId: socket.roomId,
             userId: socket.userId,
             connectionId: socket.id,
+            membershipRevision: socket.room.membershipRevision,
+            presenceRevision: socket.room.presenceRevision.get(socket.userId.toString()),
             leaveReason: 'disconnect',
           });
         } else if (socket.room) {
@@ -1054,8 +1167,11 @@ module.exports = (io, middlewares) => {
     on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
         if (socket.user) {
-          await leaveRoom('explicit');
+          // Exclude this tab before checking whether another tab keeps the
+          // user's room membership active. Otherwise simultaneous leaves can
+          // each see the other socket and neither finalizes the departure.
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
+          await leaveRoom('explicit');
         } else {
           await metrics.endRoomVisit({
             room: socket.room,
