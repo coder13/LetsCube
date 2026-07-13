@@ -49,10 +49,15 @@ describe('PostgreSQL dual writer', () => {
   it('mirrors users without copying private profile or OAuth fields', async () => {
     await mirrorUser(user);
 
-    expect(client.query).toHaveBeenCalledTimes(1);
-    const values = client.query.mock.calls[0][1];
+    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenNthCalledWith(
+      1,
+      'UPDATE app.users SET email = NULL WHERE wca_user_id = $1 AND email IS NOT NULL',
+      [1234],
+    );
+    const values = client.query.mock.calls[1][1];
     expect(values).toContain(1234);
-    expect(client.query.mock.calls[0][0]).toContain('email = NULL');
+    expect(client.query.mock.calls[1][0]).toContain('email = NULL');
     expect(values).not.toContain('private@example.com');
     expect(values).not.toContain('must-not-be-mirrored');
   });

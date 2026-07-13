@@ -58,6 +58,12 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
 
   const id = stableId('user', wcaUserId);
   const updatedAt = sourceDate(user.updatedAt, fallbackUpdatedAt);
+  // Clear the compatibility column independently so a stale or identical
+  // source timestamp cannot make the guarded upsert preserve a legacy value.
+  await client.query(
+    'UPDATE app.users SET email = NULL WHERE wca_user_id = $1 AND email IS NOT NULL',
+    [wcaUserId],
+  );
   await client.query(`
     INSERT INTO app.users (
       id, wca_user_id, name, username, wca_id, preferences, avatar,
