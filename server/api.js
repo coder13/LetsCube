@@ -4,6 +4,7 @@ const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
 const { updateUsername } = require('./username');
+const createFriendsRouter = require('./api/friends');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -37,6 +38,8 @@ module.exports = () => {
       return sendError(res, err);
     }
   });
+
+  router.use('/friends', createFriendsRouter());
 
   router.put('/updatePreference', auth, async (req, res) => {
     const unknownPreference = Object.keys(req.body)

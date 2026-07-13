@@ -4,25 +4,72 @@ datasource db {
 }
 
 model User {
-  id                 String            @id @db.Uuid
-  wcaUserId          BigInt            @unique(map: "users_wca_user_id_key") @map("wca_user_id")
+  id                 String               @id @db.Uuid
+  wcaUserId          BigInt               @unique(map: "users_wca_user_id_key") @map("wca_user_id")
   /// Compatibility-only during the privacy cutover. This column must remain null.
   email              String?
   name               String
   username           String?
-  usernameNormalized String?           @unique(map: "users_username_normalized_key") @map("username_normalized")
-  wcaId              String?           @map("wca_id")
-  preferences        Json              @default("{}") @db.JsonB
-  avatar             Json              @default("{}") @db.JsonB
-  sourceCreatedAt    DateTime?         @map("source_created_at") @db.Timestamptz(6)
-  sourceUpdatedAt    DateTime          @map("source_updated_at") @db.Timestamptz(6)
-  ingestedAt         DateTime          @default(now()) @map("ingested_at") @db.Timestamptz(6)
-  ownedRooms         Room[]            @relation("RoomOwner")
-  administeredRooms  Room[]            @relation("RoomAdmin")
+  usernameNormalized String?              @unique(map: "users_username_normalized_key") @map("username_normalized")
+  wcaId              String?              @map("wca_id")
+  preferences        Json                 @default("{}") @db.JsonB
+  avatar             Json                 @default("{}") @db.JsonB
+  sourceCreatedAt    DateTime?            @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt    DateTime             @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt         DateTime             @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  ownedRooms         Room[]               @relation("RoomOwner")
+  administeredRooms  Room[]               @relation("RoomAdmin")
   roomParticipations RoomParticipant[]
   solves             Solve[]
+  friendshipsAsLow   FriendRelationship[] @relation("FriendshipLowUser")
+  friendshipsAsHigh  FriendRelationship[] @relation("FriendshipHighUser")
+  requestsMade       FriendRelationship[] @relation("FriendshipRequester")
+  blocksMade         UserBlock[]          @relation("Blocker")
+  blocksReceived     UserBlock[]          @relation("Blocked")
 
   @@map("users")
+  @@schema("app")
+}
+
+model FriendRelationship {
+  id                String    @id @db.Uuid
+  pairKey           String    @unique(map: "friend_relationships_pair_key_key") @map("pair_key")
+  lowUserId         String    @map("low_user_id") @db.Uuid
+  highUserId        String    @map("high_user_id") @db.Uuid
+  status            String
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  cooldownUntil     DateTime? @map("cooldown_until") @db.Timestamptz(6)
+  revision          Int
+  stateChangedAt    DateTime  @map("state_changed_at") @db.Timestamptz(6)
+  sourceCreatedAt   DateTime? @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt   DateTime  @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt        DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  lowUser           User      @relation("FriendshipLowUser", fields: [lowUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  highUser          User      @relation("FriendshipHighUser", fields: [highUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  requestedBy       User?     @relation("FriendshipRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([lowUserId, status], map: "friend_relationships_low_status_idx")
+  @@index([highUserId, status], map: "friend_relationships_high_status_idx")
+  @@index([requestedByUserId, status], map: "friend_relationships_requester_status_idx")
+  @@map("friend_relationships")
+  @@schema("app")
+}
+
+model UserBlock {
+  id              String    @id @db.Uuid
+  blockerId       String    @map("blocker_id") @db.Uuid
+  blockedId       String    @map("blocked_id") @db.Uuid
+  pairKey         String    @map("pair_key")
+  sourceCreatedAt DateTime? @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt DateTime  @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt      DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  blocker         User      @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  blocked         User      @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([blockerId, blockedId], map: "user_blocks_blocker_blocked_key")
+  @@index([blockedId], map: "user_blocks_blocked_idx")
+  @@index([pairKey], map: "user_blocks_pair_key_idx")
+  @@map("user_blocks")
   @@schema("app")
 }
 

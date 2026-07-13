@@ -9,7 +9,11 @@ jest.mock('./index', () => ({
 const postgres = require('./index');
 const {
   markRoomDeleted,
+  mirrorBlock,
+  mirrorBlockDeleted,
   mirrorMetricEvent,
+  mirrorRelationship,
+  mirrorRelationshipDeleted,
   mirrorRoom,
   mirrorRoomChanges,
   mirrorUser,
@@ -195,5 +199,62 @@ describe('PostgreSQL dual writer', () => {
       expect.stringContaining('UPDATE app.rooms'),
       ['507f1f77bcf86cd799439011'],
     );
+  });
+
+  it('mirrors relationship revisions and directional blocks without graph metrics', async () => {
+    const otherUser = {
+      ...user,
+      id: 5678,
+      name: 'Other Solver',
+      username: 'other',
+      wcaId: '2026TEST02',
+    };
+    const updatedAt = new Date('2026-07-12T20:00:00.000Z');
+
+    await mirrorRelationship({
+      pairKey: '1234:5678',
+      lowUserId: 1234,
+      highUserId: 5678,
+      requestedBy: 1234,
+      status: 'pending',
+      revision: 2,
+      stateChangedAt: updatedAt,
+      createdAt: updatedAt,
+      updatedAt,
+    }, [user, otherUser]);
+    await mirrorBlock({
+      blockerId: 1234,
+      blockedId: 5678,
+      pairKey: '1234:5678',
+      createdAt: updatedAt,
+      updatedAt,
+    }, user, otherUser);
+
+    const statements = client.query.mock.calls.map(([sql]) => sql);
+    expect(statements.some((sql) => sql.includes('INSERT INTO app.friend_relationships')))
+      .toBe(true);
+    expect(statements.some((sql) => sql.includes('INSERT INTO app.user_blocks'))).toBe(true);
+    expect(statements.some((sql) => sql.includes('DELETE FROM app.friend_relationships')))
+      .toBe(true);
+  });
+
+  it('makes mirror deletion idempotent and tolerates disabled PostgreSQL', async () => {
+    await mirrorRelationshipDeleted('1234:5678');
+    await mirrorBlockDeleted(1234, 5678);
+
+    expect(postgres.query).toHaveBeenNthCalledWith(
+      1,
+      'DELETE FROM app.friend_relationships WHERE pair_key = $1',
+      ['1234:5678'],
+    );
+    expect(postgres.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('DELETE FROM app.user_blocks'),
+      [stableId('user', 1234), stableId('user', 5678)],
+    );
+
+    postgres.withTransaction.mockResolvedValueOnce(null);
+    await expect(mirrorRelationship({ pairKey: '1234:5678' }, []))
+      .resolves.toBeNull();
   });
 });
