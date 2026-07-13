@@ -7,7 +7,7 @@ jest.mock('./providers/scrambow', () => ({
   generateScrambowScramble: jest.fn(),
 }));
 
-const events = require('./events');
+const events = require('./events.json');
 const { generateScramble } = require('./index');
 const { generateCubingScramble } = require('./providers/cubing');
 const { generateScrambowScramble } = require('./providers/scrambow');

@@ -1,4 +1,4 @@
-const events = require('./events');
+const events = require('./events.json');
 const { generateCubingScramble } = require('./providers/cubing');
 const { generateScrambowScramble } = require('./providers/scrambow');
 

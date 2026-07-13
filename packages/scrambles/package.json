@@ -5,11 +5,11 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
-    "./events": "./events.js"
+    "./events": "./events.json"
   },
   "files": [
     "index.js",
-    "events.js",
+    "events.json",
     "providers"
   ],
   "dependencies": {
