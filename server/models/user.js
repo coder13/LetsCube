@@ -80,6 +80,7 @@ schema.index(
   { usernameNormalized: 1 },
   { name: 'users_username_normalized_unique', sparse: true, unique: true },
 );
+schema.index({ showWCAID: 1, wcaId: 1 }, { name: 'users_visible_wca_id_lookup' });
 
 schema.pre('validate', function normalizeChangedUsername(next) {
   if (!this.isNew && !this.isModified('username')) {

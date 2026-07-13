@@ -9,6 +9,7 @@ import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
 import ListItemAvatar from '@material-ui/core/ListItemAvatar';
 import Avatar from '@material-ui/core/Avatar';
+import { Link } from 'react-router-dom';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -34,7 +35,7 @@ function LobbyUserList({ users }) {
       }}
       >
         {users.map((user) => (
-          <ListItem button key={user.id}>
+          <ListItem button component={Link} key={user.id} to={`/users/${user.id}`}>
             <ListItemAvatar>
               <Avatar alt={user.displayName} src={user.avatar && user.avatar.thumb_url} />
             </ListItemAvatar>
