@@ -211,9 +211,7 @@ Room.methods.dropUser = async function (user, updateAdmin) {
   this.inRoom.set(user.id.toString(), false);
   this.waitingFor.set(user.id.toString(), false);
 
-  if (updateAdmin) {
-    await this.updateAdminIfNeeded(updateAdmin);
-  }
+  await this.updateAdminIfNeeded(updateAdmin);
 
   if (this.usersInRoom.length === 0 && this.type === 'normal') {
     await this.updateStale(true);
@@ -340,7 +338,9 @@ Room.methods.updateAdminIfNeeded = async function (cb) {
 
   this.admin = nextAdmin;
   const room = await this.save();
-  if (cb) {
+  // UPDATE_ADMIN has always carried a user. Empty rooms persist null without
+  // notifying clients that still expect a populated admin object.
+  if (cb && room.admin) {
     cb(room);
   }
   return room;

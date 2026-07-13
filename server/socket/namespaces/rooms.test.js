@@ -3,6 +3,8 @@
 const Protocol = require('../../../client/src/lib/protocol.json');
 const metrics = require('../../metrics');
 const { Room, User } = require('../../models');
+const { encodeUserRoom } = require('../utils');
+const { createReconnectGrace } = require('../lib/reconnectGrace');
 const initRooms = require('./rooms');
 
 jest.mock('../../runtimeConfig', () => ({
@@ -33,9 +35,10 @@ jest.mock('../../postgres/dualWrite', () => ({
   markRoomDeleted: jest.fn(),
 }));
 jest.mock('../lib/reconnectGrace', () => ({
-  createReconnectGrace: jest.fn(() => ({
+  createReconnectGrace: jest.fn(({ finalizeDeparture }) => ({
     cancel: jest.fn().mockResolvedValue(false),
     finalize: jest.fn(),
+    finalizeDeparture,
     schedule: jest.fn(),
     startReconciliation: jest.fn(),
   })),
@@ -342,6 +345,109 @@ describe('room namespace edits', () => {
       statusCode: 400,
       event: Protocol.EDIT_ROOM,
       message: 'A password is required',
+    }));
+  });
+});
+
+describe('room namespace departures and moderation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    metrics.endRoomVisit.mockResolvedValue(undefined);
+  });
+
+  it('does not send a null admin update to a spectator channel when a room empties', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      usersLength: 0,
+      inRoom: new Map([['101', true]]),
+      doneWithScramble: jest.fn().mockReturnValue(false),
+    });
+    room.dropUser = jest.fn(async (user, onAdminChange) => {
+      room.inRoom.set(String(user.id), false);
+      room.admin = null;
+      onAdminChange(room);
+      return room;
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    await connect(makeSocket({ id: 'spectator-socket', session: {} }));
+    const reconnectGrace = createReconnectGrace.mock.results[0].value;
+
+    await reconnectGrace.finalizeDeparture({
+      roomId: room._id,
+      userId: 101,
+      connectionId: 'host-socket',
+      leaveReason: 'explicit',
+    });
+
+    expect(connect.roomChannel.emit).not.toHaveBeenCalledWith(Protocol.UPDATE_ADMIN, null);
+    expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
+  });
+
+  it('finalizes one departure when two tabs explicitly leave together', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    const first = makeSocket({ id: 'first-tab', session: {}, userId: 101 });
+    const second = makeSocket({ id: 'second-tab', session: {}, userId: 101 });
+    const activeSocketIds = new Set([first.id, second.id]);
+    const userRoom = encodeUserRoom(101, room._id);
+    connect.namespace.adapter.sockets.mockImplementation(async () => new Set(activeSocketIds));
+    [first, second].forEach((socket) => {
+      socket.room = room;
+      socket.roomId = room._id;
+      socket.leave.mockImplementation((roomName) => {
+        if (roomName === userRoom) {
+          activeSocketIds.delete(socket.id);
+        }
+      });
+    });
+    await connect(first);
+    await connect(second);
+    const reconnectGrace = createReconnectGrace.mock.results[0].value;
+
+    await Promise.all([
+      first.handlers[Protocol.LEAVE_ROOM](),
+      second.handlers[Protocol.LEAVE_ROOM](),
+    ]);
+
+    expect(reconnectGrace.finalize).toHaveBeenCalledTimes(1);
+    expect(reconnectGrace.finalize).toHaveBeenCalledWith(expect.objectContaining({
+      roomId: room._id,
+      userId: 101,
+      leaveReason: 'explicit',
+    }));
+  });
+
+  it('rejects raw self-kick and self-ban requests from an admin', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      admin: { id: 101 },
+      dropUser: jest.fn(),
+      banUser: jest.fn(),
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    const socket = makeSocket({ id: 'admin-socket', session: {}, userId: 101 });
+    socket.room = room;
+    socket.roomId = room._id;
+    await connect(socket);
+
+    await socket.handlers[Protocol.KICK_USER](101);
+    await socket.handlers[Protocol.BAN_USER]('101');
+
+    expect(room.dropUser).not.toHaveBeenCalled();
+    expect(room.banUser).not.toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith(Protocol.ERROR, expect.objectContaining({
+      statusCode: 400,
+      event: Protocol.KICK_USER,
+    }));
+    expect(socket.emit).toHaveBeenCalledWith(Protocol.ERROR, expect.objectContaining({
+      statusCode: 400,
+      event: Protocol.BAN_USER,
     }));
   });
 });

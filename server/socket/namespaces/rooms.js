@@ -118,6 +118,12 @@ module.exports = (io, middlewares) => {
     }
   }
 
+  function sendAdminUpdate(room) {
+    if (room.admin) {
+      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, room.admin);
+    }
+  }
+
   async function finalizeUserDeparture({
     roomId, userId, connectionId, leaveReason,
   }) {
@@ -133,9 +139,7 @@ module.exports = (io, middlewares) => {
       return false;
     }
 
-    const updatedRoom = await room.dropUser({ id: userId }, (_room) => {
-      ns().in(room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
-    });
+    const updatedRoom = await room.dropUser({ id: userId }, sendAdminUpdate);
 
     await metrics.endRoomVisit({
       room: updatedRoom,
@@ -406,9 +410,7 @@ module.exports = (io, middlewares) => {
         });
       }
 
-      const r = await activeRoom.addUser(socket.user, spectating, (_room) => {
-        ns().in(_room.accessCode).emit(Protocol.UPDATE_ADMIN, _room.admin);
-      });
+      const r = await activeRoom.addUser(socket.user, spectating, sendAdminUpdate);
 
       if (!r) {
         // The user is already present in persisted room state.
@@ -920,6 +922,15 @@ module.exports = (io, middlewares) => {
         return;
       }
 
+      if (String(userId) === String(socket.user.id)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.KICK_USER,
+          message: 'Cannot kick yourself; leave the room instead',
+        });
+        return;
+      }
+
       try {
         const room = await socket.room.dropUser({ id: userId });
 
@@ -951,6 +962,15 @@ module.exports = (io, middlewares) => {
 
     on(Protocol.BAN_USER, async (userId) => {
       if (!checkAdmin()) {
+        return;
+      }
+
+      if (String(userId) === String(socket.user.id)) {
+        socket.emit(Protocol.ERROR, {
+          statusCode: 400,
+          event: Protocol.BAN_USER,
+          message: 'Cannot ban yourself; leave the room instead',
+        });
         return;
       }
 
@@ -1058,8 +1078,11 @@ module.exports = (io, middlewares) => {
     on(Protocol.LEAVE_ROOM, async () => {
       if (socket.room) {
         if (socket.user) {
-          await leaveRoom('explicit');
+          // Exclude this tab before checking whether another tab keeps the
+          // user's room membership active. Otherwise simultaneous leaves can
+          // each see the other socket and neither finalizes the departure.
           socket.leave(encodeUserRoom(socket.userId, socket.room._id));
+          await leaveRoom('explicit');
         } else {
           await metrics.endRoomVisit({
             room: socket.room,

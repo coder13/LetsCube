@@ -29,8 +29,14 @@ grace period, departure uses the same admin handoff as an explicit leave.
 
 Presence is per user, not per socket. Closing one tab does not hand off admin
 while another socket for the same user remains in the room. Explicitly leaving
-from the last tab finalizes the departure immediately. If the owner later
+from the last tab finalizes the departure immediately: each leaving tab removes
+itself from the per-user socket group before the remaining-tab check, so two
+simultaneous explicit leaves cannot strand membership. If the owner later
 rejoins, they reclaim admin before the join is acknowledged.
+
+An empty room persists `admin: null`, but the established `UPDATE_ADMIN`
+Socket.IO event is emitted only for a non-null active admin. Spectators and
+other clients therefore never receive a null admin payload.
 
 Grand Prix rooms use the same role selection when Grand Prix is enabled. When
 it is disabled, create and join requests are rejected before membership or
@@ -42,6 +48,10 @@ The server refreshes canonical room state before processing room socket events.
 Admin actions must authorize against the current `admin`, not a client-provided
 role or an older socket snapshot. Owner-only operations authorize against the
 unchanging `owner`.
+
+Admins cannot kick or ban themselves through raw socket events; they must use
+the ordinary leave operation so membership, admin handoff, and reconnect
+semantics remain coherent.
 
 Private-room invitations and access approvals may treat the active owner or
 current admin as a host, but must also independently require that host to be an

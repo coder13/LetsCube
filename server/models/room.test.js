@@ -210,6 +210,56 @@ describe('room security helpers', () => {
     })).toBeNull();
   });
 
+  it('hands off and persists admin after a removal without a callback', async () => {
+    const owner = { id: 101 };
+    const nextAdmin = { id: 202 };
+    const persistedAdmins = [];
+    const room = {
+      owner,
+      admin: owner,
+      inRoom: new Map([['101', true], ['202', true]]),
+      waitingFor: new Map([['101', true], ['202', true]]),
+      type: 'grand_prix',
+      updateAdminIfNeeded: Room.methods.updateAdminIfNeeded,
+      save: jest.fn(async () => {
+        persistedAdmins.push(room.admin && room.admin.id);
+        return room;
+      }),
+    };
+    Object.defineProperty(room, 'usersInRoom', {
+      get: () => [owner, nextAdmin].filter((user) => room.inRoom.get(String(user.id))),
+    });
+
+    await Room.methods.dropUser.call(room, owner);
+
+    expect(room.admin).toBe(nextAdmin);
+    expect(persistedAdmins).toContain(nextAdmin.id);
+  });
+
+  it('persists an empty room without announcing a null admin', async () => {
+    const owner = { id: 101 };
+    const onAdminChange = jest.fn();
+    const room = {
+      owner,
+      admin: owner,
+      inRoom: new Map([['101', true]]),
+      waitingFor: new Map([['101', true]]),
+      type: 'grand_prix',
+      updateAdminIfNeeded: Room.methods.updateAdminIfNeeded,
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    Object.defineProperty(room, 'usersInRoom', {
+      get: () => (room.inRoom.get('101') ? [owner] : []),
+    });
+    room.save.mockResolvedValue(room);
+
+    await Room.methods.dropUser.call(room, owner, onAdminChange);
+
+    expect(room.admin).toBeNull();
+    expect(room.save).toHaveBeenCalled();
+    expect(onAdminChange).not.toHaveBeenCalled();
+  });
+
   it('persists and announces the owner reclaiming admin controls', async () => {
     const owner = { id: 101 };
     const room = {
