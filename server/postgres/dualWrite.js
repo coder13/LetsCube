@@ -66,13 +66,14 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
   );
   await client.query(`
     INSERT INTO app.users (
-      id, wca_user_id, name, username, wca_id, preferences, avatar,
-      source_created_at, source_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      id, wca_user_id, name, username, username_normalized, wca_id,
+      preferences, avatar, source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (wca_user_id) DO UPDATE SET
       email = NULL,
       name = EXCLUDED.name,
       username = EXCLUDED.username,
+      username_normalized = EXCLUDED.username_normalized,
       wca_id = EXCLUDED.wca_id,
       preferences = EXCLUDED.preferences,
       avatar = EXCLUDED.avatar,
@@ -84,12 +85,14 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
         AND ROW(
           app.users.name,
           app.users.username,
+          app.users.username_normalized,
           app.users.wca_id,
           app.users.preferences,
           app.users.avatar
         ) IS DISTINCT FROM ROW(
           EXCLUDED.name,
           EXCLUDED.username,
+          EXCLUDED.username_normalized,
           EXCLUDED.wca_id,
           EXCLUDED.preferences,
           EXCLUDED.avatar
@@ -100,6 +103,7 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
     wcaUserId,
     user.name,
     user.username || null,
+    user.usernameNormalized || null,
     user.wcaId || null,
     {
       showWCAID: !!user.showWCAID,

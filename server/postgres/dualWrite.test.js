@@ -21,6 +21,7 @@ const user = {
   email: 'private@example.com',
   name: 'Test Solver',
   username: 'solver',
+  usernameNormalized: 'solver',
   wcaId: '2026TEST01',
   accessToken: 'must-not-be-mirrored',
   showWCAID: true,
@@ -59,7 +60,9 @@ describe('PostgreSQL dual writer', () => {
     expect(values).toContain(1234);
     expect(client.query.mock.calls[1][0]).toContain('email = NULL');
     expect(values).not.toContain('private@example.com');
+    expect(values.slice(3, 5)).toEqual(['solver', 'solver']);
     expect(values).not.toContain('must-not-be-mirrored');
+    expect(client.query.mock.calls[1][0]).toContain('username_normalized');
   });
 
   it('mirrors a room snapshot, participants, attempts, and solves', async () => {

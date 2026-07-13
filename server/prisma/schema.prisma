@@ -10,6 +10,7 @@ model User {
   email              String?
   name               String
   username           String?
+  usernameNormalized String?           @unique(map: "users_username_normalized_key") @map("username_normalized")
   wcaId              String?           @map("wca_id")
   preferences        Json              @default("{}") @db.JsonB
   avatar             Json              @default("{}") @db.JsonB

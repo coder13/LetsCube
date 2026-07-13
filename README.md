@@ -105,3 +105,7 @@ TLS connections can set `PGSSL=true` and provide a CA with `PGSSL_CA`;
 certificate verification is enabled by default. PostgreSQL failures are logged
 but do not fail the corresponding MongoDB-backed application operation during
 this migration phase.
+
+Username lookup uses a separately normalized, uniquely indexed key while
+preserving display casing. See [the normalized username migration](docs/username-migration.md)
+for the required collision audit, production order, and rollback procedure.
