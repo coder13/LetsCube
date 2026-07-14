@@ -131,6 +131,7 @@ The deploy script can be tested without production access:
 ```sh
 scripts/test-deploy-classifier.sh
 scripts/test-deploy.sh
+scripts/test-mongo-backup-restore.sh
 scripts/classify-deploy-target.sh client/src/components/App.jsx
 ```
 
