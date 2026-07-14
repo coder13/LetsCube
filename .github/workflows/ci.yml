@@ -114,7 +114,7 @@ jobs:
         run: LETSCUBE_TEST_AUTH=true SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node index.js > server.log 2>&1 &
 
       - name: Start socket server
-        run: yarn workspace letscube-server node socket/ > socket.log 2>&1 &
+        run: SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node socket/ > socket.log 2>&1 &
 
       - name: Wait for local stack
         run: |
