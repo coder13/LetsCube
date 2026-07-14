@@ -70,7 +70,7 @@ const errorMessage = async (response, fallback) => {
   try {
     const body = await response.json();
     return body.message || fallback;
-  } catch (error) {
+  } catch {
     return fallback;
   }
 };

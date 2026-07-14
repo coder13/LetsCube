@@ -13,7 +13,7 @@ const requestError = async (response) => {
   let body = {};
   try {
     body = await response.json();
-  } catch (err) {
+  } catch {
     // Keep the server status as the useful error when a proxy sends no JSON body.
   }
   const error = new Error(body.message || 'Notification action failed');

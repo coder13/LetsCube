@@ -1,8 +1,6 @@
 import React from 'react';
-import { shallow } from 'enzyme';
-import Button from '@mui/material/Button';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import TextField from '@mui/material/TextField';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { ThemeProvider } from '../theme';
 import RoomConfigureDialog from './RoomConfigureDialog';
 
 const privateRoom = {
@@ -15,21 +13,23 @@ const privateRoom = {
   twitchChannel: '',
 };
 
+const renderDialog = (props) => render(
+  <ThemeProvider>
+    <RoomConfigureDialog {...props} />
+  </ThemeProvider>,
+);
+
 describe('RoomConfigureDialog passwords', () => {
   it('allows an existing private room to be edited without replacing its password', () => {
     const onSave = jest.fn();
-    const wrapper = shallow(
-      <RoomConfigureDialog
-        room={privateRoom}
-        open
-        onSave={onSave}
-        onCancel={jest.fn()}
-      />,
-    );
+    renderDialog({
+      room: privateRoom,
+      open: true,
+      onSave,
+      onCancel: jest.fn(),
+    });
 
-    const save = wrapper.find(Button).filterWhere((button) => button.text() === 'Save');
-    expect(save.prop('disabled')).toBe(false);
-    save.simulate('click');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       private: true,
@@ -39,18 +39,15 @@ describe('RoomConfigureDialog passwords', () => {
 
   it('sends an explicitly changed password', () => {
     const onSave = jest.fn();
-    const wrapper = shallow(
-      <RoomConfigureDialog
-        room={privateRoom}
-        open
-        onSave={onSave}
-        onCancel={jest.fn()}
-      />,
-    );
+    renderDialog({
+      room: privateRoom,
+      open: true,
+      onSave,
+      onCancel: jest.fn(),
+    });
 
-    wrapper.find(TextField).findWhere((field) => field.prop('id') === 'password')
-      .simulate('change', { target: { value: 'new-password' } });
-    wrapper.find(Button).filterWhere((button) => button.text() === 'Save').simulate('click');
+    fireEvent.change(screen.getByLabelText('New Password'), { target: { value: 'new-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       private: true,
@@ -59,35 +56,27 @@ describe('RoomConfigureDialog passwords', () => {
   });
 
   it('requires a password when making an existing public room private', () => {
-    const wrapper = shallow(
-      <RoomConfigureDialog
-        room={{ ...privateRoom, private: false }}
-        open
-        onSave={jest.fn()}
-        onCancel={jest.fn()}
-      />,
-    );
+    renderDialog({
+      room: { ...privateRoom, private: false },
+      open: true,
+      onSave: jest.fn(),
+      onCancel: jest.fn(),
+    });
 
-    wrapper.find(FormControlLabel).first().prop('control').props.onChange();
-    wrapper.update();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Private Room?' }));
 
-    const save = wrapper.find(Button).filterWhere((button) => button.text() === 'Save');
-    expect(save.prop('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('requires a password when creating a private room', () => {
-    const wrapper = shallow(
-      <RoomConfigureDialog
-        open
-        onSave={jest.fn()}
-        onCancel={jest.fn()}
-      />,
-    );
+    renderDialog({
+      open: true,
+      onSave: jest.fn(),
+      onCancel: jest.fn(),
+    });
 
-    wrapper.find(FormControlLabel).first().prop('control').props.onChange();
-    wrapper.update();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Private Room?' }));
 
-    const create = wrapper.find(Button).filterWhere((button) => button.text() === 'Create');
-    expect(create.prop('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled();
   });
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import { shallow } from 'enzyme';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Timer from '../../Timer/index';
@@ -26,6 +25,13 @@ const pendingResult = createPendingResult({
   createId: () => 'submission-one',
   now: () => 1000,
 });
+
+const findElements = (node, type) => {
+  if (!React.isValidElement(node)) return [];
+  const children = React.Children.toArray(node.props.children)
+    .flatMap((child) => findElements(child, type));
+  return node.type === type ? [node, ...children] : children;
+};
 
 const makeProps = (overrides = {}) => ({
   classes: {
@@ -60,14 +66,22 @@ const makeProps = (overrides = {}) => ({
   ...overrides,
 });
 
+const createMain = (props) => {
+  const main = new Main(props);
+  main.setState = (update) => {
+    main.state = { ...main.state, ...update };
+  };
+  return main;
+};
+
 describe('room pending result UX', () => {
   it('shows scramble previews for non-3x3 events', () => {
     const props = makeProps({
       room: { ...makeProps().room, event: 'pyram' },
     });
-    const wrapper = shallow(<Main {...props} />);
+    const previews = findElements(createMain(props).render(), ScramblePreview);
 
-    expect(wrapper.find(ScramblePreview).props()).toMatchObject({
+    expect(previews[0].props).toMatchObject({
       event: 'pyram',
       scramble: 'R U',
     });
@@ -87,18 +101,19 @@ describe('room pending result UX', () => {
         },
       },
     });
-    const wrapper = shallow(<Main {...props} />);
-    wrapper.instance().handlePriming();
-    wrapper.setProps({
+    const main = createMain(props);
+    main.handlePriming();
+    main.props = {
+      ...props,
       room: {
         ...props.room,
         attempts: [{
           _id: 'replacement-attempt', id: 0, scrambles: ['F R'], results: {},
         }],
       },
-    });
+    };
 
-    wrapper.instance().onSubmitTime({ time: 1234, penalties: {} });
+    main.onSubmitTime({ time: 1234, penalties: {} });
 
     expect(props.dispatch).toHaveBeenCalledWith({
       type: SUBMIT_RESULT,
@@ -122,25 +137,25 @@ describe('room pending result UX', () => {
         },
       },
     });
-    const wrapper = shallow(<Main {...props} />);
+    const tree = createMain(props).render();
 
-    expect(wrapper.find(Timer).prop('disabled')).toBe(false);
-    expect(wrapper.find(Alert)).toHaveLength(0);
+    expect(findElements(tree, Timer)[0].props.disabled).toBe(false);
+    expect(findElements(tree, Alert)).toHaveLength(0);
   });
 
   it('blocks another solve and offers return/discard actions outside the original room', () => {
     const props = makeProps();
-    const wrapper = shallow(<Main {...props} />);
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
+    const alert = findElements(createMain(props).render(), Alert)[0];
+    const buttons = findElements(alert.props.action, Button);
 
-    expect(wrapper.find(Timer).prop('disabled')).toBe(true);
-    expect(wrapper.find(Alert).text()).toContain('Your saved time belongs to room original-room.');
-    expect(actions.find(Button).map((button) => button.text())).toEqual([
+    expect(findElements(createMain(props).render(), Timer)[0].props.disabled).toBe(true);
+    expect(alert.props.children).toContain('Your saved time belongs to room original-room.');
+    expect(buttons.map((button) => button.props.children)).toEqual([
       'Return to room',
       'Discard saved result',
     ]);
 
-    actions.find(Button).at(1).simulate('click');
+    buttons[1].props.onClick();
     expect(props.dispatch).toHaveBeenCalledWith({
       type: DISCARD_PENDING_RESULT,
       submissionId: 'submission-one',
@@ -148,10 +163,7 @@ describe('room pending result UX', () => {
   });
 
   it('also blocks a solve when the device outbox belongs to another account', () => {
-    const anotherUsersResult = {
-      ...pendingResult,
-      userId: 99,
-    };
+    const anotherUsersResult = { ...pendingResult, userId: 99 };
     const props = makeProps({
       room: {
         ...makeProps().room,
@@ -162,13 +174,12 @@ describe('room pending result UX', () => {
         },
       },
     });
-    const wrapper = shallow(<Main {...props} />);
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
+    const alert = findElements(createMain(props).render(), Alert)[0];
 
-    expect(wrapper.find(Timer).prop('disabled')).toBe(true);
-    expect(wrapper.find(Alert).text()).toContain('another account');
-    expect(actions.find(Button)).toHaveLength(1);
-    expect(actions.find(Button).text()).toBe('Discard saved result');
+    expect(findElements(createMain(props).render(), Timer)[0].props.disabled).toBe(true);
+    expect(alert.props.children).toContain('another account');
+    expect(findElements(alert.props.action, Button)).toHaveLength(1);
+    expect(findElements(alert.props.action, Button)[0].props.children).toBe('Discard saved result');
   });
 
   it('keeps an attempted result without offering discard', () => {
@@ -182,11 +193,11 @@ describe('room pending result UX', () => {
         },
       },
     });
-    const wrapper = shallow(<Main {...props} />);
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
+    const alert = findElements(createMain(props).render(), Alert)[0];
+    const buttons = findElements(alert.props.action, Button);
 
-    expect(actions.find(Button)).toHaveLength(1);
-    expect(actions.find(Button).text()).toBe('Return to room');
-    expect(wrapper.find(Alert).text()).toContain('finish submitting');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].props.children).toBe('Return to room');
+    expect(alert.props.children).toContain('finish submitting');
   });
 });

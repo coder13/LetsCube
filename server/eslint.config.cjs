@@ -29,4 +29,14 @@ module.exports = [
       'no-underscore-dangle': 'off',
     },
   },
+  {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: {
+        ...globals.node,
+      },
+      sourceType: 'module',
+    },
+  },
 ];

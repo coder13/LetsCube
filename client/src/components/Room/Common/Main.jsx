@@ -34,7 +34,7 @@ import Scramble from '../../common/Scramble';
 import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from './UserStats';
 
-const useStyles = withStyles((theme) => ({
+const withComponentStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -374,4 +374,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(Main));
+export default connect(mapStateToProps)(withComponentStyles(Main));

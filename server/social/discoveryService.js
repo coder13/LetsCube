@@ -18,7 +18,7 @@ const decodeCursor = (value) => {
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
     return validId(parsed.id) ? parsed : null;
-  } catch (err) {
+  } catch {
     return null;
   }
 };
@@ -77,7 +77,7 @@ const createDiscoveryService = ({
         targetQuery = {
           usernameNormalized: normalizeUsername(query, { allowEmpty: false }).usernameNormalized,
         };
-      } catch (err) {
+      } catch {
         return null;
       }
     }
@@ -104,7 +104,7 @@ const createDiscoveryService = ({
     let username;
     try {
       username = normalizeUsername(query, { allowEmpty: false }).usernameNormalized;
-    } catch (err) {
+    } catch {
       if (!WCA_ID.test(query)) return { nextCursor: null, results: [] };
     }
     await searchLimiter.consume({ actorId: viewerId });

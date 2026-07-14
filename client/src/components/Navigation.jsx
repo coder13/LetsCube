@@ -274,6 +274,7 @@ Navigation.propTypes = {
     _id: PropTypes.string,
     accessCode: PropTypes.string,
     fetching: PropTypes.bool,
+    private: PropTypes.bool,
     type: PropTypes.string,
     resultSubmission: PropTypes.shape({
       status: PropTypes.oneOf(['idle', 'pending', 'sending', 'failed']),

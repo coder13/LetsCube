@@ -106,7 +106,7 @@ export const createRoomsNamespaceMiddleware = ({
   const readStoredPendingResult = () => {
     try {
       return readPendingResult(storage);
-    } catch (storageError) {
+    } catch {
       return null;
     }
   };
@@ -114,7 +114,7 @@ export const createRoomsNamespaceMiddleware = ({
   const readStoredRoomPassword = (roomId) => {
     try {
       return readRoomPassword(roomId, storage);
-    } catch (storageError) {
+    } catch {
       return null;
     }
   };
@@ -122,7 +122,7 @@ export const createRoomsNamespaceMiddleware = ({
   const forgetRoomPassword = (roomId) => {
     try {
       clearRoomPassword(roomId, storage);
-    } catch (storageError) {
+    } catch {
       // The next invalid join will try again.
     }
   };
@@ -146,7 +146,7 @@ export const createRoomsNamespaceMiddleware = ({
 
     try {
       persistRoomPassword(roomId, password, storage);
-    } catch (storageError) {
+    } catch {
       warnPasswordStorage(roomId);
     }
   };
@@ -256,7 +256,7 @@ export const createRoomsNamespaceMiddleware = ({
           return false;
         }
       }
-    } catch (storageError) {
+    } catch {
       store.dispatch(createMessage({
         severity: 'warning',
         text: 'Your result was saved, but its local backup could not be removed.',
@@ -292,7 +292,7 @@ export const createRoomsNamespaceMiddleware = ({
       store.dispatch(resultSubmissionPending(pendingResult));
       try {
         persistPendingResult(pendingResult, storage);
-      } catch (storageError) {
+      } catch {
         warnPendingResultNotBackedUp(pendingResult.submissionId);
       }
     }
@@ -348,7 +348,7 @@ export const createRoomsNamespaceMiddleware = ({
         pendingResult = markPendingResultFailed(pendingResult, submissionError);
         try {
           persistPendingResult(pendingResult, storage);
-        } catch (storageError) {
+        } catch {
           warnPendingResultNotBackedUp(pendingResult.submissionId);
         }
         store.dispatch(resultSubmissionPending(pendingResult));
@@ -709,7 +709,7 @@ export const createRoomsNamespaceMiddleware = ({
           createId: createSubmissionId,
           now,
         });
-      } catch (error) {
+      } catch {
         store.dispatch(createMessage({
           severity: 'warning',
           text: 'This result is invalid and was not submitted.',
@@ -720,7 +720,7 @@ export const createRoomsNamespaceMiddleware = ({
       store.dispatch(resultSubmissionPending(pendingResult));
       try {
         persistPendingResult(pendingResult, storage);
-      } catch (storageError) {
+      } catch {
         warnPendingResultNotBackedUp(pendingResult.submissionId);
       }
 

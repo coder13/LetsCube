@@ -1,5 +1,3 @@
-import React from 'react';
-import { shallow } from 'enzyme';
 import { ManualTimer } from './ManualTimer';
 
 const makeProps = () => ({
@@ -15,24 +13,32 @@ const makeProps = () => ({
   useInspection: false,
 });
 
+const createTimer = (props) => {
+  const timer = new ManualTimer(props);
+  timer.setState = (update) => {
+    timer.state = { ...timer.state, ...update };
+  };
+  return timer;
+};
+
 describe('manual timer submission', () => {
   it.each(['', 'not-a-time'])('keeps invalid input for correction: %p', (timeInput) => {
     const props = makeProps();
-    const wrapper = shallow(<ManualTimer {...props} />);
-    wrapper.setState({ timeInput });
+    const timer = createTimer(props);
+    timer.state.timeInput = timeInput;
 
-    wrapper.instance().submitTime({ preventDefault: jest.fn() });
+    timer.submitTime({ preventDefault: jest.fn() });
 
     expect(props.onSubmitTime).not.toHaveBeenCalled();
-    expect(wrapper.state('timeInput')).toBe(timeInput);
+    expect(timer.state.timeInput).toBe(timeInput);
   });
 
   it('submits and resets a valid time', () => {
     const props = makeProps();
-    const wrapper = shallow(<ManualTimer {...props} />);
-    wrapper.setState({ timeInput: '5.00' });
+    const timer = createTimer(props);
+    timer.state.timeInput = '5.00';
 
-    wrapper.instance().submitTime({ preventDefault: jest.fn() });
+    timer.submitTime({ preventDefault: jest.fn() });
 
     expect(props.onSubmitTime).toHaveBeenCalledWith({
       time: 5000,
@@ -42,6 +48,6 @@ describe('manual timer submission', () => {
         inspection: false,
       },
     });
-    expect(wrapper.state('timeInput')).toBe('');
+    expect(timer.state.timeInput).toBe('');
   });
 });

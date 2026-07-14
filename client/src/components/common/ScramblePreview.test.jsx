@@ -1,7 +1,8 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react';
-import Events from 'letscube-scrambles/events';
+import Events from '../../lib/events.json';
 import loadTwistyPlayer from '../../lib/cubingTwisty';
+import { ThemeProvider } from '../../theme';
 import ScramblePreview, { puzzleByEvent } from './ScramblePreview';
 
 jest.mock('../../lib/cubingTwisty', () => ({
@@ -10,6 +11,8 @@ jest.mock('../../lib/cubingTwisty', () => ({
 }));
 
 const players = [];
+
+const renderPreview = (element) => render(<ThemeProvider>{element}</ThemeProvider>);
 
 const flushPlayerLoad = () => act(async () => {
   await Promise.resolve();
@@ -37,7 +40,7 @@ it('maps every configured event to a cubing.js puzzle', () => {
 });
 
 it('renders the static 2D end state of a scramble', async () => {
-  const { getByRole } = render(
+  const { getByRole } = renderPreview(
     <ScramblePreview event="pyram" scramble="R U" size={120} />,
   );
 
@@ -56,7 +59,7 @@ it('renders the static 2D end state of a scramble', async () => {
 });
 
 it('enlarges the preview with its scramble text', async () => {
-  const { getByLabelText, getAllByRole, getByText } = render(
+  const { getByLabelText, getAllByRole, getByText } = renderPreview(
     <ScramblePreview event="777" scramble="R U" />,
   );
   await flushPlayerLoad();

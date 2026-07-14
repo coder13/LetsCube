@@ -112,7 +112,7 @@ export const readPendingResult = (storage = window.localStorage) => {
   try {
     const pendingResult = JSON.parse(serialized);
     return isPendingResult(pendingResult) ? pendingResult : null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
