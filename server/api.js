@@ -1,8 +1,12 @@
 const express = require('express');
 
-const router = express.Router();
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
+const { updateUsername } = require('./username');
+const createFriendsRouter = require('./api/friends');
+const createNotificationsRouter = require('./api/notifications');
+const createUsersRouter = require('./api/users');
+const { isFeatureEnabled } = require('./features');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -12,60 +16,50 @@ const PREFERENCE_KEYS = new Set([
   'muteTimer',
 ]);
 
-module.exports = () => {
+module.exports = (app) => {
+  const router = express.Router();
   const sendError = (res, err) => {
-    res.status(err.statusCode || 500).send({
+    const body = {
       status: err.statusCode,
       message: err.message || 'Error occured while retrieving data; contact Kleb',
-    });
+    };
+    if (err.code) {
+      body.code = err.code;
+    }
+    res.status(err.statusCode || 500).send(body);
   };
 
   router.get('/me', auth, (req, res) => {
     res.json(req.user.toObject());
   });
 
-  router.put('/updateUsername', auth, (req, res) => {
-    // TODO: server side validation of username
-    // TODO: refactor
-    const { username } = req.body;
-    if (username === undefined) {
-      return sendError(res, {
-        statusCode: 400,
-        message: 'Missing username from request',
-      });
+  router.put('/updateUsername', auth, async (req, res) => {
+    try {
+      const user = await updateUsername(User, req.user, req.body.username);
+      return res.json(user.toObject());
+    } catch (err) {
+      return sendError(res, err);
     }
-
-    if (username === '') {
-      req.user.username = username;
-      return req.user.save().then((u) => {
-        res.json(u.toObject());
-      });
-    }
-
-    User.findOne({
-      username: {
-        $regex: new RegExp(`^${username}$`, 'i'),
-      },
-    }).then((user) => {
-      if (user && user.id !== req.user.id) {
-        sendError(res, {
-          statusCode: 500,
-          message: 'User with username already exists',
-        });
-        return null;
-      }
-
-      req.user.username = username.trim();
-      return req.user.save().then((u) => {
-        res.json(u.toObject());
-      });
-    }).catch((err) => {
-      sendError(res, {
-        statusCode: 500,
-        message: err,
-      });
-    });
   });
+
+  if (app && app.get('config').socialFeatures.enabled && isFeatureEnabled('friends')) {
+    router.use('/friends', createFriendsRouter());
+    router.use('/notifications', createNotificationsRouter());
+    router.use('/users', createUsersRouter());
+  } else {
+    router.use('/friends', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+    router.use('/notifications', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+    router.use('/users', (req, res) => res.status(404).json({
+      code: 'feature_disabled',
+      message: 'This feature is not available',
+    }));
+  }
 
   router.put('/updatePreference', auth, async (req, res) => {
     const unknownPreference = Object.keys(req.body)

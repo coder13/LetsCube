@@ -3,6 +3,8 @@ const CustomStrategy = require('passport-custom').Strategy;
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
 const metrics = require('../metrics');
+const { buildWcaUserUpdate } = require('./wcaProfile');
+const { upsertTestUser } = require('./testUser');
 
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
@@ -31,20 +33,11 @@ module.exports = (app, passport) => {
 
     if (process.env.LETSCUBE_TEST_AUTH === 'true') {
       try {
-        const user = await User.findOneAndUpdate({
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
-        }, {
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
-          name: 'Cypress Test User',
-          username: 'cypress',
-          email: 'cypress@example.com',
-          wcaId: '2026TEST01',
-          accessToken: `test-token-${code}`,
-          avatar: {},
-        }, {
-          upsert: true,
-          useFindAndModify: false,
-          new: true,
+        const testUserMatch = /^cypress-test-user-(\d+)$/.exec(code);
+        const user = await upsertTestUser(User, {
+          code,
+          userId: testUserMatch
+            ? Number(testUserMatch[1]) : +(process.env.LETSCUBE_TEST_USER_ID || 990001),
         });
 
         done(null, user.toObject());
@@ -89,14 +82,7 @@ module.exports = (app, passport) => {
 
       User.findOneAndUpdate({
         id: +profile.id,
-      }, {
-        id: +profile.id,
-        name: profile.name,
-        email: profile.email,
-        wcaId: profile.wca_id,
-        accessToken: tokenRes.access_token,
-        avatar: profile.avatar,
-      }, {
+      }, buildWcaUserUpdate(profile, tokenRes.access_token), {
         upsert: true,
         useFindAndModify: false,
         new: true,

@@ -8,7 +8,18 @@ const METRIC_EVENTS = Object.freeze({
   ROOM_JOIN_FAILED: 'room_join_failed',
   ROOM_LEFT: 'room_left',
   ROOM_RESULT_SUBMITTED: 'room_result_submitted',
+  SOCIAL_ACTION: 'social_action',
 });
+
+const SOCIAL_ACTIONS = Object.freeze([
+  'accept',
+  'block',
+  'cancel',
+  'decline',
+  'send',
+  'unblock',
+  'unfriend',
+]);
 
 const MetricEvent = new mongoose.Schema({
   eventId: {
@@ -45,6 +56,11 @@ const MetricEvent = new mongoose.Schema({
     type: String,
     enum: ['disconnect', 'explicit', 'kick', 'ban'],
   },
+  socialAction: {
+    type: String,
+    enum: SOCIAL_ACTIONS,
+  },
+  socialOutcome: String,
   activeUserCount: {
     type: Number,
     min: 0,
@@ -109,4 +125,5 @@ MetricEvent.index({
 module.exports = {
   METRIC_EVENTS,
   MetricEvent,
+  SOCIAL_ACTIONS,
 };

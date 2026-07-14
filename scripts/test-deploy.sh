@@ -26,6 +26,9 @@ fake_git() {
       ;;
     fetch|merge)
       ;;
+    merge-base)
+      [ "${FAKE_CUTOVER_ANCESTOR:-true}" = "true" ]
+      ;;
     diff)
       if [ -n "${FAKE_CHANGED_PATH:-}" ]; then
         printf '%s\0' "$FAKE_CHANGED_PATH"
@@ -269,7 +272,44 @@ run_rollback_test() {
   assert_contains "$(<"$log")" "git show $previous_commit:compose.prod.yml"
 }
 
+run_privacy_floor_test() {
+  local scenario="$TEST_ROOT/privacy-floor"
+  local app_dir="$scenario/app"
+  local log="$scenario/commands.log"
+  local output="$scenario/output.log"
+  local git_state="$scenario/git-state"
+  local rollback_marker="$scenario/rollback"
+  local previous_commit="2222222222222222222222222222222222222222"
+  local current_commit="1111111111111111111111111111111111111111"
+
+  mkdir -p "$scenario/tmp"
+  prepare_app "$app_dir"
+  printf '%s\n' "$previous_commit" > "$app_dir/.privacy-email-cutover"
+
+  if PATH="$FAKE_BIN:$PATH" \
+    APP_DIR="$app_dir" \
+    DEPLOY_TEST_LOG="$log" \
+    ENV_FILE=.env.prod \
+    FAKE_CURRENT_COMMIT="$current_commit" \
+    FAKE_CUTOVER_ANCESTOR=false \
+    FAKE_GIT_STATE="$git_state" \
+    FAKE_PREVIOUS_COMMIT="$previous_commit" \
+    FAKE_ROLLBACK_MARKER="$rollback_marker" \
+    TMPDIR="$scenario/tmp" \
+    bash "$app_dir/scripts/deploy.sh" > "$output" 2>&1; then
+    echo 'Expected a pre-cutover deployment to be rejected.' >&2
+    exit 1
+  fi
+
+  assert_contains "$(<"$output")" 'predates the email privacy cutover'
+  if grep -q '^docker ' "$log"; then
+    echo 'Privacy floor rejection ran Docker commands.' >&2
+    exit 1
+  fi
+}
+
 run_bootstrap_test
 run_rollback_test
+run_privacy_floor_test
 
 echo 'Deploy script checks passed.'

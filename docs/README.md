@@ -15,6 +15,11 @@ This directory contains the durable technical documentation for Let's Cube.
 - [Production operations](operations.md) — deployment, health checks, rollback,
   backups, restore, and capacity management
 
+## Feature contracts
+
+- [Friendship and blocking lifecycle](friendships.md)
+- [In-app social notifications](notifications.md)
+
 Package documentation:
 
 - [`letscube-scrambles`](../packages/scrambles/README.md) — public exports,

@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const { mirrorUser } = require('../postgres/dualWrite');
+const { normalizeUsername } = require('../username');
 
 const redactUser = (doc, ret) => {
   delete ret.email;
   delete ret.accessToken;
+  delete ret.usernameNormalized;
   if (!doc.showWCAID) {
     delete ret.wcaId;
     if (!doc.preferRealName) {
@@ -20,14 +22,14 @@ const schema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  email: {
-    type: String,
-  },
   name: {
     type: String,
     required: true,
   },
   username: {
+    type: String,
+  },
+  usernameNormalized: {
     type: String,
   },
   wcaId: {
@@ -71,6 +73,28 @@ const schema = new mongoose.Schema({
     getters: true,
     transform: redactUser,
   },
+  autoIndex: false,
+});
+
+schema.index(
+  { usernameNormalized: 1 },
+  { name: 'users_username_normalized_unique', sparse: true, unique: true },
+);
+schema.index({ showWCAID: 1, wcaId: 1 }, { name: 'users_visible_wca_id_lookup' });
+
+schema.pre('validate', function normalizeChangedUsername(next) {
+  if (!this.isNew && !this.isModified('username')) {
+    return next();
+  }
+
+  try {
+    const normalized = normalizeUsername(this.username);
+    this.username = normalized.username;
+    this.usernameNormalized = normalized.usernameNormalized;
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 });
 
 schema.virtual('displayName').get(function () {

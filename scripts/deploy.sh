@@ -58,6 +58,19 @@ esac
 
 current_commit="$(git rev-parse HEAD)"
 
+privacy_cutover_file="${PRIVACY_EMAIL_CUTOVER_FILE:-$APP_DIR/.privacy-email-cutover}"
+if [ -f "$privacy_cutover_file" ]; then
+  privacy_cutover_commit="$(tr -d '[:space:]' < "$privacy_cutover_file")"
+  if ! [[ "$privacy_cutover_commit" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "Invalid email privacy cutover commit in $privacy_cutover_file" >&2
+    exit 2
+  fi
+  if ! git merge-base --is-ancestor "$privacy_cutover_commit" "$current_commit"; then
+    echo "Refusing to deploy $current_commit: it predates the email privacy cutover." >&2
+    exit 1
+  fi
+fi
+
 if [ "$DEPLOY_TARGET" = "auto" ]; then
   missing_services=()
   for service in api socket nginx; do

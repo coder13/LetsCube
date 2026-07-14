@@ -1,5 +1,4 @@
 import React from 'react';
-import qs from 'qs';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -10,11 +9,14 @@ import Typography from '@material-ui/core/Typography';
 import Toolbar from '@material-ui/core/Toolbar';
 import IconButton from '@material-ui/core/IconButton';
 import Avatar from '@material-ui/core/Avatar';
-import Menu from '@material-ui/core/Menu';
 import Button from '@material-ui/core/Button';
-import MenuItem from '@material-ui/core/MenuItem';
+import Badge from '@material-ui/core/Badge';
 import { apiOrigin } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
+import { getWcaAuthorizationUrl } from '../lib/wcaAuth';
+import NotificationsIcon from '@material-ui/icons/Notifications';
+import AccountMenu from './AccountMenu';
+import NotificationPopover from './Notifications/NotificationPopover';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -42,10 +44,11 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function Header({ user, room }) {
+function Header({ user, room, notifications }) {
   const loggedIn = !!user.id;
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -56,14 +59,16 @@ function Header({ user, room }) {
     setAnchorEl(null);
   };
 
+  const closeNotifications = () => setNotificationAnchorEl(null);
+
   const login = () => {
-    localStorage.setItem('letscube.redirect_uri', `${document.location.origin}/wca-redirect`);
-    const url = `${process.env.REACT_APP_WCA_ORIGIN}/oauth/authorize?${qs.stringify({
-      response_type: 'code',
-      scope: 'public dob email',
-      redirect_uri: `${document.location.origin}/wca-redirect`,
-      client_id: process.env.REACT_APP_WCA_CLIENT_ID,
-    })}`;
+    const redirectUri = `${document.location.origin}/wca-redirect`;
+    localStorage.setItem('letscube.redirect_uri', redirectUri);
+    const url = getWcaAuthorizationUrl({
+      origin: process.env.REACT_APP_WCA_ORIGIN,
+      clientId: process.env.REACT_APP_WCA_CLIENT_ID,
+      redirectUri,
+    });
     window.location = url;
   };
 
@@ -93,27 +98,44 @@ function Header({ user, room }) {
         { loggedIn
           ? (
             <div style={{ display: 'flex' }}>
-              <IconButton onClick={handleMenu} color="inherit">
+              {notifications.enabled && (
+                <>
+                  <IconButton
+                    aria-label="Notifications"
+                    aria-controls="notification-menu"
+                    aria-haspopup="true"
+                    color="inherit"
+                    onClick={(event) => setNotificationAnchorEl(event.currentTarget)}
+                  >
+                    <Badge badgeContent={notifications.unreadCount} color="secondary">
+                      <NotificationsIcon />
+                    </Badge>
+                  </IconButton>
+                  <NotificationPopover
+                    anchorEl={notificationAnchorEl}
+                    notifications={notifications.notifications}
+                    onClose={closeNotifications}
+                    unreadCount={notifications.unreadCount}
+                  />
+                </>
+              )}
+              <IconButton
+                aria-controls={open ? 'account-menu' : undefined}
+                aria-expanded={open}
+                aria-haspopup="true"
+                aria-label="Open account menu"
+                color="inherit"
+                onClick={handleMenu}
+              >
                 <Avatar src={user.avatar.thumb_url} />
               </IconButton>
-              <Menu
-                id="menu-appbar"
+              <AccountMenu
                 anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                open={open}
                 onClose={handleClose}
-              >
-                <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
-                <MenuItem onClick={logout}>Log out</MenuItem>
-              </Menu>
+                onLogout={logout}
+                open={open}
+                user={user}
+              />
             </div>
           )
           : <Button color="inherit" onClick={login}>Login</Button>}
@@ -126,6 +148,8 @@ Header.propTypes = {
   user: PropTypes.shape({
     id: PropTypes.number,
     name: PropTypes.string,
+    displayName: PropTypes.string,
+    username: PropTypes.string,
     wcaId: PropTypes.string,
     avatar: PropTypes.shape({
       thumb_url: PropTypes.string,
@@ -136,12 +160,19 @@ Header.propTypes = {
     name: PropTypes.string,
     event: PropTypes.string,
   }),
+  notifications: PropTypes.shape({
+    enabled: PropTypes.bool,
+    notifications: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, type: PropTypes.string })),
+    unreadCount: PropTypes.number,
+  }),
 };
 
 Header.defaultProps = {
   user: {
     id: undefined,
     name: undefined,
+    displayName: undefined,
+    username: undefined,
     wcaId: undefined,
     avatar: {
       thumb_url: undefined,
@@ -152,12 +183,18 @@ Header.defaultProps = {
     name: undefined,
     event: undefined,
   },
+  notifications: {
+    enabled: false,
+    notifications: [],
+    unreadCount: 0,
+  },
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
   user: state.user,
   roomName: state.room.name,
+  notifications: state.notifications,
 });
 
 export default connect(mapStateToProps)(Header);

@@ -12,6 +12,8 @@ const { initializePostgres, pool } = require('../postgres');
 const logger = require('../logger');
 const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
+const { registerSocialEventSubscriber } = require('../realtime/socialEvents');
+const { isFeatureEnabled } = require('../features');
 const initRooms = require('./namespaces/rooms');
 const initDefault = require('./namespaces/default');
 
@@ -60,11 +62,19 @@ const init = async () => {
     db: config.redis.db,
   });
   const subClient = pubClient.duplicate();
+  const socialSubClient = config.socialFeatures.enabled && isFeatureEnabled('friends')
+    ? pubClient.duplicate() : null;
 
   pubClient.on('error', logSocketError('redis pub client'));
   subClient.on('error', logSocketError('redis sub client'));
+  if (socialSubClient) {
+    socialSubClient.on('error', logSocketError('redis social sub client'));
+  }
 
   io.adapter(createAdapter(pubClient, subClient));
+  if (socialSubClient) {
+    registerSocialEventSubscriber(io, socialSubClient);
+  }
 
   const reportHealth = createHealthReporter({
     service: 'socket',
@@ -81,6 +91,7 @@ const init = async () => {
       },
       redis: async () => pubClient.status === 'ready'
         && subClient.status === 'ready'
+        && (!socialSubClient || socialSubClient.status === 'ready')
         && (await pubClient.ping()) === 'PONG',
     },
   });

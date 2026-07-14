@@ -30,3 +30,31 @@ describe('Grand Prix runtime configuration', () => {
     expect(loadRuntimeConfig().grandPrix.enabled).toBe(false);
   });
 });
+
+describe('social feature runtime configuration', () => {
+  const originalValue = process.env.SOCIAL_FEATURES_ENABLED;
+
+  afterEach(() => {
+    if (originalValue === undefined) {
+      delete process.env.SOCIAL_FEATURES_ENABLED;
+    } else {
+      process.env.SOCIAL_FEATURES_ENABLED = originalValue;
+    }
+    jest.resetModules();
+  });
+
+  it('is disabled by default', () => {
+    delete process.env.SOCIAL_FEATURES_ENABLED;
+
+    expect(loadRuntimeConfig().socialFeatures.enabled).toBe(false);
+  });
+
+  it('is enabled only by the explicit lowercase true value', () => {
+    process.env.SOCIAL_FEATURES_ENABLED = 'true';
+    expect(loadRuntimeConfig().socialFeatures.enabled).toBe(true);
+
+    jest.resetModules();
+    process.env.SOCIAL_FEATURES_ENABLED = 'TRUE';
+    expect(loadRuntimeConfig().socialFeatures.enabled).toBe(false);
+  });
+});
