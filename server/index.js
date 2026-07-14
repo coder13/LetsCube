@@ -5,6 +5,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
 const lusca = require('lusca');
+const rateLimit = require('express-rate-limit');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
@@ -12,6 +13,8 @@ const { createHealthHandler, createHealthReporter } = require('./health');
 const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
 const { createCorsOptions } = require('./middlewares/cors');
+const { createClientAssetsRouter } = require('./middlewares/clientAssets');
+const { apiRateLimitOptions } = require('./middlewares/apiRateLimit');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
@@ -76,13 +79,9 @@ const init = async () => {
 
   app.use(cors(createCorsOptions(config.cors.origin)));
 
-  app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
-
-  app.use(express.static(path.join(__dirname, '../client/build')));
-
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
-  });
+  app.get('/api/csrf-token', rateLimit(apiRateLimitOptions()), (req, res) => (
+    res.json({ csrfToken: req.csrfToken() })
+  ));
 
   app.use('/auth', auth(app, passport));
   app.use('/api', api(app, passport));
@@ -98,9 +97,7 @@ const init = async () => {
     res.sendFile(announcementsPath);
   });
 
-  app.use('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
-  });
+  app.use(createClientAssetsRouter(path.join(__dirname, '../client/build')));
 
   app.listen(config.server.port, '0.0.0.0', (err) => {
     if (err) {
