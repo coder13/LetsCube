@@ -27,6 +27,9 @@ jobs:
       - name: Rehearse MongoDB backup and restore scripts
         run: scripts/test-mongo-backup-restore.sh
 
+      - name: Rehearse a live MongoDB backup and restore
+        run: scripts/test-mongo-backup-restore-live.sh
+
   server:
     name: Server lint and unit tests
     runs-on: ubuntu-latest
