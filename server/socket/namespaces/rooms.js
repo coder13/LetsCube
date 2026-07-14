@@ -8,6 +8,7 @@ const logger = require('../../logger');
 const metrics = require('../../metrics');
 const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
+const publicUserProjection = require('../../social/publicUser');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 const {
@@ -265,7 +266,7 @@ module.exports = (io, middlewares) => {
       id: {
         $in: sockets,
       },
-    })).map((user) => user.toJSON()).filter((user) => !!user.displayName);
+    })).map((user) => publicUserProjection(user)).filter((user) => !!user.displayName);
 
     ns().emit(Protocol.UPDATE_USERS_IN_LOBBY, {
       users,

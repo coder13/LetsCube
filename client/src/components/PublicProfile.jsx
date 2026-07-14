@@ -39,8 +39,10 @@ function PublicProfile() {
         setProfile(data);
         setStatus('ready');
       })
-      .catch(() => {
-        if (requestSequence.current === requestId) setStatus('unavailable');
+      .catch((response) => {
+        if (requestSequence.current === requestId) {
+          setStatus(response && response.status === 404 ? 'not-found' : 'unavailable');
+        }
       });
   }, []);
 
@@ -65,6 +67,22 @@ function PublicProfile() {
     }).then(() => load(profile.profileKey)).finally(() => setActing(false));
   };
 
+  if (status === 'not-found') {
+    return (
+      <Paper style={{
+        margin: 'auto', maxWidth: 560, padding: 24, textAlign: 'center', width: '100%',
+      }}
+      >
+        <Typography variant="h2">404</Typography>
+        <Typography variant="h5">User not found</Typography>
+        <Typography color="textSecondary" style={{ margin: '1rem 0' }}>
+          This profile is unavailable or no longer public.
+        </Typography>
+        <Button component={Link} color="primary" to="/" variant="contained">Return to lobby</Button>
+      </Paper>
+    );
+  }
+
   return (
     <Paper style={{
       margin: 'auto', maxWidth: 560, padding: 24, width: '100%',
@@ -85,7 +103,7 @@ function PublicProfile() {
         </Button>
       ))}
       {status === 'loading' && <CircularProgress aria-label="Loading profile" />}
-      {status === 'unavailable' && <Typography role="status">This user is not available.</Typography>}
+      {status === 'unavailable' && <Typography role="status">Unable to load this profile right now.</Typography>}
       {status === 'ready' && profile && (
         <>
           <Avatar

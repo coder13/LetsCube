@@ -126,6 +126,7 @@ function Lobby({
     displayName: u.displayName,
     inARoom: !!rooms.find((room) => room.users && room.users.find((i) => i.id === u.id)),
     avatar: u.avatar,
+    profileKey: u.profileKey,
   }));
 
   const onCreateRoom = (options) => {

@@ -53,6 +53,18 @@ describe('local app stack', () => {
 
     cy.visit('/');
     cy.contains('Create Room', { timeout: 10000 }).should('be.visible');
+    cy.get('a[href="/users/cypress"]', { timeout: 10000 }).click();
+    cy.location('pathname').should('eq', '/users/cypress');
+    cy.contains('@cypress').should('be.visible');
+  });
+
+  it('shows a not-found page for an unavailable user profile', () => {
+    login();
+
+    cy.visit('/users/not-a-real-cuber');
+    cy.contains('404').should('be.visible');
+    cy.contains('User not found').should('be.visible');
+    cy.get('[aria-label="Find a cuber by username or visible WCA ID"]').should('not.exist');
   });
 
   it('creates a room, reloads it directly, and lists it in the lobby', () => {
