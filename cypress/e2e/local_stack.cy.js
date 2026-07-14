@@ -1,15 +1,23 @@
 describe('local app stack', () => {
   const apiOrigin = Cypress.env('apiOrigin') || 'http://localhost:8080';
 
+  const post = (url, body) => cy.request(`${apiOrigin}/api/csrf-token`)
+    .then(({ body: { csrfToken } }) => cy.request({
+      body,
+      headers: { 'x-csrf-token': csrfToken },
+      method: 'POST',
+      url,
+    }));
+
   const login = () => {
-    cy.request('POST', `${apiOrigin}/auth/code`, {
+    return post(`${apiOrigin}/auth/code`, {
       code: 'cypress-test-code',
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
   };
 
   const loginAs = (userId) => {
-    cy.request('POST', `${apiOrigin}/auth/code`, {
+    return post(`${apiOrigin}/auth/code`, {
       code: `cypress-test-user-${userId}`,
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
@@ -150,7 +158,7 @@ describe('local app stack', () => {
 
     loginAs(recipientId);
     loginAs(requesterId);
-    cy.request('POST', `${apiOrigin}/api/friends/requests`, { userId: recipientId })
+    post(`${apiOrigin}/api/friends/requests`, { userId: recipientId })
       .its('status').should('eq', 201);
 
     loginAs(recipientId);
@@ -180,10 +188,10 @@ describe('local app stack', () => {
 
     loginAs(guestId);
     loginAs(hostId);
-    cy.request('POST', `${apiOrigin}/api/friends/requests`, { userId: guestId })
+    post(`${apiOrigin}/api/friends/requests`, { userId: guestId })
       .its('status').should('eq', 201);
     loginAs(guestId);
-    cy.request('POST', `${apiOrigin}/api/friends/requests/${hostId}/accept`)
+    post(`${apiOrigin}/api/friends/requests/${hostId}/accept`)
       .its('status').should('eq', 200);
 
     loginAs(hostId);
