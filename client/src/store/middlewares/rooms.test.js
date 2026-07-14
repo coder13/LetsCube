@@ -20,6 +20,7 @@ import {
   persistPendingResult,
 } from '../room/resultOutbox';
 import {
+  clearRoomPassword,
   persistRoomPassword,
   readRoomPassword,
 } from '../room/roomPasswordStorage';
@@ -161,6 +162,7 @@ const result = {
 describe('rooms middleware', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    ['private-room', 'new-private-room', 'room-one', 'room-two'].forEach(clearRoomPassword);
   });
 
   it('keeps the loaded room mounted while reconnecting its socket', () => {
@@ -195,8 +197,8 @@ describe('rooms middleware', () => {
     expect(joins[0].args[0]).toEqual({ id: 'room-two', password: 'secret' });
   });
 
-  it('uses a saved private room password after a refresh', () => {
-    persistRoomPassword('private-room', 'saved-password');
+  it('does not reuse a private room password after a refresh', () => {
+    window.localStorage.setItem('letscube.roomPassword.v1.private-room', 'saved-password');
     const { namespace, store } = buildStore({
       roomState: {
         ...initialRoom(),
@@ -209,10 +211,7 @@ describe('rooms middleware', () => {
     store.dispatch(joinRoom({ id: 'private-room' }));
 
     const join = emissionsFor(namespace, Protocol.JOIN_ROOM)[0];
-    expect(join.args[0]).toEqual({
-      id: 'private-room',
-      password: 'saved-password',
-    });
+    expect(join.args[0]).toEqual({ id: 'private-room', password: null });
 
     const joinedRoom = {
       ...initialRoom(),
@@ -223,8 +222,9 @@ describe('rooms middleware', () => {
     delete joinedRoom.resultSubmission;
     join.args[1](null, joinedRoom);
 
-    expect(store.getState().room.password).toBe('saved-password');
-    expect(readRoomPassword('private-room')).toBe('saved-password');
+    expect(store.getState().room.password).toBeNull();
+    expect(readRoomPassword('private-room')).toBeNull();
+    expect(window.localStorage.getItem('letscube.roomPassword.v1.private-room')).toBeNull();
   });
 
   it('remembers a successful private room password', () => {
