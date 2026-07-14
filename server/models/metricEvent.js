@@ -8,6 +8,7 @@ const METRIC_EVENTS = Object.freeze({
   ROOM_JOIN_FAILED: 'room_join_failed',
   ROOM_LEFT: 'room_left',
   ROOM_RESULT_SUBMITTED: 'room_result_submitted',
+  SOLVE_HISTORY_REQUESTED: 'solve_history_requested',
   SOCIAL_ACTION: 'social_action',
 });
 
@@ -70,6 +71,15 @@ const MetricEvent = new mongoose.Schema({
     min: 0,
   },
   durationMs: {
+    type: Number,
+    min: 0,
+  },
+  historyOutcome: String,
+  historyCount: {
+    type: Number,
+    min: 0,
+  },
+  latencyMs: {
     type: Number,
     min: 0,
   },

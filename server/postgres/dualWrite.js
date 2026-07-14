@@ -2,6 +2,7 @@
 const { v4: uuidv4, v5: uuidv5 } = require('uuid');
 
 const { query, withTransaction } = require('./index');
+const { ensureNormalSession, normalSession } = require('../raceSessions/service');
 
 const DUAL_WRITE_NAMESPACE = uuidv5('https://letscube.net/postgres-dual-write', uuidv5.URL);
 
@@ -283,9 +284,9 @@ const upsertRoomState = async (client, room, options = {}) => {
     INSERT INTO app.rooms (
       id, mongo_id, name, cube_event, access_code, password_hash, room_type,
       owner_id, admin_id, require_revealed_identity, start_time, started,
-      next_solve_at, expires_at, twitch_channel, source_created_at, source_updated_at
+      next_solve_at, expires_at, twitch_channel, source_created_at, source_updated_at, kind
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
     )
     ON CONFLICT (mongo_id) DO UPDATE SET
       name = EXCLUDED.name,
@@ -293,8 +294,9 @@ const upsertRoomState = async (client, room, options = {}) => {
       access_code = EXCLUDED.access_code,
       password_hash = EXCLUDED.password_hash,
       room_type = EXCLUDED.room_type,
-      owner_id = CASE WHEN $18 THEN EXCLUDED.owner_id ELSE app.rooms.owner_id END,
-      admin_id = CASE WHEN $19 THEN EXCLUDED.admin_id ELSE app.rooms.admin_id END,
+      kind = EXCLUDED.kind,
+      owner_id = CASE WHEN $19 THEN EXCLUDED.owner_id ELSE app.rooms.owner_id END,
+      admin_id = CASE WHEN $20 THEN EXCLUDED.admin_id ELSE app.rooms.admin_id END,
       require_revealed_identity = EXCLUDED.require_revealed_identity,
       start_time = EXCLUDED.start_time,
       started = EXCLUDED.started,
@@ -313,6 +315,7 @@ const upsertRoomState = async (client, room, options = {}) => {
           app.rooms.access_code,
           app.rooms.password_hash,
           app.rooms.room_type,
+          app.rooms.kind,
           app.rooms.owner_id,
           app.rooms.admin_id,
           app.rooms.require_revealed_identity,
@@ -328,8 +331,9 @@ const upsertRoomState = async (client, room, options = {}) => {
           EXCLUDED.access_code,
           EXCLUDED.password_hash,
           EXCLUDED.room_type,
-          CASE WHEN $18 THEN EXCLUDED.owner_id ELSE app.rooms.owner_id END,
-          CASE WHEN $19 THEN EXCLUDED.admin_id ELSE app.rooms.admin_id END,
+          EXCLUDED.kind,
+          CASE WHEN $19 THEN EXCLUDED.owner_id ELSE app.rooms.owner_id END,
+          CASE WHEN $20 THEN EXCLUDED.admin_id ELSE app.rooms.admin_id END,
           EXCLUDED.require_revealed_identity,
           EXCLUDED.start_time,
           EXCLUDED.started,
@@ -357,9 +361,32 @@ const upsertRoomState = async (client, room, options = {}) => {
     room.twitchChannel || null,
     room.createdAt || null,
     updatedAt,
+    room.type === 'grand_prix' ? 'competition' : 'normal',
     ownerKnown,
     adminKnown,
   ]);
+
+  let raceSessionId = null;
+  if (room.type === 'normal') {
+    const mongoRoomId = room._id.toString();
+    const session = normalSession({
+      id: stableId('race-session', mongoRoomId),
+      nextId: stableId('race-session', `${mongoRoomId}:${room.event}:${updatedAt.toISOString()}`),
+      roomId,
+      event: room.event,
+      sourceKey: `legacy-normal:${mongoRoomId}`,
+      nextSourceKey: `normal-session:${mongoRoomId}:${room.event}:${updatedAt.toISOString()}`,
+      sourceCreatedAt: room.createdAt || null,
+      sourceUpdatedAt: updatedAt,
+      started: !!room.started,
+      startTime: room.startTime || null,
+      nextSolveAt: room.nextSolveAt || null,
+      currentAttemptOrdinal: (room.attempts || []).length
+        ? (room.attempts[room.attempts.length - 1].id ?? room.attempts.length - 1)
+        : null,
+    });
+    raceSessionId = await ensureNormalSession(client, session);
+  }
 
   for (const user of participantUsers) {
     const wcaUserId = numericUserId(user);
@@ -407,11 +434,37 @@ const upsertRoomState = async (client, room, options = {}) => {
       mapValue(room.registered, wcaUserId),
       updatedAt,
     ]);
+
+    if (raceSessionId) {
+      await client.query(`
+        INSERT INTO app.session_participants (
+          race_session_id, user_id, eligible, competing, waiting_for, registered,
+          source_updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (race_session_id, user_id) DO UPDATE SET
+          eligible = EXCLUDED.eligible,
+          competing = EXCLUDED.competing,
+          waiting_for = EXCLUDED.waiting_for,
+          registered = EXCLUDED.registered,
+          source_updated_at = EXCLUDED.source_updated_at,
+          ingested_at = now()
+        WHERE app.session_participants.source_updated_at <= EXCLUDED.source_updated_at
+      `, [
+        raceSessionId,
+        stableId('user', wcaUserId),
+        !mapValue(room.banned, wcaUserId),
+        mapValue(room.competing, wcaUserId),
+        mapValue(room.waitingFor, wcaUserId),
+        mapValue(room.registered, wcaUserId),
+        updatedAt,
+      ]);
+    }
   }
 
   return {
     knownUserIds,
     roomId,
+    raceSessionId,
     updatedAt,
   };
 };
@@ -426,9 +479,9 @@ const upsertAttempt = async (client, room, roomState, attempt, attemptIndex) => 
 
   await client.query(`
     INSERT INTO app.attempts (
-      id, mongo_id, room_id, ordinal, cube_event, scrambles,
+      id, mongo_id, room_id, race_session_id, ordinal, cube_event, scrambles,
       source_created_at, source_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     ON CONFLICT (mongo_id) DO UPDATE SET
       ordinal = EXCLUDED.ordinal,
       cube_event = EXCLUDED.cube_event,
@@ -452,6 +505,7 @@ const upsertAttempt = async (client, room, roomState, attempt, attemptIndex) => 
     attemptId,
     attemptMongoId,
     roomState.roomId,
+    roomState.raceSessionId,
     ordinal,
     room.event,
     JSON.stringify(attempt.scrambles || []),
@@ -478,13 +532,16 @@ const upsertSolve = async (client, roomState, attemptState, wcaUserId, result) =
   await client.query(`
     INSERT INTO app.solves (
       id, attempt_id, room_id, user_id, time_ms, dnf,
-      inspection_penalty, auf_penalty, source_created_at, source_updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      plus_two_penalty, inspection_penalty, auf_penalty, submission_id,
+      source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     ON CONFLICT (attempt_id, user_id) DO UPDATE SET
       time_ms = EXCLUDED.time_ms,
       dnf = EXCLUDED.dnf,
+      plus_two_penalty = EXCLUDED.plus_two_penalty,
       inspection_penalty = EXCLUDED.inspection_penalty,
       auf_penalty = EXCLUDED.auf_penalty,
+      submission_id = COALESCE(app.solves.submission_id, EXCLUDED.submission_id),
       source_updated_at = EXCLUDED.source_updated_at,
       ingested_at = now()
     WHERE app.solves.source_updated_at < EXCLUDED.source_updated_at
@@ -493,13 +550,17 @@ const upsertSolve = async (client, roomState, attemptState, wcaUserId, result) =
         AND ROW(
           app.solves.time_ms,
           app.solves.dnf,
+          app.solves.plus_two_penalty,
           app.solves.inspection_penalty,
-          app.solves.auf_penalty
+          app.solves.auf_penalty,
+          app.solves.submission_id
         ) IS DISTINCT FROM ROW(
           EXCLUDED.time_ms,
           EXCLUDED.dnf,
+          EXCLUDED.plus_two_penalty,
           EXCLUDED.inspection_penalty,
-          EXCLUDED.auf_penalty
+          EXCLUDED.auf_penalty,
+          COALESCE(app.solves.submission_id, EXCLUDED.submission_id)
         )
       )
   `, [
@@ -509,8 +570,10 @@ const upsertSolve = async (client, roomState, attemptState, wcaUserId, result) =
     stableId('user', wcaUserId),
     result.time,
     !!penalties.DNF,
+    !!(penalties.plus2 || penalties['+2'] || penalties.PLUS2),
     !!penalties.inspection,
     !!penalties.AUF,
+    result.submissionId || null,
     resultCreatedAt,
     resultUpdatedAt,
   ]);
@@ -526,11 +589,6 @@ const syncAttemptResults = async (client, roomState, attemptState, attempt, user
     const result = resultValue(attempt.results, userKey);
     if (result) {
       await upsertSolve(client, roomState, attemptState, wcaUserId, result);
-    } else {
-      await client.query(`
-        DELETE FROM app.solves
-        WHERE attempt_id = $1 AND user_id = $2
-      `, [attemptState.attemptId, stableId('user', wcaUserId)]);
     }
   }
 };
@@ -592,7 +650,6 @@ const writeRoomChanges = async (client, room, changes) => {
     );
 
     if (change.syncAllResults) {
-      await client.query('DELETE FROM app.solves WHERE attempt_id = $1', [attemptState.attemptId]);
       await syncAttemptResults(
         client,
         roomState,
@@ -658,6 +715,9 @@ const mirrorMetricEvent = (event) => query(`
     activeUserCount: event.activeUserCount,
     roomSolveCount: event.roomSolveCount,
     durationMs: event.durationMs,
+    historyOutcome: event.historyOutcome,
+    historyCount: event.historyCount,
+    latencyMs: event.latencyMs,
   },
   event.expiresAt,
 ]);

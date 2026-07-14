@@ -214,6 +214,12 @@ const createMetricRecorder = ({
       ...roomProperties(room),
       roomSolveCount: countRoomSolves(room),
     }),
+    recordSolveHistoryRequest: ({ outcome, count, latencyMs }) => write({
+      event: METRIC_EVENTS.SOLVE_HISTORY_REQUESTED,
+      historyOutcome: outcome,
+      historyCount: count,
+      latencyMs,
+    }),
     recordSocialOutcome: ({ userId, action, outcome }) => write({
       event: METRIC_EVENTS.SOCIAL_ACTION,
       ...actorProperties({ userId }),
