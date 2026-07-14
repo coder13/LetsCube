@@ -407,13 +407,13 @@ describe('room security helpers', () => {
         syncAllResults: false,
       }],
       participantUserIds: ['1234'],
-      replaceAttempts: false,
+      syncAllAttempts: false,
       syncAllParticipants: false,
       syncRoomOwners: false,
     });
   });
 
-  it('replaces PostgreSQL attempts when the room event resets them', () => {
+  it('syncs the new PostgreSQL attempt stream when the room event resets it', () => {
     const room = RoomModel.hydrate({
       _id: '507f1f77bcf86cd799439011',
       name: 'Practice room',
@@ -439,7 +439,7 @@ describe('room security helpers', () => {
         syncAllResults: true,
       }],
       participantUserIds: [],
-      replaceAttempts: true,
+      syncAllAttempts: true,
       syncAllParticipants: false,
       syncRoomOwners: false,
     });
