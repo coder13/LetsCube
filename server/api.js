@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const { User } = require('./models');
 const auth = require('./middlewares/auth.js');
@@ -7,6 +8,7 @@ const createFriendsRouter = require('./api/friends');
 const createNotificationsRouter = require('./api/notifications');
 const createUsersRouter = require('./api/users');
 const { isFeatureEnabled } = require('./features');
+const { apiRateLimitOptions } = require('./middlewares/apiRateLimit');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -18,6 +20,7 @@ const PREFERENCE_KEYS = new Set([
 
 module.exports = (app) => {
   const router = express.Router();
+  router.use(rateLimit(apiRateLimitOptions()));
   const sendError = (res, err) => {
     const body = {
       status: err.statusCode,

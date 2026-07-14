@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Badge from '@mui/material/Badge';
-import { apiOrigin } from '../lib/fetch';
+import { lcFetch } from '../lib/fetch';
 import { getNameFromId } from '../lib/events';
 import { getWcaAuthorizationUrl } from '../lib/wcaAuth';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -73,7 +73,8 @@ function Header({ user, room, notifications }) {
   };
 
   const logout = () => {
-    window.location = `${apiOrigin || ''}/auth/logout?redirect=${document.location.origin}/`;
+    lcFetch('/auth/logout', { method: 'POST' })
+      .finally(() => { window.location = `${document.location.origin}/`; });
   };
 
   return (

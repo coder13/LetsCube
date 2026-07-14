@@ -2,15 +2,18 @@ import {
   ROOM_PASSWORD_STORAGE_PREFIX,
   clearRoomPassword,
   persistRoomPassword,
+  purgeLegacyRoomPasswords,
   readRoomPassword,
 } from './roomPasswordStorage';
 
 describe('private room password storage', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    clearRoomPassword('room-one');
+    clearRoomPassword('room-two');
   });
 
-  it('stores passwords separately for each room', () => {
+  it('keeps passwords in memory for the current tab only', () => {
     persistRoomPassword('room-one', 'first-password');
     persistRoomPassword('room-two', 'second-password');
 
@@ -18,7 +21,7 @@ describe('private room password storage', () => {
     expect(readRoomPassword('room-two')).toBe('second-password');
     expect(window.localStorage.getItem(
       `${ROOM_PASSWORD_STORAGE_PREFIX}room-one`,
-    )).toBe('first-password');
+    )).toBeNull();
   });
 
   it('clears a password without affecting other rooms', () => {
@@ -34,5 +37,15 @@ describe('private room password storage', () => {
   it('rejects missing room IDs and empty passwords', () => {
     expect(() => persistRoomPassword(null, 'secret')).toThrow('room ID');
     expect(() => persistRoomPassword('room-one', '')).toThrow('empty room password');
+  });
+
+  it('removes passwords saved by older versions', () => {
+    window.localStorage.setItem(`${ROOM_PASSWORD_STORAGE_PREFIX}room-one`, 'legacy-secret');
+    window.localStorage.setItem('unrelated', 'keep');
+
+    purgeLegacyRoomPasswords(window.localStorage);
+
+    expect(window.localStorage.getItem(`${ROOM_PASSWORD_STORAGE_PREFIX}room-one`)).toBeNull();
+    expect(window.localStorage.getItem('unrelated')).toBe('keep');
   });
 });

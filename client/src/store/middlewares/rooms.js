@@ -53,6 +53,7 @@ import {
 import {
   clearRoomPassword,
   persistRoomPassword,
+  purgeLegacyRoomPasswords,
   readRoomPassword,
 } from '../room/roomPasswordStorage';
 import {
@@ -91,6 +92,11 @@ export const createRoomsNamespaceMiddleware = ({
   ackTimeoutMs = DEFAULT_ACK_TIMEOUT_MS,
   retryDelayMs = DEFAULT_RETRY_DELAY_MS,
 } = {}) => (store) => {
+  try {
+    purgeLegacyRoomPasswords(storage);
+  } catch {
+    // Passwords are intentionally kept in memory only.
+  }
   let roomsConnected = false;
   let joinedRoomId = null;
   let pendingJoinRequest = null;
@@ -113,7 +119,7 @@ export const createRoomsNamespaceMiddleware = ({
 
   const readStoredRoomPassword = (roomId) => {
     try {
-      return readRoomPassword(roomId, storage);
+      return readRoomPassword(roomId);
     } catch {
       return null;
     }
@@ -121,7 +127,7 @@ export const createRoomsNamespaceMiddleware = ({
 
   const forgetRoomPassword = (roomId) => {
     try {
-      clearRoomPassword(roomId, storage);
+      clearRoomPassword(roomId);
     } catch {
       // The next invalid join will try again.
     }
@@ -145,7 +151,7 @@ export const createRoomsNamespaceMiddleware = ({
     }
 
     try {
-      persistRoomPassword(roomId, password, storage);
+      persistRoomPassword(roomId, password);
     } catch {
       warnPasswordStorage(roomId);
     }

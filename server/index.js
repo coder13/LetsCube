@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
+const lusca = require('lusca');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
@@ -65,6 +66,7 @@ const init = async () => {
   app.set('trust proxy', 1);
 
   app.use(session);
+  app.use(lusca.csrf());
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -76,6 +78,8 @@ const init = async () => {
     origin: true,
     // config.cors.origin.map((o) => new RegExp(o)),
   }));
+
+  app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
 
   app.use(express.static(path.join(__dirname, '../client/build')));
 

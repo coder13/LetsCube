@@ -136,13 +136,13 @@ module.exports = (app, passport) => {
       })(req, res, next);
     });
 
-  router.get('/logout', (req, res, next) => {
+  router.post('/logout', (req, res, next) => {
     req.logout((err) => {
       if (err) {
         return next(err);
       }
 
-      return res.redirect(req.query.redirect);
+      return res.status(204).end();
     });
   });
 

@@ -1,7 +1,9 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const auth = require('../middlewares/auth');
 const relationshipService = require('../social/relationshipService');
+const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
 const sendError = (res, err) => res.status(err.statusCode || 500).json({
   code: err.code || 'internal_error',
@@ -19,6 +21,7 @@ const asyncHandler = (handler) => async (req, res) => {
 
 const createFriendsRouter = (service = relationshipService) => {
   const router = express.Router();
+  router.use(rateLimit(apiRateLimitOptions()));
   router.use(auth);
 
   router.get('/', asyncHandler(async (req, res) => {

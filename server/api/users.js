@@ -1,6 +1,8 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const auth = require('../middlewares/auth');
 const { createDiscoveryService } = require('../social/discoveryService');
+const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
 const sendError = (res, err) => res.status(err.statusCode || 500).json({
   code: err.code || 'user_unavailable',
@@ -10,6 +12,7 @@ const sendError = (res, err) => res.status(err.statusCode || 500).json({
 
 const createUsersRouter = (service = createDiscoveryService()) => {
   const router = express.Router();
+  router.use(rateLimit(apiRateLimitOptions()));
   router.use(auth);
 
   router.get('/search', async (req, res) => {

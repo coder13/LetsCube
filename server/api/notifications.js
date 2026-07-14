@@ -1,7 +1,9 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const auth = require('../middlewares/auth');
 const notificationService = require('../social/notificationService');
+const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
 const sendError = (res, err) => res.status(err.statusCode || 500).json({
   code: err.code || 'internal_error',
@@ -18,6 +20,7 @@ const asyncHandler = (handler) => async (req, res) => {
 
 const createNotificationsRouter = (service = notificationService) => {
   const router = express.Router();
+  router.use(rateLimit(apiRateLimitOptions()));
   router.use(auth);
 
   router.get('/', asyncHandler(async (req, res) => {
