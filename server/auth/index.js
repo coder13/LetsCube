@@ -1,10 +1,12 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const CustomStrategy = require('passport-custom').Strategy;
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
 const metrics = require('../metrics');
 const { buildWcaUserUpdate } = require('./wcaProfile');
 const { upsertTestUser } = require('./testUser');
+const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
@@ -21,11 +23,13 @@ const deserializeUser = async (userModel, id, done) => {
   }
 };
 
-module.exports = (app, passport) => {
+module.exports = (app, passport, rateLimitOptions = apiRateLimitOptions()) => {
   const router = express.Router();
   const config = app.get('config');
   const tokenURL = `${config.wcaSource}/oauth/token`;
   const userProfileURL = `${config.wcaSource}/api/v0/me`;
+
+  router.use(rateLimit(rateLimitOptions));
 
   passport.use('custom', new CustomStrategy(async (req, done) => {
     const { code, redirectUri } = req.body;
