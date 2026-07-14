@@ -19,6 +19,8 @@ This directory contains the durable technical documentation for Let's Cube.
 
 - [Friendship and blocking lifecycle](friendships.md)
 - [In-app social notifications](notifications.md)
+- [Room and RaceSession contract](race-sessions.md) — durable room/session
+  ownership, lifecycle, privacy, and migration rules
 
 Package documentation:
 
