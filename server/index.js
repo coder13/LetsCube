@@ -13,6 +13,7 @@ const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
+const { isUserApiRequest } = require('./requestLogging');
 
 Error.stackTraceLimit = 100;
 
@@ -49,14 +50,13 @@ const init = async () => {
 
   /* Logging */
 
-  const isDiscoverySearch = (req) => req.path === '/api/users/search';
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode >= 400 || isDiscoverySearch(req),
+    skip: (req, res) => res.statusCode >= 400 || isUserApiRequest(req),
     stream: { write: (message) => logger.info(message) },
   }));
 
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode < 400 || isDiscoverySearch(req),
+    skip: (req, res) => res.statusCode < 400 || isUserApiRequest(req),
     stream: { write: (message) => logger.error(message) },
   }));
 

@@ -34,6 +34,7 @@ const useStyles = makeStyles((theme) => ({
 function User({ user, admin, className }) {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const profileKey = user.profileKey;
 
   const handlePopoverOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -56,8 +57,8 @@ function User({ user, admin, className }) {
         aria-haspopup="true"
         onMouseEnter={handlePopoverOpen}
         onMouseLeave={handlePopoverClose}
-        component={user.id ? Link : 'span'}
-        to={user.id ? `/users/${user.id}` : undefined}
+        component={profileKey ? Link : 'span'}
+        to={profileKey ? `/users/${profileKey}` : undefined}
         variant="subtitle2"
       >
         {user.displayName}
@@ -113,6 +114,7 @@ User.propTypes = {
     username: PropTypes.string,
     wcaId: PropTypes.string,
     name: PropTypes.string,
+    profileKey: PropTypes.string,
     showWCAID: PropTypes.bool,
   }).isRequired,
   admin: PropTypes.bool,

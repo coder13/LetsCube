@@ -1,5 +1,5 @@
 import React, {
-  useCallback, useEffect, useState,
+  useCallback, useEffect, useRef, useState,
 } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
@@ -22,6 +22,7 @@ import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import { lcFetch } from '../lib/fetch';
+import createRequestSequence from '../lib/requestSequence';
 import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
@@ -137,19 +138,29 @@ function AddFriendDialog({ onClose, onRequest, open }) {
   const [results, setResults] = useState([]);
   const [error, setError] = useState(null);
   const [searching, setSearching] = useState(false);
+  const searchRequests = useRef(createRequestSequence());
+
+  useEffect(() => () => searchRequests.current.invalidate(), []);
 
   const search = (event) => {
     event.preventDefault();
     setError(null);
     setSearching(true);
-    lcFetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+    const request = searchRequests.current.start();
+    lcFetch(`/api/users/search?q=${encodeURIComponent(query)}`, { signal: request.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(await errorMessage(response, 'Unable to search for cubers'));
         return response.json();
       })
-      .then((data) => setResults(data.results || []))
-      .catch((searchError) => setError(searchError.message))
-      .finally(() => setSearching(false));
+      .then((data) => {
+        if (request.isCurrent()) setResults(data.results || []);
+      })
+      .catch((searchError) => {
+        if (request.isCurrent() && searchError.name !== 'AbortError') setError(searchError.message);
+      })
+      .finally(() => {
+        if (request.isCurrent()) setSearching(false);
+      });
   };
 
   const requestFriend = (user) => {
