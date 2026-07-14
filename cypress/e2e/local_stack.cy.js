@@ -59,6 +59,16 @@ describe('local app stack', () => {
     cy.get('[aria-label="Find a cuber by username or visible WCA ID"]').should('not.exist');
   });
 
+  it('opens spacious account navigation', () => {
+    login();
+    cy.visit('/');
+
+    cy.get('button[aria-label="Open account menu"]').click();
+    cy.get('[aria-label="Account navigation"]').contains('Friends').should('be.visible');
+    cy.get('[aria-label="Account navigation"]').contains('Profile').should('be.visible');
+    cy.get('[aria-label="Account navigation"]').contains('Log out').should('be.visible');
+  });
+
   it('shows a not-found page for an unavailable user profile', () => {
     login();
 
