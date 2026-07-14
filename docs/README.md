@@ -12,6 +12,8 @@ This directory contains the durable technical documentation for Let's Cube.
   reconnects, and result delivery
 - [Data and migrations](data.md) — MongoDB, PostgreSQL, Prisma, metrics, and
   persistence guarantees
+- [Room-to-RaceSession backfill and reconciliation](race-session-backfill.md)
+  — resumable migration, parity, privacy, and rollback contract
 - [Production operations](operations.md) — deployment, health checks, rollback,
   backups, restore, and capacity management
 
