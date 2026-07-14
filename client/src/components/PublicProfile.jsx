@@ -5,9 +5,10 @@ import { Link, useParams } from 'react-router-dom';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
+import Container from '@material-ui/core/Container';
 import Paper from '@material-ui/core/Paper';
-import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
+import { makeStyles } from '@material-ui/core/styles';
 import { lcFetch } from '../lib/fetch';
 
 const actionRequest = (action, id) => {
@@ -19,11 +20,71 @@ const actionRequest = (action, id) => {
   return { method: 'PUT', url: `/api/friends/blocks/${encodedId}` };
 };
 
+const actionLabel = {
+  accept: 'Accept request',
+  block: 'Block',
+  cancel: 'Cancel request',
+  decline: 'Decline',
+  request: 'Send friend request',
+  unfriend: 'Remove friend',
+};
+
+const relationshipLabel = {
+  accepted: 'Friends',
+  incoming: 'Friend request received',
+  none: 'Not connected',
+  outgoing: 'Friend request sent',
+  self: 'This is you',
+};
+
+const useStyles = makeStyles((theme) => ({
+  root: {
+    paddingTop: theme.spacing(5),
+  },
+  card: {
+    overflow: 'hidden',
+  },
+  identity: {
+    alignItems: 'center',
+    backgroundColor: theme.palette.action.hover,
+    display: 'flex',
+    padding: theme.spacing(3),
+  },
+  avatar: {
+    height: theme.spacing(10),
+    marginRight: theme.spacing(2),
+    width: theme.spacing(10),
+  },
+  profileType: {
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  profileContent: {
+    padding: theme.spacing(3),
+  },
+  relationship: {
+    marginBottom: theme.spacing(2),
+  },
+  actions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: theme.spacing(1),
+  },
+  loading: {
+    display: 'flex',
+    justifyContent: 'center',
+    padding: theme.spacing(5),
+  },
+  notFound: {
+    padding: theme.spacing(4),
+    textAlign: 'center',
+  },
+}));
+
 function PublicProfile() {
   const { id } = useParams();
+  const classes = useStyles();
   const [profile, setProfile] = useState(null);
-  const [search, setSearch] = useState('');
-  const [results, setResults] = useState([]);
   const [status, setStatus] = useState('loading');
   const [acting, setActing] = useState(false);
   const requestSequence = useRef(0);
@@ -48,14 +109,6 @@ function PublicProfile() {
 
   useEffect(() => load(id), [id, load]);
 
-  const searchUsers = (event) => {
-    event.preventDefault();
-    lcFetch(`/api/users/search?q=${encodeURIComponent(search)}`)
-      .then((response) => (response.ok ? response.json() : { results: [] }))
-      .then((data) => setResults(data.results || []))
-      .catch(() => setResults([]));
-  };
-
   const act = (action) => {
     if (!profile || acting) return;
     setActing(true);
@@ -69,59 +122,64 @@ function PublicProfile() {
 
   if (status === 'not-found') {
     return (
-      <Paper style={{
-        margin: 'auto', maxWidth: 560, padding: 24, textAlign: 'center', width: '100%',
-      }}
-      >
-        <Typography variant="h2">404</Typography>
-        <Typography variant="h5">User not found</Typography>
-        <Typography color="textSecondary" style={{ margin: '1rem 0' }}>
-          This profile is unavailable or no longer public.
-        </Typography>
-        <Button component={Link} color="primary" to="/" variant="contained">Return to lobby</Button>
-      </Paper>
+      <Container className={classes.root} maxWidth="sm">
+        <Paper className={classes.notFound}>
+          <Typography variant="h2">404</Typography>
+          <Typography variant="h5">User not found</Typography>
+          <Typography color="textSecondary" style={{ margin: '1rem 0' }}>
+            This profile is unavailable or no longer public.
+          </Typography>
+          <Button component={Link} color="primary" to="/" variant="contained">Return to lobby</Button>
+        </Paper>
+      </Container>
     );
   }
 
   return (
-    <Paper style={{
-      margin: 'auto', maxWidth: 560, padding: 24, width: '100%',
-    }}
-    >
-      <form onSubmit={searchUsers} style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        <TextField
-          aria-label="Find a cuber by username or visible WCA ID"
-          label="Find a cuber"
-          onChange={(event) => setSearch(event.target.value)}
-          value={search}
-        />
-        <Button color="primary" type="submit" variant="contained">Search</Button>
-      </form>
-      {results.map((user) => (
-        <Button component={Link} key={user.id} to={`/users/${user.profileKey}`}>
-          {user.displayName || user.username}
-        </Button>
-      ))}
-      {status === 'loading' && <CircularProgress aria-label="Loading profile" />}
-      {status === 'unavailable' && <Typography role="status">Unable to load this profile right now.</Typography>}
-      {status === 'ready' && profile && (
-        <>
-          <Avatar
-            alt={profile.displayName || profile.username}
-            src={profile.avatar && profile.avatar.thumb_url}
-          />
-          <Typography variant="h5">{profile.displayName || profile.username}</Typography>
-          {profile.username && <Typography>{`@${profile.username}`}</Typography>}
-          {profile.wcaId && <Typography>{`WCA ID: ${profile.wcaId}`}</Typography>}
-          <Typography>{profile.relationship}</Typography>
-          {profile.actions.map((action) => (
-            <Button disabled={acting} key={action} onClick={() => act(action)}>
-              {action}
-            </Button>
-          ))}
-        </>
-      )}
-    </Paper>
+    <Container className={classes.root} maxWidth="sm">
+      <Paper className={classes.card}>
+        {status === 'loading' && <div className={classes.loading}><CircularProgress aria-label="Loading profile" /></div>}
+        {status === 'unavailable' && <div className={classes.notFound}><Typography role="status">Unable to load this profile right now.</Typography></div>}
+        {status === 'ready' && profile && (
+          <>
+            <div className={classes.identity}>
+              <Avatar
+                alt={profile.displayName || profile.username}
+                className={classes.avatar}
+                src={profile.avatar && profile.avatar.thumb_url}
+              />
+              <div>
+                <Typography className={classes.profileType} color="textSecondary" variant="caption">Cuber profile</Typography>
+                <Typography variant="h4">{profile.displayName || profile.username}</Typography>
+                {profile.username && <Typography color="textSecondary">{`@${profile.username}`}</Typography>}
+              </div>
+            </div>
+            <div className={classes.profileContent}>
+              {profile.wcaId && <Typography color="textSecondary">{`WCA ID: ${profile.wcaId}`}</Typography>}
+              <Typography className={classes.relationship} variant="body1">
+                {relationshipLabel[profile.relationship] || 'Not connected'}
+              </Typography>
+              <div className={classes.actions}>
+                {profile.actions.map((action) => (
+                  <Button
+                    color={action === 'request' || action === 'accept' ? 'primary' : 'default'}
+                    disabled={acting}
+                    key={action}
+                    onClick={() => act(action)}
+                    variant={action === 'request' || action === 'accept' ? 'contained' : 'outlined'}
+                  >
+                    {actionLabel[action] || action}
+                  </Button>
+                ))}
+                {profile.relationship === 'self' && (
+                  <Button component={Link} color="primary" to="/profile" variant="outlined">Edit profile</Button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </Paper>
+    </Container>
   );
 }
 

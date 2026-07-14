@@ -30,6 +30,7 @@ const Room = lazy(() => import('./Room/index'));
 const Profile = lazy(() => import('./common/Profile'));
 const Notifications = lazy(() => import('./Notifications'));
 const PublicProfile = lazy(() => import('./PublicProfile'));
+const UserDiscovery = lazy(() => import('./UserDiscovery'));
 
 export const shouldShowGlobalPendingResult = (room, pendingResult) => (
   isPendingResult(pendingResult)
@@ -229,6 +230,7 @@ function Navigation({
                 <PrivateRoute exact path="/profile" component={Profile} user={user} />
                 <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
                 <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
+                <PrivateRoute exact path="/users" component={UserDiscovery} user={user} />
                 <PrivateRoute exact path="/users/:id" component={PublicProfile} user={user} />
                 <PrivateRoute path="/admin" isAdminRoute component={Admin} />
                 <Route path="/wca-redirect" component={WCARedirect} />

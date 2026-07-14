@@ -56,6 +56,7 @@ describe('local app stack', () => {
     cy.get('a[href="/users/cypress"]', { timeout: 10000 }).click();
     cy.location('pathname').should('eq', '/users/cypress');
     cy.contains('@cypress').should('be.visible');
+    cy.get('[aria-label="Find a cuber by username or visible WCA ID"]').should('not.exist');
   });
 
   it('shows a not-found page for an unavailable user profile', () => {
