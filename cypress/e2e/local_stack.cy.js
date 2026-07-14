@@ -13,19 +13,29 @@ describe('local app stack', () => {
   const postToApi = (url, body) => post(apiOrigin, url, body);
   const postFromApp = (url, body) => post(appOrigin, url, body);
 
-  const login = () => {
-    return postFromApp(`${appOrigin}/auth/code`, {
-      code: 'cypress-test-code',
-      redirectUri: 'http://localhost:3000/wca-redirect',
-    });
-  };
-
-  const loginAs = (userId) => {
-    return postFromApp(`${appOrigin}/auth/code`, {
+  const loginAs = (userId = 990001) => cy.session(`cypress-test-user-${userId}`, () => {
+    postFromApp(`${appOrigin}/auth/code`, {
       code: `cypress-test-user-${userId}`,
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
-  };
+    cy.request(`${appOrigin}/api/me`).its('body.id').should('eq', userId);
+  }, {
+    validate: () => {
+      cy.request(`${appOrigin}/api/me`).its('body.id').should('eq', userId);
+    },
+  });
+
+  const login = () => cy.session('cypress-test-user-default', () => {
+    postFromApp(`${appOrigin}/auth/code`, {
+      code: 'cypress-test-code',
+      redirectUri: 'http://localhost:3000/wca-redirect',
+    });
+    cy.request(`${appOrigin}/api/me`).its('body.id').should('eq', 990001);
+  }, {
+    validate: () => {
+      cy.request(`${appOrigin}/api/me`).its('body.id').should('eq', 990001);
+    },
+  });
 
   it('shows the lobby without a logged-in session', () => {
     cy.visit('/');
@@ -184,17 +194,13 @@ describe('local app stack', () => {
     cy.wait('@acceptFriendRequest').its('response.statusCode').should('eq', 200);
 
     loginAs(requesterId);
-    cy.intercept({
-      method: 'GET',
-      pathname: '/api/notifications',
-      query: { limit: '20' },
-    }).as('requesterNotifications');
-    cy.visit('/notifications');
-    cy.wait('@requesterNotifications').its('response.body.notifications').should((notifications) => {
-      expect(notifications.some((notification) => (
+    cy.request(`${apiOrigin}/api/notifications`).then((response) => {
+      expect(response.status).to.eq(200);
+      expect(response.body.notifications.some((notification) => (
         notification.type === 'friend_request_accepted' && notification.actor.id === recipientId
       ))).to.eq(true);
     });
+    cy.visit('/notifications');
     cy.contains('accepted your friend request.').should('be.visible');
   });
 
