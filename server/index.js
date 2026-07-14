@@ -11,6 +11,7 @@ const { connect } = require('./database');
 const { createHealthHandler, createHealthReporter } = require('./health');
 const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
+const { createCorsOptions } = require('./middlewares/cors');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
@@ -73,11 +74,7 @@ const init = async () => {
 
   /* Cors */
 
-  app.use(cors({
-    credentials: true,
-    origin: true,
-    // config.cors.origin.map((o) => new RegExp(o)),
-  }));
+  app.use(cors(createCorsOptions(config.cors.origin)));
 
   app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
 
