@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-bookworm-slim AS client-build
+FROM node:26-bookworm-slim AS client-build
 WORKDIR /app
 
 RUN corepack enable
@@ -25,7 +25,7 @@ COPY packages/scrambles ./packages/scrambles
 COPY client ./client
 RUN yarn workspace letscube-client build
 
-FROM node:22-bookworm-slim AS server-deps
+FROM node:26-bookworm-slim AS server-deps
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
@@ -41,7 +41,7 @@ RUN yarn install --frozen-lockfile --production=true --network-concurrency 1 --n
   && yarn cache clean \
   && mkdir -p server/node_modules
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 ENV NODE_ENV=prod
 ENV PORT=8080
 ENV SOCKETIO_PORT=9000
