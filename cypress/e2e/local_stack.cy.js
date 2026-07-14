@@ -1,7 +1,8 @@
 describe('local app stack', () => {
   const apiOrigin = Cypress.env('apiOrigin') || 'http://localhost:8080';
+  const appOrigin = Cypress.config('baseUrl') || 'http://localhost:3000';
 
-  const post = (url, body) => cy.request(`${apiOrigin}/api/csrf-token`)
+  const post = (origin, url, body) => cy.request(`${origin}/api/csrf-token`)
     .then(({ body: { csrfToken } }) => cy.request({
       body,
       headers: { 'x-csrf-token': csrfToken },
@@ -9,15 +10,18 @@ describe('local app stack', () => {
       url,
     }));
 
+  const postToApi = (url, body) => post(apiOrigin, url, body);
+  const postFromApp = (url, body) => post(appOrigin, url, body);
+
   const login = () => {
-    return post(`${apiOrigin}/auth/code`, {
+    return postFromApp(`${appOrigin}/auth/code`, {
       code: 'cypress-test-code',
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
   };
 
   const loginAs = (userId) => {
-    return post(`${apiOrigin}/auth/code`, {
+    return postFromApp(`${appOrigin}/auth/code`, {
       code: `cypress-test-user-${userId}`,
       redirectUri: 'http://localhost:3000/wca-redirect',
     });
@@ -158,7 +162,7 @@ describe('local app stack', () => {
 
     loginAs(recipientId);
     loginAs(requesterId);
-    post(`${apiOrigin}/api/friends/requests`, { userId: recipientId })
+    postToApi(`${apiOrigin}/api/friends/requests`, { userId: recipientId })
       .its('status').should('eq', 201);
 
     loginAs(recipientId);
@@ -175,11 +179,23 @@ describe('local app stack', () => {
     cy.contains('sent you a friend request.').should('be.visible');
     cy.contains('View all notifications').click();
     cy.location('pathname').should('eq', '/notifications');
+    cy.intercept('POST', '**/api/friends/requests/*/accept').as('acceptFriendRequest');
     cy.get('button[aria-label="accept notification"]').click();
+    cy.wait('@acceptFriendRequest').its('response.statusCode').should('eq', 200);
 
     loginAs(requesterId);
+    cy.intercept({
+      method: 'GET',
+      pathname: '/api/notifications',
+      query: { limit: '20' },
+    }).as('requesterNotifications');
     cy.visit('/notifications');
-    cy.contains('accepted your friend request.', { timeout: 10000 }).should('be.visible');
+    cy.wait('@requesterNotifications').its('response.body.notifications').should((notifications) => {
+      expect(notifications.some((notification) => (
+        notification.type === 'friend_request_accepted' && notification.actor.id === recipientId
+      ))).to.eq(true);
+    });
+    cy.contains('accepted your friend request.').should('be.visible');
   });
 
   it('starts a race with an accepted friend and lets them join from the invitation', () => {
@@ -188,10 +204,10 @@ describe('local app stack', () => {
 
     loginAs(guestId);
     loginAs(hostId);
-    post(`${apiOrigin}/api/friends/requests`, { userId: guestId })
+    postToApi(`${apiOrigin}/api/friends/requests`, { userId: guestId })
       .its('status').should('eq', 201);
     loginAs(guestId);
-    post(`${apiOrigin}/api/friends/requests/${hostId}/accept`)
+    postToApi(`${apiOrigin}/api/friends/requests/${hostId}/accept`)
       .its('status').should('eq', 200);
 
     loginAs(hostId);
