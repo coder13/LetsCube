@@ -4,13 +4,13 @@ import {
   Switch, Route, Redirect, useLocation,
 } from 'react-router-dom';
 import { connect, useDispatch } from 'react-redux';
-import { push } from 'connected-react-router';
-// import Backdrop from '@material-ui/core/Backdrop';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import Button from '@material-ui/core/Button';
-import Snackbar from '@material-ui/core/Snackbar';
-import Alert from '@material-ui/lab/Alert';
-import { makeStyles } from '@material-ui/core/styles';
+import history from '../lib/history';
+// import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
+import Button from '@mui/material/Button';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import { makeStyles } from '@mui/styles';
 import PrivateRoute from './common/PrivateRoute';
 import Header from './Header';
 import Footer from './Footer';
@@ -215,7 +215,7 @@ function Navigation({
             atPendingRoom={atPendingRoom}
             error={resultSubmission.error}
             onDiscard={() => dispatch(discardPendingResult(pendingResult.submissionId))}
-            onReturn={() => dispatch(push(pendingRoomPath))}
+            onReturn={() => history.push(pendingRoomPath)}
             pendingResult={pendingResult}
             privateRoom={!!room.private}
             status={resultSubmission.status}
@@ -274,6 +274,7 @@ Navigation.propTypes = {
     _id: PropTypes.string,
     accessCode: PropTypes.string,
     fetching: PropTypes.bool,
+    private: PropTypes.bool,
     type: PropTypes.string,
     resultSubmission: PropTypes.shape({
       status: PropTypes.oneOf(['idle', 'pending', 'sending', 'failed']),

@@ -4,14 +4,15 @@ import React, {
 import PropTypes from 'prop-types';
 import {
   indigo, green, grey, blue, red,
-} from '@material-ui/core/colors';
+} from '@mui/material/colors';
 import {
-  createMuiTheme,
-} from '@material-ui/core/styles';
-import MuiThemeProvider from '@material-ui/styles/ThemeProvider';
-import useMediaQuery from '@material-ui/core/useMediaQuery';
+  createTheme,
+  StyledEngineProvider,
+  ThemeProvider as MuiThemeProvider,
+} from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
-const defaultTheme = createMuiTheme();
+const defaultTheme = createTheme();
 
 const primary = {
   light: {
@@ -23,9 +24,9 @@ const primary = {
 };
 
 // A custom theme for this app
-const makeTheme = (darkMode) => createMuiTheme({
+const makeTheme = (darkMode) => createTheme({
   palette: {
-    type: darkMode ? 'dark' : 'light',
+    mode: darkMode ? 'dark' : 'light',
     primary: primary.light,
     common: {
       green: green[darkMode ? 800 : 200],
@@ -40,9 +41,14 @@ const makeTheme = (darkMode) => createMuiTheme({
   typography: {
     fontSize: 12,
   },
-  overrides: {
+  components: {
+    MuiTextField: {
+      defaultProps: {
+        variant: 'standard',
+      },
+    },
     MuiCssBaseline: {
-      '@global': {
+      styleOverrides: {
         '*scrollbar': {
           width: 200,
           height: 200,
@@ -82,11 +88,13 @@ export const ThemeProvider = ({ children }) => {
   }, [themeType]);
 
   return (
-    <MuiThemeProvider theme={makeTheme(themeType === 'dark')}>
-      <ToggleThemeContext.Provider value={toggleTheme}>
-        {children}
-      </ToggleThemeContext.Provider>
-    </MuiThemeProvider>
+    <StyledEngineProvider injectFirst>
+      <MuiThemeProvider theme={makeTheme(themeType === 'dark')}>
+        <ToggleThemeContext.Provider value={toggleTheme}>
+          {children}
+        </ToggleThemeContext.Provider>
+      </MuiThemeProvider>
+    </StyledEngineProvider>
   );
 };
 

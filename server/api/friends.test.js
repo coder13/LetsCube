@@ -69,7 +69,9 @@ describe('friend REST routes', () => {
     server = app.listen(0, '127.0.0.1', done);
   });
 
-  afterEach((done) => server.close(done));
+  afterEach((done) => {
+    server.close(done);
+  });
 
   it('requires an authenticated session', async () => {
     const response = await request(server, { authenticated: false });

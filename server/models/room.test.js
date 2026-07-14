@@ -1,5 +1,4 @@
 /** @jest-environment node */
-/* eslint-env jest */
 
 const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');

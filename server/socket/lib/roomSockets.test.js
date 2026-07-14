@@ -1,4 +1,3 @@
-/* eslint-env jest */
 
 const { removeUserFromRoomSockets } = require('./roomSockets');
 

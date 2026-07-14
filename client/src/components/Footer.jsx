@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { Link as ReactRouterLink } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { makeStyles, useTheme } from '@material-ui/core/styles';
-import Grid from '@material-ui/core/Grid';
-import Paper from '@material-ui/core/Paper';
-import Typography from '@material-ui/core/Typography';
-import Link from '@material-ui/core/Link';
-import Popover from '@material-ui/core/Popover';
-import Tooltip from '@material-ui/core/Tooltip';
-import IconButton from '@material-ui/core/IconButton';
-import EmojiObjectsIcon from '@material-ui/icons/EmojiObjects';
-import EmojiObjectsOutlinedIcon from '@material-ui/icons/EmojiObjectsOutlined';
-import CloudIcon from '@material-ui/icons/Cloud';
-import CloudOffIcon from '@material-ui/icons/CloudOff';
+import { useTheme } from '@mui/material/styles';
+import { makeStyles } from '@mui/styles';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
+import Popover from '@mui/material/Popover';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';
+import EmojiObjectsOutlinedIcon from '@mui/icons-material/EmojiObjectsOutlined';
+import CloudIcon from '@mui/icons-material/Cloud';
+import CloudOffIcon from '@mui/icons-material/CloudOff';
 import { version } from '../../package.json';
 import { useToggleTheme } from '../theme';
 
@@ -86,7 +87,7 @@ function Footer({
               onClick={toggleTheme}
               aria-label="Toggle theme"
             >
-              { theme.palette.type === 'dark'
+              { theme.palette.mode === 'dark'
                 ? <EmojiObjectsIcon />
                 : <EmojiObjectsOutlinedIcon />}
             </IconButton>

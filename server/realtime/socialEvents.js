@@ -116,7 +116,7 @@ const parseSocialEvent = (message) => {
       type: event.type,
       userIds,
     };
-  } catch (err) {
+  } catch {
     return null;
   }
 };

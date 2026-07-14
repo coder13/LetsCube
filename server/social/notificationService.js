@@ -56,7 +56,7 @@ const parseCursor = (cursor) => {
       throw new Error('invalid cursor');
     }
     return { createdAt, id: new mongoose.Types.ObjectId(parsed.id) };
-  } catch (err) {
+  } catch {
     throw new NotificationError(400, 'invalid_cursor', 'Invalid notification cursor');
   }
 };

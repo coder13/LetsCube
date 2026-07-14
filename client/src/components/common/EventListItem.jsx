@@ -3,23 +3,24 @@ import { useHistory } from 'react-router-dom';
 import { connect, useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
-import Tooltip from '@material-ui/core/Tooltip';
-import { makeStyles, useTheme } from '@material-ui/core/styles';
-import Card from '@material-ui/core/Card';
-import CardHeader from '@material-ui/core/CardHeader';
-import CardContent from '@material-ui/core/CardContent';
-import CardActions from '@material-ui/core/CardActions';
-import CardMedia from '@material-ui/core/CardMedia';
-import Alert from '@material-ui/lab/Alert';
-import Typography from '@material-ui/core/Typography';
-import Menu from '@material-ui/core/Menu';
-import MenuItem from '@material-ui/core/MenuItem';
-import IconButton from '@material-ui/core/IconButton';
-import Button from '@material-ui/core/Button';
-import PublicIcon from '@material-ui/icons/Public';
-import PrivateIcon from '@material-ui/icons/Lock';
-import MoreVertIcon from '@material-ui/icons/MoreVert';
-import ShareIcon from '@material-ui/icons/Share';
+import Tooltip from '@mui/material/Tooltip';
+import { useTheme } from '@mui/material/styles';
+import { makeStyles } from '@mui/styles';
+import Card from '@mui/material/Card';
+import CardHeader from '@mui/material/CardHeader';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import CardMedia from '@mui/material/CardMedia';
+import Alert from '@mui/material/Alert';
+import Typography from '@mui/material/Typography';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import PublicIcon from '@mui/icons-material/Public';
+import PrivateIcon from '@mui/icons-material/Lock';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ShareIcon from '@mui/icons-material/Share';
 import { useConfirm } from 'material-ui-confirm';
 import { TwitchEmbed } from 'react-twitch-embed';
 import { lcFetch } from '../../lib/fetch';
@@ -167,7 +168,7 @@ function RoomListItem({
             id={`channel-${room.twitchChannel}-${room._id}`}
             muted
             withChat={false}
-            theme={theme.palette.type}
+            theme={theme.palette.mode}
             width="100%"
           />
         </CardMedia>

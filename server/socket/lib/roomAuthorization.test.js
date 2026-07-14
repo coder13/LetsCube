@@ -1,4 +1,3 @@
-/* eslint-env jest */
 
 const {
   canAccessRoom,

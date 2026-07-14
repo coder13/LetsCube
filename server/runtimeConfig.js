@@ -50,7 +50,7 @@ try {
       ? parsePort(parsedRedisUrl.pathname.slice(1), redis.db)
       : redis.db,
   };
-} catch (err) {
+} catch {
   // Keep host/port fallbacks for non-URL Redis config values.
 }
 

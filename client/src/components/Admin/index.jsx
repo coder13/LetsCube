@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { useDispatch, connect } from 'react-redux';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@mui/styles';
 import PropTypes from 'prop-types';
-import Container from '@material-ui/core/Container';
-import Paper from '@material-ui/core/Paper';
-import Button from '@material-ui/core/Button';
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
+import Button from '@mui/material/Button';
 import { fetchAdminData } from '../../store/admin/actions';
 import RoomCard from './RoomCard';
 

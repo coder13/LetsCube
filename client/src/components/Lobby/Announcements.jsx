@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { makeStyles } from '@material-ui/core/styles';
-import Paper from '@material-ui/core/Paper';
+import { makeStyles } from '@mui/styles';
+import Paper from '@mui/material/Paper';
 import { lcFetch } from '../../lib/fetch';
 
 const useStyles = makeStyles({

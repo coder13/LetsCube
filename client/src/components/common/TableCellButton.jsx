@@ -1,9 +1,9 @@
 import React from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import TableCell from '@material-ui/core/TableCell';
-import Button from '@material-ui/core/Button';
+import { makeStyles } from '@mui/styles';
+import TableCell from '@mui/material/TableCell';
+import Button from '@mui/material/Button';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -26,13 +26,13 @@ function TableCellButton({
     <TableCell
       align={align}
       className={clsx(classes.root, className)}
-      // eslint-disable-next-line react/jsx-props-no-spreading
+
       {...other}
     >
       <Button
         onClick={onClick}
         className={classes.button}
-        // eslint-disable-next-line react/jsx-props-no-spreading
+
         {...buttonProps}
       >
         { children }

@@ -1,9 +1,9 @@
 import React from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Typography from '@material-ui/core/Typography';
-import TableCell from '@material-ui/core/TableCell';
+import { makeStyles } from '@mui/styles';
+import Typography from '@mui/material/Typography';
+import TableCell from '@mui/material/TableCell';
 
 const useStyles = makeStyles(() => ({
   root: {

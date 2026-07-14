@@ -1,16 +1,16 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
+import { withStyles } from '@mui/styles';
 import { connect } from 'react-redux';
-import Grid from '@material-ui/core/Grid';
-import Paper from '@material-ui/core/Paper';
-import Divider from '@material-ui/core/Divider';
-import Typography from '@material-ui/core/Typography';
-import Button from '@material-ui/core/Button';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import Alert from '@material-ui/lab/Alert';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import Divider from '@mui/material/Divider';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Alert from '@mui/material/Alert';
 import UIfx from 'uifx';
-import { push } from 'connected-react-router';
+import history from '../../../lib/history';
 import notificationAsset from '../../../assets/notification.mp3';
 import calcStats from '../../../lib/stats';
 import {
@@ -34,7 +34,7 @@ import Scramble from '../../common/Scramble';
 import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from './UserStats';
 
-const useStyles = withStyles((theme) => ({
+const withComponentStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -185,7 +185,7 @@ export class Main extends React.Component {
                     <Button
                       color="inherit"
                       size="small"
-                      onClick={() => dispatch(push(`/rooms/${pendingResult.roomId}`))}
+                      onClick={() => history.push(`/rooms/${pendingResult.roomId}`)}
                     >
                       Return to room
                     </Button>
@@ -374,4 +374,4 @@ const mapStateToProps = (state) => ({
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(Main));
+export default connect(mapStateToProps)(withComponentStyles(Main));

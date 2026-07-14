@@ -94,15 +94,27 @@ describe('local app stack', () => {
 
   it('creates a room, reloads it directly, and lists it in the lobby', () => {
     const roomName = `Cypress Room ${Date.now()}`;
+    cy.viewport(1280, 720);
     login();
 
     cy.visit('/');
 
     cy.contains('Create Room', { timeout: 10000 }).click();
     cy.get('#roomName').type(roomName);
+    cy.get('label[for="roomName"]').should(($label) => {
+      const labelRect = $label[0].getBoundingClientRect();
+      const contentRect = $label[0]
+        .closest('.MuiDialogContent-root')
+        .getBoundingClientRect();
+
+      expect(labelRect.top).to.be.at.least(contentRect.top);
+      expect(labelRect.bottom).to.be.at.most(contentRect.bottom);
+    });
     cy.get('[role="dialog"]').contains('button', 'Create').click();
 
     cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.get('.MuiBottomNavigation-root').should('not.be.visible');
+    cy.get('thead tr').first().should('have.css', 'display', 'flex');
     cy.location('pathname').then((pathname) => {
       cy.reload();
       cy.location('pathname', { timeout: 10000 }).should('eq', pathname);

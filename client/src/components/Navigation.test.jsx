@@ -1,7 +1,5 @@
 import React from 'react';
-import { shallow } from 'enzyme';
-import Alert from '@material-ui/lab/Alert';
-import Button from '@material-ui/core/Button';
+import { fireEvent, render, screen } from '@testing-library/react';
 import {
   GlobalPendingResultAlert,
   shouldShowGlobalPendingResult,
@@ -39,7 +37,7 @@ describe('global pending result alert', () => {
 
   it('keeps discard accessible when the pending room could not be joined', () => {
     const onDiscard = jest.fn();
-    const wrapper = shallow(
+    render(
       <GlobalPendingResultAlert
         atPendingRoom
         onDiscard={onDiscard}
@@ -50,19 +48,16 @@ describe('global pending result alert', () => {
         userId={42}
       />,
     );
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
 
-    expect(wrapper.text()).toContain('Enter the room password below');
-    expect(actions.find(Button)).toHaveLength(1);
-    expect(actions.find(Button).text()).toBe('Discard saved result');
-
-    actions.find(Button).simulate('click');
+    expect(screen.getByText(/Enter the room password below/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard saved result' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard saved result' }));
     expect(onDiscard).toHaveBeenCalledTimes(1);
   });
 
   it('offers a return action when the user is somewhere else', () => {
     const onReturn = jest.fn();
-    const wrapper = shallow(
+    render(
       <GlobalPendingResultAlert
         atPendingRoom={false}
         onDiscard={jest.fn()}
@@ -72,18 +67,14 @@ describe('global pending result alert', () => {
         userId={42}
       />,
     );
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
 
-    expect(actions.find(Button).map((button) => button.text())).toEqual([
-      'Return to room',
-      'Discard saved result',
-    ]);
-    actions.find(Button).at(0).simulate('click');
+    fireEvent.click(screen.getByRole('button', { name: 'Return to room' }));
     expect(onReturn).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Discard saved result' })).toBeInTheDocument();
   });
 
   it('does not offer discard after delivery has started', () => {
-    const wrapper = shallow(
+    render(
       <GlobalPendingResultAlert
         atPendingRoom={false}
         onDiscard={jest.fn()}
@@ -93,10 +84,9 @@ describe('global pending result alert', () => {
         userId={42}
       />,
     );
-    const actions = shallow(<div>{wrapper.find(Alert).prop('action')}</div>);
 
-    expect(actions.find(Button)).toHaveLength(1);
-    expect(actions.find(Button).text()).toBe('Return to room');
-    expect(wrapper.text()).toContain('finish submitting');
+    expect(screen.getByRole('button', { name: 'Return to room' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Discard saved result' })).not.toBeInTheDocument();
+    expect(screen.getByText(/finish submitting/)).toBeInTheDocument();
   });
 });

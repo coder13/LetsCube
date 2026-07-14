@@ -1,4 +1,4 @@
-import { push } from 'connected-react-router';
+import history from '../../lib/history';
 import { lcFetch } from '../../lib/fetch';
 
 export const NOTIFICATIONS_FETCHING = 'notifications/fetching';
@@ -13,7 +13,7 @@ const requestError = async (response) => {
   let body = {};
   try {
     body = await response.json();
-  } catch (err) {
+  } catch {
     // Keep the server status as the useful error when a proxy sends no JSON body.
   }
   const error = new Error(body.message || 'Notification action failed');
@@ -90,7 +90,7 @@ export const runFriendNotificationAction = (notification, action) => (dispatch) 
     return dispatch(markNotificationRead(notification.id))
       .then(() => {
         dispatch({ notificationId: notification.id, type: NOTIFICATION_ACTION_FINISHED });
-        dispatch(push(`/rooms/${encodeURIComponent(notification.source.id)}`));
+        history.push(`/rooms/${encodeURIComponent(notification.source.id)}`);
       })
       .catch((error) => {
         dispatch({ error, notificationId: notification.id, type: NOTIFICATION_ACTION_FINISHED });

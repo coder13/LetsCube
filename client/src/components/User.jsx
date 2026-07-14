@@ -1,9 +1,9 @@
 import React from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Popover from '@material-ui/core/Popover';
-import Typography from '@material-ui/core/Typography';
+import { makeStyles } from '@mui/styles';
+import Popover from '@mui/material/Popover';
+import Typography from '@mui/material/Typography';
 import { Link } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
