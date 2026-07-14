@@ -16,6 +16,8 @@ This directory contains the durable technical documentation for Let's Cube.
   — resumable migration, parity, privacy, and rollback contract
 - [Production operations](operations.md) — deployment, health checks, rollback,
   backups, restore, and capacity management
+- [Release workflow](release-workflow.md) — feature-to-`dev` integration,
+  `dev`-to-`master` promotion evidence, and deployment handoff
 
 ## Feature contracts
 
