@@ -27,6 +27,21 @@ describe('solve history API', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'feature_disabled' }));
   });
 
+  it('allows only the configured user when the feature is user-scoped', async () => {
+    const postgresQuery = jest.fn().mockResolvedValue({ rows: [] });
+    const enabled = (user) => user && user.id === 8184;
+
+    const allowed = response();
+    await handlerFor({ enabled, postgresQuery })({ query: {}, user: { id: 8184 } }, allowed);
+    expect(postgresQuery).toHaveBeenCalledTimes(1);
+    expect(allowed.json).toHaveBeenCalledWith({ solves: [], nextCursor: null });
+
+    const blocked = response();
+    await handlerFor({ enabled, postgresQuery })({ query: {}, user: { id: 8185 } }, blocked);
+    expect(blocked.status).toHaveBeenCalledWith(404);
+    expect(postgresQuery).toHaveBeenCalledTimes(1);
+  });
+
   it('returns only session-linked authorized PostgreSQL history with stable cursors', async () => {
     const postgresQuery = jest.fn().mockResolvedValue({ rows: [{
       solve_id: '4d8ce8c4-8910-47e9-b39f-79e1280c1e3a',

@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { isFeatureEnabled } = require('../features');
+const { isFeatureEnabledForUser } = require('../features');
 const { recordSolveHistoryRequest } = require('../metrics');
 const { query } = require('../postgres');
 const { stableId } = require('../postgres/dualWrite');
@@ -111,7 +111,7 @@ const solveResponse = (row) => ({
 });
 
 const createSolveHistoryRouter = ({
-  enabled = isFeatureEnabled('solveHistory'),
+  enabled = (user) => isFeatureEnabledForUser('solveHistory', user && user.id),
   postgresQuery = query,
   recordMetric = recordSolveHistoryRequest,
   now = () => Date.now(),
@@ -123,7 +123,8 @@ const createSolveHistoryRouter = ({
     let outcome = 'error';
     let count = 0;
     try {
-      if (!enabled) {
+      const featureEnabled = typeof enabled === 'function' ? enabled(req.user) : enabled;
+      if (!featureEnabled) {
         outcome = 'feature_disabled';
         return res.status(404).json({
           code: 'feature_disabled',
