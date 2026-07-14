@@ -9,7 +9,6 @@ import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 import Alert from '@material-ui/lab/Alert';
-import { Cube } from 'react-cube-svg';
 import UIfx from 'uifx';
 import { push } from 'connected-react-router';
 import notificationAsset from '../../../assets/notification.mp3';
@@ -32,6 +31,7 @@ import TimesTable from './TimesTable';
 import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../common/Scramble';
+import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from './UserStats';
 
 const useStyles = withStyles((theme) => ({
@@ -170,7 +170,7 @@ export class Main extends React.Component {
     }
 
     const stats = calcStats(attempts, users);
-    const showScramble = latestAttempt.scrambles && room.event === '333';
+    const showScramble = latestAttempt.scrambles && latestAttempt.scrambles.length;
 
     return (
       <ClickAwayListener onClickAway={() => { this.onTimerDefocused(); }}>
@@ -277,7 +277,8 @@ export class Main extends React.Component {
                       }}
                       variant="outlined"
                     >
-                      <Cube
+                      <ScramblePreview
+                        event={room.event}
                         size={120}
                         scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                       />
