@@ -127,15 +127,14 @@ const createDiscoveryService = ({
     if (cursor) {
       conditions.push({ id: { $gt: cursor.id } });
     }
-    const users = await lean(userModel.find({ $and: conditions })
-      .sort({ id: 1 }).limit(limit + 1));
     const blocked = await blockedIds(viewerId);
+    const users = await lean(userModel.find({ $and: conditions })
+      .sort({ id: 1 }).limit(limit + blocked.size + 1));
     const visible = users.filter((user) => !blocked.has(user.id));
     const page = visible.slice(0, limit).map((user) => publicUserProjection(user));
-    const hasMore = users.length > limit;
     return {
-      nextCursor: hasMore && page.length
-        ? encodeCursor(users[limit - 1])
+      nextCursor: visible.length > limit && page.length
+        ? encodeCursor(visible[limit - 1])
         : null,
       results: page,
     };

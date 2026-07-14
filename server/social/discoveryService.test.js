@@ -16,7 +16,7 @@ jest.mock('./relationshipState', () => ({
   },
 }));
 
-const { createDiscoveryService } = require('./discoveryService');
+const { createDiscoveryService, decodeCursor } = require('./discoveryService');
 
 const chain = (value) => ({
   lean: jest.fn().mockResolvedValue(value),
@@ -33,9 +33,9 @@ const users = [
   },
 ];
 
-const createService = ({ blocks = [], relationships = [] } = {}) => {
+const createService = ({ blocks = [], relationships = [], searchUsers = users } = {}) => {
   const userModel = {
-    find: jest.fn(() => chain(users)),
+    find: jest.fn(() => chain(searchUsers)),
     findOne: jest.fn((query) => Promise.resolve(users.find((user) => (
       (query.usernameNormalized && user.usernameNormalized === query.usernameNormalized)
       || (query.showWCAID && user.showWCAID && user.wcaId === query.wcaId)
@@ -104,6 +104,21 @@ describe('privacy-safe discovery', () => {
       results: [expect.objectContaining({ id: 3 })],
     });
     await expect(service.publicProfile({ id: 1 }, 'cuber')).resolves.toBeNull();
+  });
+
+  it('fills a page after filtering blocked users and advances from the last visible user', async () => {
+    const { service, userModel } = createService({
+      blocks: [{ blockerId: 1, blockedId: 2, active: true }],
+      searchUsers: [...users, {
+        id: 4, name: 'Another Name', username: 'CuberThree', usernameNormalized: 'cuberthree', showWCAID: false,
+      }],
+    });
+
+    const result = await service.search({ id: 1 }, 'cuber', 1);
+
+    expect(result.results).toEqual([expect.objectContaining({ id: 3 })]);
+    expect(decodeCursor(result.nextCursor)).toEqual({ id: 3 });
+    expect(userModel.find.mock.results[0].value.limit).toHaveBeenCalledWith(3);
   });
 
   it('returns viewer-relative safe actions and no editable/private fields', async () => {
