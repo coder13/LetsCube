@@ -1,23 +1,122 @@
 import React, { Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
-import { Switch, Route, Redirect } from 'react-router-dom';
+import {
+  Switch, Route, Redirect, useLocation,
+} from 'react-router-dom';
 import { connect, useDispatch } from 'react-redux';
-// import Backdrop from '@material-ui/core/Backdrop';
-import CircularProgress from '@material-ui/core/CircularProgress';
-import Snackbar from '@material-ui/core/Snackbar';
-import Alert from '@material-ui/lab/Alert';
-import { makeStyles } from '@material-ui/core/styles';
+import history from '../lib/history';
+// import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
+import Button from '@mui/material/Button';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import { makeStyles } from '@mui/styles';
 import PrivateRoute from './common/PrivateRoute';
 import Header from './Header';
 import Footer from './Footer';
 import WCARedirect from './WCARedirect';
 import Admin from './Admin';
 import { closeMessage } from '../store/messages/actions';
+import { discardPendingResult } from '../store/room/actions';
+import {
+  canDiscardPendingResult,
+  isPendingResult,
+  pendingResultBelongsToUser,
+} from '../store/room/resultOutbox';
 import Text from './Text';
+import { isFeatureEnabled } from '../lib/features';
 
 const Lobby = lazy(() => import('./Lobby/index'));
 const Room = lazy(() => import('./Room/index'));
 const Profile = lazy(() => import('./common/Profile'));
+const Notifications = lazy(() => import('./Notifications'));
+const Friends = lazy(() => import('./Friends'));
+const PublicProfile = lazy(() => import('./PublicProfile'));
+
+export const shouldShowGlobalPendingResult = (room, pendingResult) => (
+  isPendingResult(pendingResult)
+  && !(room.accessCode && room.type === 'normal' && !room.fetching)
+);
+
+export function GlobalPendingResultAlert({
+  atPendingRoom,
+  error,
+  onDiscard,
+  onReturn,
+  pendingResult,
+  privateRoom,
+  status,
+  userId,
+}) {
+  const belongsToUser = pendingResultBelongsToUser(pendingResult, userId);
+  const canDiscardResult = canDiscardPendingResult(pendingResult, status);
+  let message;
+
+  if (!belongsToUser) {
+    message = canDiscardResult
+      ? 'A saved time for another account is stored on this device. Switch back to that account or discard it.'
+      : 'A saved time for another account may already be submitting. Switch back to that account to finish it.';
+  } else if (status === 'failed') {
+    message = `Your saved time could not be submitted: ${error.message}`;
+  } else if (atPendingRoom) {
+    const rejoinMessage = privateRoom
+      ? 'Enter the room password below to rejoin and submit it.'
+      : 'Rejoin the room to submit it.';
+    message = canDiscardResult
+      ? `Your time is still saved on this device. ${rejoinMessage}`
+      : `Your time may already be submitting. ${rejoinMessage}`;
+  } else {
+    message = canDiscardResult
+      ? `Your saved time is waiting in room ${pendingResult.roomId}. Return there to submit it, or discard it.`
+      : `Your saved time is waiting in room ${pendingResult.roomId}. Return there to finish submitting it.`;
+  }
+
+  return (
+    <Alert
+      severity={status === 'failed' ? 'error' : 'warning'}
+      action={(
+        <>
+          {belongsToUser && !atPendingRoom && (
+            <Button color="inherit" size="small" onClick={onReturn}>
+              Return to room
+            </Button>
+          )}
+          {canDiscardResult && (
+            <Button color="inherit" size="small" onClick={onDiscard}>
+              Discard saved result
+            </Button>
+          )}
+        </>
+      )}
+    >
+      {message}
+    </Alert>
+  );
+}
+
+GlobalPendingResultAlert.propTypes = {
+  atPendingRoom: PropTypes.bool.isRequired,
+  error: PropTypes.shape({
+    message: PropTypes.string,
+  }),
+  onDiscard: PropTypes.func.isRequired,
+  onReturn: PropTypes.func.isRequired,
+  pendingResult: PropTypes.shape({
+    deliveryAttempted: PropTypes.bool,
+    roomId: PropTypes.string,
+    submissionId: PropTypes.string,
+    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  privateRoom: PropTypes.bool,
+  status: PropTypes.oneOf(['pending', 'sending', 'failed']).isRequired,
+  userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+};
+
+GlobalPendingResultAlert.defaultProps = {
+  error: null,
+  privateRoom: false,
+  userId: undefined,
+};
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -46,10 +145,20 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Navigation({
-  room, connected, user, messages, server,
+  room, roomList, connected, user, messages, server,
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const location = useLocation();
+  const roomConnectionInterrupted = !!room._id && !roomList.connected;
+  const connectionInterrupted = room._id
+    ? roomConnectionInterrupted
+    : (!connected || server.reconnecting);
+  const resultSubmission = room.resultSubmission || {};
+  const pendingResult = resultSubmission.pendingResult;
+  const showGlobalPendingResult = shouldShowGlobalPendingResult(room, pendingResult);
+  const pendingRoomPath = pendingResult ? `/rooms/${pendingResult.roomId}` : null;
+  const atPendingRoom = location.pathname === pendingRoomPath;
 
   const handleClose = (index, event, reason) => {
     if (reason === 'clickaway') {
@@ -82,9 +191,11 @@ function Navigation({
 
       <div className={classes.container}>
         <Header />
-        {(!connected || server.reconnecting) && (
-          <Alert severity="error">
-            Disconnected from server.
+        {connectionInterrupted && (
+          <Alert severity={roomConnectionInterrupted ? 'warning' : 'error'}>
+            {roomConnectionInterrupted
+              ? 'Room connection interrupted. You can finish your solve; your completed time will be saved on this device.'
+              : 'Disconnected from server.'}
             { (server.reconnecting || server.reconnectAttempts > 0) && (
               ` Reconnecting...${server.reconnectAttempts} attempts`
             )}
@@ -99,6 +210,18 @@ function Navigation({
             )}
           </Alert>
         )}
+        {showGlobalPendingResult && (
+          <GlobalPendingResultAlert
+            atPendingRoom={atPendingRoom}
+            error={resultSubmission.error}
+            onDiscard={() => dispatch(discardPendingResult(pendingResult.submissionId))}
+            onReturn={() => history.push(pendingRoomPath)}
+            pendingResult={pendingResult}
+            privateRoom={!!room.private}
+            status={resultSubmission.status}
+            userId={user.id}
+          />
+        )}
         <main className={classes.content}>
           <Suspense fallback={Loading}>
             {!user.fetching && (
@@ -106,6 +229,10 @@ function Navigation({
                 <Route exact path="/" component={Lobby} />
                 { (!user.id || user.canJoinRoom) && <Route path="/rooms/:roomId" component={Room} /> }
                 <PrivateRoute exact path="/profile" component={Profile} user={user} />
+                <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
+                <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
+                {isFeatureEnabled('friends') && <PrivateRoute exact path="/friends" component={Friends} user={user} />}
+                <PrivateRoute exact path="/users/:id" component={PublicProfile} user={user} />
                 <PrivateRoute path="/admin" isAdminRoute component={Admin} />
                 <Route path="/wca-redirect" component={WCARedirect} />
                 <Redirect to="/" />
@@ -145,6 +272,24 @@ Navigation.propTypes = {
   })),
   room: PropTypes.shape({
     _id: PropTypes.string,
+    accessCode: PropTypes.string,
+    fetching: PropTypes.bool,
+    private: PropTypes.bool,
+    type: PropTypes.string,
+    resultSubmission: PropTypes.shape({
+      status: PropTypes.oneOf(['idle', 'pending', 'sending', 'failed']),
+      pendingResult: PropTypes.shape({
+        deliveryAttempted: PropTypes.bool,
+        roomId: PropTypes.string,
+        submissionId: PropTypes.string,
+      }),
+      error: PropTypes.shape({
+        message: PropTypes.string,
+      }),
+    }),
+  }),
+  roomList: PropTypes.shape({
+    connected: PropTypes.bool,
   }),
   server: PropTypes.shape({
     reconnecting: PropTypes.bool,
@@ -161,6 +306,9 @@ Navigation.defaultProps = {
   room: {
     id: undefined,
   },
+  roomList: {
+    connected: false,
+  },
   server: {
     reconnecting: false,
     reconnectAttempts: 0,
@@ -174,6 +322,7 @@ const mapStateToProps = (state) => ({
   user: state.user,
   messages: state.messages.messages,
   room: state.room,
+  roomList: state.roomList,
 });
 
 export default connect(mapStateToProps)(Navigation);

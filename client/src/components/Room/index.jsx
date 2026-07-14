@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@mui/styles';
 import { connect, useDispatch } from 'react-redux';
-import Paper from '@material-ui/core/Paper';
-import Backdrop from '@material-ui/core/Backdrop';
-import CircularProgress from '@material-ui/core/CircularProgress';
+import Paper from '@mui/material/Paper';
+import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
 import qs from 'qs';
 import Login from './Common/Login';
 import {

@@ -4,15 +4,17 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
+const lusca = require('lusca');
 
 const config = require('./runtimeConfig');
 const { connect } = require('./database');
-const { initializePostgres, startPostgresMaintenance } = require('./postgres');
+const { createHealthHandler, createHealthReporter } = require('./health');
+const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
 const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
-const { Room } = require('./models');
+const { isUserApiRequest } = require('./requestLogging');
 
 Error.stackTraceLimit = 100;
 
@@ -29,15 +31,33 @@ const init = async () => {
   await initializePostgres();
   startPostgresMaintenance();
 
+  const reportHealth = createHealthReporter({
+    service: 'api',
+    checks: {
+      mongodb: () => mongoose.connection.readyState === 1,
+      postgres: {
+        required: false,
+        check: async () => {
+          if (config.postgres.enabled) {
+            await pool.query('SELECT 1');
+          }
+          return true;
+        },
+      },
+    },
+  });
+
+  app.get('/health/api', createHealthHandler(reportHealth));
+
   /* Logging */
 
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode >= 400,
+    skip: (req, res) => res.statusCode >= 400 || isUserApiRequest(req),
     stream: { write: (message) => logger.info(message) },
   }));
 
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode < 400,
+    skip: (req, res) => res.statusCode < 400 || isUserApiRequest(req),
     stream: { write: (message) => logger.error(message) },
   }));
 
@@ -45,7 +65,8 @@ const init = async () => {
 
   app.set('trust proxy', 1);
 
-  app.use(session(mongoose));
+  app.use(session);
+  app.use(lusca.csrf());
 
   app.use(passport.initialize());
   app.use(passport.session());
@@ -57,6 +78,8 @@ const init = async () => {
     origin: true,
     // config.cors.origin.map((o) => new RegExp(o)),
   }));
+
+  app.get('/api/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
 
   app.use(express.static(path.join(__dirname, '../client/build')));
 
@@ -101,26 +124,3 @@ try {
 } catch (e) {
   logger.error(e);
 }
-
-/* eslint-disable no-await-in-loop */
-async function asyncForEach(array, callback) {
-  for (let index = 0; index < array.length; index += 1) {
-    await callback(array[index], index, array);
-  }
-}
-
-process.on('SIGINT', () => {
-  Room.find().then(async (rooms) => {
-    try {
-      await asyncForEach(rooms, async (room) => {
-        await asyncForEach(room.users, async (user) => {
-          await room.dropUser(user);
-        });
-      });
-    } catch (e) {
-      logger.error(e);
-    }
-
-    process.exit(0);
-  });
-});

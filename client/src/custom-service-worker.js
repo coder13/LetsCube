@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals, import/no-extraneous-dependencies */
+
 
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 

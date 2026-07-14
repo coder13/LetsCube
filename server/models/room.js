@@ -1,12 +1,38 @@
 const mongoose = require('mongoose');
-const { Scrambow } = require('scrambow');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
-const Events = require('../../client/src/lib/events.json');
+const { generateScramble } = require('letscube-scrambles');
 const { mirrorRoomChanges } = require('../postgres/dualWrite');
 
 const PASSWORD_SALT_ROUNDS = 10;
 const STALE_ROOM_LIFETIME_MS = 10 * 60 * 1000;
+
+const sameUser = (left, right) => left && right
+  && String(left.id) === String(right.id);
+
+const selectRoomAdmin = ({ usersInRoom, owner, admin }) => {
+  if (usersInRoom.length === 0) {
+    return null;
+  }
+
+  const activeOwner = usersInRoom.find((user) => sameUser(user, owner));
+  if (activeOwner) {
+    return activeOwner;
+  }
+
+  return usersInRoom.find((user) => sameUser(user, admin)) || usersInRoom[0];
+};
+
+const presenceRevisionFor = (room, userKey) => (
+  room.presenceRevision ? room.presenceRevision.get(userKey) || 0 : 0
+);
+
+const advancePresenceRevisionFor = (room, userKey) => {
+  if (!room.presenceRevision) {
+    room.presenceRevision = new Map();
+  }
+  room.presenceRevision.set(userKey, presenceRevisionFor(room, userKey) + 1);
+};
 
 // const lengths = {
 
@@ -18,6 +44,7 @@ const Result = new mongoose.Schema({
     required: true,
   },
   penalties: Object,
+  submissionId: String,
 }, {
   timestamps: true,
 });
@@ -87,6 +114,17 @@ const Room = new mongoose.Schema({
     of: Boolean,
     default: {},
   },
+  // Incremented for every join or departure so a conditional departure cannot
+  // overwrite a reconnect that raced it on another Socket.IO process.
+  membershipRevision: {
+    type: Number,
+    default: 0,
+  },
+  presenceRevision: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
   admin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   type: {
@@ -124,10 +162,6 @@ Room.index({
   expireAt: 1,
 }, {
   expireAfterSeconds: 0,
-});
-
-Room.virtual('scrambler').get(function () {
-  return new Scrambow().setType(Events.find((e) => e.id === this.event).scrambler);
 });
 
 Room.virtual('usersInRoom').get(function () {
@@ -191,6 +225,8 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
   }
 
   this.inRoom.set(user.id.toString(), true);
+  this.membershipRevision = (this.membershipRevision || 0) + 1;
+  advancePresenceRevisionFor(this, user.id.toString());
 
   if (this.waitingForCount === 0) {
     this.waitingFor.set(user.id.toString(), true);
@@ -214,16 +250,115 @@ Room.methods.addUser = async function (user, spectating, updateAdmin) {
 Room.methods.dropUser = async function (user, updateAdmin) {
   this.inRoom.set(user.id.toString(), false);
   this.waitingFor.set(user.id.toString(), false);
+  this.membershipRevision = (this.membershipRevision || 0) + 1;
+  advancePresenceRevisionFor(this, user.id.toString());
 
-  if (updateAdmin) {
-    await this.updateAdminIfNeeded(updateAdmin);
-  }
+  await this.updateAdminIfNeeded(updateAdmin);
 
   if (this.usersInRoom.length === 0 && this.type === 'normal') {
     await this.updateStale(true);
   }
 
   return this.save();
+};
+
+Room.methods.dropUserAtomically = async function (
+  user,
+  expectedMembershipRevision = this.membershipRevision || 0,
+  expectedPresenceRevision = presenceRevisionFor(this, user.id.toString()),
+) {
+  const userKey = user.id.toString();
+  const membershipRevision = this.membershipRevision || 0;
+  const presenceRevision = presenceRevisionFor(this, userKey);
+  if (!this.inRoom.get(userKey)
+    || expectedMembershipRevision !== membershipRevision
+    || expectedPresenceRevision !== presenceRevision) {
+    return null;
+  }
+
+  const usersInRoom = this.users.filter((candidate) => (
+    candidate.id.toString() !== userKey
+      && this.inRoom.get(candidate.id.toString())
+  ));
+  const nextAdmin = selectRoomAdmin({
+    usersInRoom,
+    owner: this.owner,
+    admin: this.admin,
+  });
+  const adminChanged = !sameUser(this.admin, nextAdmin);
+  const condition = {
+    _id: this._id,
+    [`inRoom.${userKey}`]: true,
+  };
+  const revisionConditions = [];
+  if (membershipRevision > 0) {
+    condition.membershipRevision = membershipRevision;
+  } else {
+    revisionConditions.push({
+      $or: [
+        { membershipRevision: 0 },
+        { membershipRevision: { $exists: false } },
+      ],
+    });
+  }
+  if (presenceRevision > 0) {
+    condition[`presenceRevision.${userKey}`] = presenceRevision;
+  } else {
+    revisionConditions.push({
+      $or: [
+        { [`presenceRevision.${userKey}`]: 0 },
+        { [`presenceRevision.${userKey}`]: { $exists: false } },
+      ],
+    });
+  }
+  if (revisionConditions.length > 0) {
+    condition.$and = revisionConditions;
+  }
+
+  const update = {
+    $set: {
+      [`inRoom.${userKey}`]: false,
+      [`waitingFor.${userKey}`]: false,
+      admin: nextAdmin ? nextAdmin._id || nextAdmin : null,
+    },
+    $inc: {
+      membershipRevision: 1,
+      [`presenceRevision.${userKey}`]: 1,
+    },
+  };
+  if (usersInRoom.length === 0 && this.type === 'normal') {
+    update.$set.expireAt = new Date(Date.now() + STALE_ROOM_LIFETIME_MS);
+  }
+
+  const updatedRoom = await this.constructor.findOneAndUpdate(condition, update, {
+    new: true,
+  }).populate('users').populate('admin').populate('owner');
+  if (!updatedRoom) {
+    return null;
+  }
+
+  await mirrorRoomChanges(updatedRoom, {
+    attempts: [],
+    participantUserIds: [userKey],
+    syncAllParticipants: false,
+    syncRoomOwners: adminChanged,
+  });
+
+  return { room: updatedRoom, adminChanged };
+};
+
+Room.methods.advancePresenceRevision = function (userId) {
+  const userKey = userId.toString();
+  return this.constructor.findOneAndUpdate({
+    _id: this._id,
+    [`inRoom.${userKey}`]: true,
+  }, {
+    $inc: {
+      [`presenceRevision.${userKey}`]: 1,
+    },
+  }, {
+    new: true,
+  }).populate('users').populate('admin').populate('owner');
 };
 
 Room.methods.banUser = async function (userId) {
@@ -267,16 +402,16 @@ Room.methods.doneWithScramble = function () {
   return (this.waitingForCount === 0 || this.attempts.length === 0) && this.usersInRoom.length > 0;
 };
 
-Room.methods.genAttempt = function () {
+Room.methods.genAttempt = async function () {
   return {
     id: this.attempts.length,
-    scrambles: this.scrambler.get(1).map((i) => i.scramble_string),
+    scrambles: [await generateScramble(this.event)],
     results: {},
   };
 };
 
-Room.methods.newAttempt = function () {
-  const attempt = this.genAttempt();
+Room.methods.newAttempt = async function () {
+  const attempt = await this.genAttempt();
 
   this.attempts = this.attempts.concat([attempt]);
 
@@ -294,9 +429,23 @@ Room.methods.changeEvent = function (event) {
 };
 
 Room.methods.edit = async function (options) {
+  // Older clients sent the room access code when the password field was unchanged.
+  const legacyUnchangedPassword = !!this.password
+    && options.password === this.accessCode;
+  const replacesPassword = typeof options.password === 'string'
+    && options.password.length > 0
+    && !legacyUnchangedPassword;
+  if (options.private && !replacesPassword && !this.password) {
+    const error = new Error('A password is required to make a room private');
+    error.statusCode = 400;
+    throw error;
+  }
+
   this.name = options.name;
   if (options.private) {
-    this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    if (replacesPassword) {
+      this.password = await bcrypt.hash(options.password, PASSWORD_SALT_ROUNDS);
+    }
   } else {
     this.password = null;
   }
@@ -306,25 +455,20 @@ Room.methods.edit = async function (options) {
   return this.save();
 };
 
-Room.methods.updateAdminIfNeeded = function (cb) {
-  if (this.usersInRoom.length === 0) {
-    this.admin = null;
-    return this.save();
+Room.methods.updateAdminIfNeeded = async function (cb) {
+  const nextAdmin = selectRoomAdmin(this);
+  if (sameUser(this.admin, nextAdmin) || (!this.admin && !nextAdmin)) {
+    return this;
   }
 
-  const findOwner = this.usersInRoom.find((user) => user.id === this.owner.id);
-  if (findOwner && this.admin && this.admin.id !== findOwner.id) {
-    this.admin = findOwner;
-    return this.save().then(cb);
+  this.admin = nextAdmin;
+  const room = await this.save();
+  // UPDATE_ADMIN has always carried a user. Empty rooms persist null without
+  // notifying clients that still expect a populated admin object.
+  if (cb && room.admin) {
+    cb(room);
   }
-
-  if (!this.admin || this.admin.id !== this.usersInRoom[0].id) {
-    const { usersInRoom } = this;
-
-    // eslint-disable-next-line prefer-destructuring
-    this.admin = usersInRoom[0];
-    return this.save().then(cb);
-  }
+  return room;
 };
 
 const collectPostgresChanges = (room) => {
@@ -401,3 +545,4 @@ Room.post('save', async (room) => {
 module.exports.Attempt = Attempt;
 module.exports.collectPostgresChanges = collectPostgresChanges;
 module.exports.Room = Room;
+module.exports.selectRoomAdmin = selectRoomAdmin;

@@ -1,14 +1,11 @@
 import React from 'react';
-import { mount } from 'enzyme';
-import { act } from 'react-dom/test-utils';
+import { render, screen } from '@testing-library/react';
 import Announcements from './Announcements';
 import { lcFetch } from '../../lib/fetch';
 
 jest.mock('../../lib/fetch', () => ({
   lcFetch: jest.fn(),
 }));
-
-const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('Announcements', () => {
   beforeEach(() => {
@@ -21,19 +18,10 @@ describe('Announcements', () => {
       text: jest.fn().mockResolvedValue('[Docs](https://example.com)'),
     });
 
-    let wrapper;
+    render(<Announcements />);
 
-    await act(async () => {
-      wrapper = mount(<Announcements />);
-      await flushPromises();
-    });
-
-    wrapper.update();
-
-    const link = wrapper.find('a').first();
-
-    expect(link.text()).toEqual('Docs');
-    expect(link.prop('href')).toEqual('https://example.com');
-    expect(link.prop('target')).toEqual('_blank');
+    const link = await screen.findByRole('link', { name: 'Docs' });
+    expect(link).toHaveAttribute('href', 'https://example.com');
+    expect(link).toHaveAttribute('target', '_blank');
   });
 });

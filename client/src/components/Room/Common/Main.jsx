@@ -1,30 +1,40 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { withStyles } from '@material-ui/core/styles';
+import { withStyles } from '@mui/styles';
 import { connect } from 'react-redux';
-import Grid from '@material-ui/core/Grid';
-import Paper from '@material-ui/core/Paper';
-import Divider from '@material-ui/core/Divider';
-import Typography from '@material-ui/core/Typography';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import { Cube } from 'react-cube-svg';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import Divider from '@mui/material/Divider';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Alert from '@mui/material/Alert';
 import UIfx from 'uifx';
+import history from '../../../lib/history';
 import notificationAsset from '../../../assets/notification.mp3';
 import calcStats from '../../../lib/stats';
 import {
   submitResult,
+  discardPendingResult,
   sendStatus,
   timerFocused,
 } from '../../../store/room/actions';
+import {
+  canDiscardPendingResult,
+  isPendingResult,
+  pendingResultBelongsToUser,
+  pendingResultMatches,
+} from '../../../store/room/resultOutbox';
 import { StatsDialogProvider } from './StatsDialogProvider';
 import { EditDialogProvider } from './EditDialogProvider';
 import TimesTable from './TimesTable';
 import HelpPopover from '../../common/HelpPopover';
 import Timer from '../../Timer/index';
 import Scramble from '../../common/Scramble';
+import ScramblePreview from '../../common/ScramblePreview';
 import UserStats from './UserStats';
 
-const useStyles = withStyles((theme) => ({
+const withComponentStyles = withStyles((theme) => ({
   root: {
     display: 'flex',
     flexGrow: 1,
@@ -36,6 +46,9 @@ const useStyles = withStyles((theme) => ({
   waitingForBox: {
     padding: '.5em',
   },
+  submissionAlert: {
+    borderRadius: 0,
+  },
   scrambleBox: {
     padding: '.5em',
     textAlign: 'center',
@@ -45,12 +58,12 @@ const useStyles = withStyles((theme) => ({
   },
 }));
 
-class Main extends React.Component {
+export class Main extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      currentAttemptId: undefined,
+      currentAttempt: undefined,
     };
   }
 
@@ -68,26 +81,27 @@ class Main extends React.Component {
 
   onSubmitTime(event) {
     const { dispatch, room, user } = this.props;
-    const { currentAttemptId } = this.state;
+    const { currentAttempt } = this.state;
 
     if (!room.attempts.length) {
       return;
     }
 
-    // Don't even bother sending the result.
     if (!user.id) {
       return;
     }
 
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
+    const submittedAttempt = currentAttempt || latestAttempt;
     dispatch(submitResult({
-      id: currentAttemptId || latestAttempt.id,
+      id: submittedAttempt.id,
+      attemptKey: submittedAttempt._id,
       result: {
         time: event.time,
         penalties: event.penalties,
       },
     }));
-    this.setState({ currentAttemptId: null });
+    this.setState({ currentAttempt: null });
   }
 
   onTimerFocused = () => {
@@ -108,28 +122,89 @@ class Main extends React.Component {
   handlePriming() {
     const { room } = this.props;
     const latestAttempt = room.attempts ? room.attempts[room.attempts.length - 1] : {};
-    this.setState({ currentAttemptId: latestAttempt.id });
+    this.setState({ currentAttempt: latestAttempt });
   }
 
   render() {
     const {
-      classes, dispatch, room, user, onlyShowSelf,
+      classes, dispatch, room, user, onlyShowSelf, roomConnected,
     } = this.props;
 
     const {
       users, attempts, waitingFor,
     } = room;
+    const resultSubmission = room.resultSubmission || {};
+    const pendingResult = resultSubmission.pendingResult;
+    const hasPendingResult = isPendingResult(pendingResult);
+    const canDiscardResult = canDiscardPendingResult(
+      pendingResult,
+      resultSubmission.status,
+    );
+    const pendingBelongsToUser = pendingResultBelongsToUser(pendingResult, user.id);
+    const pendingMatchesRoom = pendingResultMatches(pendingResult, {
+      userId: user.id,
+      roomId: room._id,
+    });
     const latestAttempt = (attempts && attempts.length) ? attempts[attempts.length - 1] : {};
     const timerDisabled = !room.timerFocused || !room.competing[user.id]
-      || !room.waitingFor[user.id];
+      || !room.waitingFor[user.id] || hasPendingResult;
     const hidden = room.competing[user.id] && !waitingFor[user.id];
 
+    let submissionMessage = '';
+    if (!pendingBelongsToUser) {
+      submissionMessage = canDiscardResult
+        ? 'A saved time for another account is stored on this device. Switch back to that account or discard it before timing another solve.'
+        : 'A saved time for another account may already be submitting. Switch back to that account to finish it.';
+    } else if (!pendingMatchesRoom) {
+      submissionMessage = canDiscardResult
+        ? `Your saved time belongs to room ${pendingResult.roomId}. Return there to submit it, or discard it before timing another solve.`
+        : `Your saved time belongs to room ${pendingResult.roomId}. Return there to finish submitting it.`;
+    } else if (resultSubmission.status === 'failed') {
+      submissionMessage = `Your saved time could not be submitted: ${resultSubmission.error.message}`;
+    } else if (resultSubmission.status === 'sending') {
+      submissionMessage = 'Submitting your saved time...';
+    } else if (roomConnected) {
+      submissionMessage = 'Your time is saved on this device and waiting to submit.';
+    } else {
+      submissionMessage = 'Your time is saved on this device. It will submit after the room reconnects.';
+    }
+
     const stats = calcStats(attempts, users);
-    const showScramble = latestAttempt.scrambles && room.event === '333';
+    const showScramble = latestAttempt.scrambles && latestAttempt.scrambles.length;
 
     return (
       <ClickAwayListener onClickAway={() => { this.onTimerDefocused(); }}>
         <Paper className={classes.root} variant="outlined" square onClick={() => { this.onTimerFocused(); }}>
+          {hasPendingResult && (
+            <Alert
+              className={classes.submissionAlert}
+              severity={resultSubmission.status === 'failed' ? 'error' : 'warning'}
+              action={(
+                <>
+                  {pendingBelongsToUser && !pendingMatchesRoom && (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => history.push(`/rooms/${pendingResult.roomId}`)}
+                    >
+                      Return to room
+                    </Button>
+                  )}
+                  {canDiscardResult && (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => dispatch(discardPendingResult(pendingResult.submissionId))}
+                    >
+                      Discard saved result
+                    </Button>
+                  )}
+                </>
+              )}
+            >
+              {submissionMessage}
+            </Alert>
+          )}
           <StatsDialogProvider>
             <EditDialogProvider dispatch={dispatch}>
               <div className={classes.scrambleBox}>
@@ -202,7 +277,8 @@ class Main extends React.Component {
                       }}
                       variant="outlined"
                     >
-                      <Cube
+                      <ScramblePreview
+                        event={room.event}
                         size={120}
                         scramble={latestAttempt.scrambles ? latestAttempt.scrambles[0] : ''}
                       />
@@ -231,12 +307,23 @@ Main.propTypes = {
     waitingFor: PropTypes.shape(),
     statuses: PropTypes.shape(),
     attempts: PropTypes.arrayOf(PropTypes.shape({
+      _id: PropTypes.string,
       id: PropTypes.number,
     })),
     admin: PropTypes.shape({
       id: PropTypes.number,
     }),
     timerFocused: PropTypes.bool,
+    resultSubmission: PropTypes.shape({
+      status: PropTypes.oneOf(['idle', 'pending', 'sending', 'failed']),
+      pendingResult: PropTypes.shape({
+        deliveryAttempted: PropTypes.bool,
+        submissionId: PropTypes.string,
+      }),
+      error: PropTypes.shape({
+        message: PropTypes.string,
+      }),
+    }),
   }),
   user: PropTypes.shape({
     id: PropTypes.number,
@@ -247,6 +334,7 @@ Main.propTypes = {
   dispatch: PropTypes.func.isRequired,
   classes: PropTypes.shape().isRequired,
   onlyShowSelf: PropTypes.bool,
+  roomConnected: PropTypes.bool,
 };
 
 Main.defaultProps = {
@@ -264,6 +352,11 @@ Main.defaultProps = {
       id: undefined,
     },
     timerFocused: true,
+    resultSubmission: {
+      status: 'idle',
+      pendingResult: null,
+      error: null,
+    },
   },
   user: {
     id: undefined,
@@ -272,11 +365,13 @@ Main.defaultProps = {
     timerType: 'spacebar',
   },
   onlyShowSelf: false,
+  roomConnected: false,
 };
 
 const mapStateToProps = (state) => ({
   room: state.room,
+  roomConnected: state.roomList.connected,
   user: state.user,
 });
 
-export default connect(mapStateToProps)(useStyles(Main));
+export default connect(mapStateToProps)(withComponentStyles(Main));

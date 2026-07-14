@@ -1,7 +1,7 @@
 const logger = require('../../logger');
 const Protocol = require('../../../client/src/lib/protocol.json');
 
-module.exports = (io, middlewares) => {
+module.exports = (io, middlewares, reportHealth) => {
   const ns = io.of('/');
 
   middlewares.forEach((middleware) => {
@@ -23,6 +23,15 @@ module.exports = (io, middlewares) => {
     logger.info(`socket ${socket.id} connected to default; logged in as ${socket.user ? socket.user.name : 'Anonymous'}`);
 
     updateUsersOnline();
+
+    socket.on(Protocol.HEALTH_CHECK, async (acknowledgment) => {
+      const report = await reportHealth();
+      if (typeof acknowledgment === 'function') {
+        acknowledgment(report);
+      } else {
+        socket.emit(Protocol.HEALTH_STATUS, report);
+      }
+    });
 
     socket.on(Protocol.DISCONNECT, () => {
       logger.info(`socket ${socket.id} disconnected from default;`);

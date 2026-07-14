@@ -3,12 +3,22 @@ const CustomStrategy = require('passport-custom').Strategy;
 const { URLSearchParams } = require('url');
 const { User } = require('../models');
 const metrics = require('../metrics');
+const { buildWcaUserUpdate } = require('./wcaProfile');
+const { upsertTestUser } = require('./testUser');
 
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
     return res;
   }
   throw await res.json();
+};
+
+const deserializeUser = async (userModel, id, done) => {
+  try {
+    done(null, await userModel.findOne({ id }));
+  } catch (error) {
+    done(error);
+  }
 };
 
 module.exports = (app, passport) => {
@@ -31,20 +41,11 @@ module.exports = (app, passport) => {
 
     if (process.env.LETSCUBE_TEST_AUTH === 'true') {
       try {
-        const user = await User.findOneAndUpdate({
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
-        }, {
-          id: +(process.env.LETSCUBE_TEST_USER_ID || 990001),
-          name: 'Cypress Test User',
-          username: 'cypress',
-          email: 'cypress@example.com',
-          wcaId: '2026TEST01',
-          accessToken: `test-token-${code}`,
-          avatar: {},
-        }, {
-          upsert: true,
-          useFindAndModify: false,
-          new: true,
+        const testUserMatch = /^cypress-test-user-(\d+)$/.exec(code);
+        const user = await upsertTestUser(User, {
+          code,
+          userId: testUserMatch
+            ? Number(testUserMatch[1]) : +(process.env.LETSCUBE_TEST_USER_ID || 990001),
         });
 
         done(null, user.toObject());
@@ -87,22 +88,15 @@ module.exports = (app, passport) => {
 
       const profile = meRes.me;
 
-      User.findOneAndUpdate({
+      const user = await User.findOneAndUpdate({
         id: +profile.id,
-      }, {
-        id: +profile.id,
-        name: profile.name,
-        email: profile.email,
-        wcaId: profile.wca_id,
-        accessToken: tokenRes.access_token,
-        avatar: profile.avatar,
-      }, {
+      }, buildWcaUserUpdate(profile, tokenRes.access_token), {
         upsert: true,
         useFindAndModify: false,
         new: true,
-      }, (err, user) => {
-        done(err, user.toObject());
       });
+
+      done(null, user.toObject());
     } catch (e) {
       done(e);
     }
@@ -112,11 +106,7 @@ module.exports = (app, passport) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser((id, done) => {
-    User.findOne({ id }, (err, user) => {
-      done(err, user);
-    });
-  });
+  passport.deserializeUser((id, done) => deserializeUser(User, id, done));
 
   router.post('/code',
     (req, res, next) => {
@@ -146,15 +136,17 @@ module.exports = (app, passport) => {
       })(req, res, next);
     });
 
-  router.get('/logout', (req, res, next) => {
+  router.post('/logout', (req, res, next) => {
     req.logout((err) => {
       if (err) {
         return next(err);
       }
 
-      return res.redirect(req.query.redirect);
+      return res.status(204).end();
     });
   });
 
   return router;
 };
+
+module.exports.deserializeUser = deserializeUser;

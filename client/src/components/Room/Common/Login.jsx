@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from '@mui/styles';
 import { connect } from 'react-redux';
-import Paper from '@material-ui/core/Paper';
-import TextField from '@material-ui/core/TextField';
-import Button from '@material-ui/core/Button';
-import IconButton from '@material-ui/core/IconButton';
-import ArrowBackIcon from '@material-ui/icons/ArrowBack';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link } from 'react-router-dom';
 import {
   joinRoom,
@@ -22,21 +22,12 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Login({ dispatch, roomId, loginFailed }) {
+function Login({ dispatch, roomId, joinError }) {
   const classes = useStyles();
   const [password, setPassword] = useState('');
-  const [resetPassword, setResetPassword] = useState(false);
-
-  // Forgive me lord
-  if (loginFailed && password && !resetPassword) {
-    setPassword('');
-
-    setResetPassword(true);
-  }
 
   const login = (event) => {
     event.preventDefault();
-    setResetPassword(false);
     dispatch(joinRoom({
       id: roomId,
       password,
@@ -47,8 +38,8 @@ function Login({ dispatch, roomId, loginFailed }) {
     setPassword(event.target.value);
   };
 
-  const helperText = (loginFailed && loginFailed.error)
-    ? loginFailed.error.message : 'Enter password to login';
+  const helperText = joinError
+    ? joinError.message : 'Enter password to login';
 
   return (
     <Paper className={classes.root} elevation={1}>
@@ -77,7 +68,7 @@ function Login({ dispatch, roomId, loginFailed }) {
             type="password"
             autoFocus
             helperText={helperText}
-            error={!!loginFailed}
+            error={!!joinError}
             value={password}
             onChange={updatePassword}
           />
@@ -96,18 +87,20 @@ function Login({ dispatch, roomId, loginFailed }) {
 
 Login.propTypes = {
   roomId: PropTypes.string,
-  loginFailed: PropTypes.shape(),
+  joinError: PropTypes.shape({
+    message: PropTypes.string,
+  }),
   dispatch: PropTypes.func.isRequired,
 };
 
 Login.defaultProps = {
   roomId: undefined,
-  loginFailed: null,
+  joinError: null,
 };
 
 const mapStateToProps = (state) => ({
   roomId: state.room._id,
-  loginFailed: state.socket.loginFailed,
+  joinError: state.room.joinError,
 });
 
 export default connect(mapStateToProps)(Login);

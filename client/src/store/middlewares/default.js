@@ -11,6 +11,7 @@ import {
   userCountUpdated,
 } from '../server/actions';
 import { USER_CHANGED } from '../user/actions';
+import { fetchNotifications } from '../notifications/actions';
 import { manager } from './manager';
 
 const defaultNamespaceMiddleware = (store) => {
@@ -22,6 +23,9 @@ const defaultNamespaceMiddleware = (store) => {
     },
     onConnected: () => {
       store.dispatch(connected());
+      if (store.getState().user.id) {
+        store.dispatch(fetchNotifications());
+      }
     },
     onDisconnected: () => {
       store.dispatch(disconnected());
@@ -29,6 +33,12 @@ const defaultNamespaceMiddleware = (store) => {
     events: {
       [Protocol.UPDATE_USER_COUNT]: (userCount) => {
         store.dispatch(userCountUpdated(userCount));
+      },
+      [Protocol.NOTIFICATION_CREATED]: () => {
+        store.dispatch(fetchNotifications());
+      },
+      [Protocol.NOTIFICATION_UPDATED]: () => {
+        store.dispatch(fetchNotifications());
       },
     },
   });
@@ -40,9 +50,10 @@ const defaultNamespaceMiddleware = (store) => {
     [DISCONNECT]: () => {
       namespace.disconnect();
     },
-    [USER_CHANGED]: () => {
-      // namespace.disconnect();
-      // namespace.connect();
+    [USER_CHANGED]: (action) => {
+      if (action.user && action.user.id) {
+        store.dispatch(fetchNotifications());
+      }
     },
   };
 

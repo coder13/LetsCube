@@ -1,6 +1,30 @@
-/* eslint-env jest */
 
-const { canAccessRoom, canDeleteRoom } = require('./roomAuthorization');
+const {
+  canAccessRoom,
+  canDeleteRoom,
+  isRoomAdmin,
+  isRoomOwner,
+} = require('./roomAuthorization');
+
+describe('room roles', () => {
+  const room = {
+    owner: { id: 101 },
+    admin: { id: 202 },
+  };
+
+  it('distinguishes the permanent owner from the current admin', () => {
+    expect(isRoomOwner('101', room)).toBe(true);
+    expect(isRoomOwner(202, room)).toBe(false);
+    expect(isRoomAdmin('202', room)).toBe(true);
+    expect(isRoomAdmin(101, room)).toBe(false);
+  });
+
+  it('rejects missing users, rooms, and role holders', () => {
+    expect(isRoomOwner(null, room)).toBe(false);
+    expect(isRoomOwner(101, null)).toBe(false);
+    expect(isRoomAdmin(202, { ...room, admin: null })).toBe(false);
+  });
+});
 
 describe('canDeleteRoom', () => {
   const room = {
@@ -20,6 +44,19 @@ describe('canDeleteRoom', () => {
 
   it('allows the global administrator', () => {
     expect(canDeleteRoom(8184, null)).toBe(true);
+  });
+
+  it('keeps absent-owner deletion separate from active host authority', () => {
+    const roomWithAbsentOwner = {
+      owner: { id: 101 },
+      admin: { id: 202 },
+      inRoom: new Map([['101', false], ['202', true]]),
+      banned: new Map(),
+    };
+
+    expect(canDeleteRoom(101, roomWithAbsentOwner)).toBe(true);
+    expect(canAccessRoom(101, roomWithAbsentOwner)).toBe(false);
+    expect(isRoomAdmin(101, roomWithAbsentOwner)).toBe(false);
   });
 });
 

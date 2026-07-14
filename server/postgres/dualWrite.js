@@ -58,15 +58,22 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
 
   const id = stableId('user', wcaUserId);
   const updatedAt = sourceDate(user.updatedAt, fallbackUpdatedAt);
+  // Clear the compatibility column independently so a stale or identical
+  // source timestamp cannot make the guarded upsert preserve a legacy value.
+  await client.query(
+    'UPDATE app.users SET email = NULL WHERE wca_user_id = $1 AND email IS NOT NULL',
+    [wcaUserId],
+  );
   await client.query(`
     INSERT INTO app.users (
-      id, wca_user_id, email, name, username, wca_id, preferences, avatar,
-      source_created_at, source_updated_at
+      id, wca_user_id, name, username, username_normalized, wca_id,
+      preferences, avatar, source_created_at, source_updated_at
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (wca_user_id) DO UPDATE SET
-      email = EXCLUDED.email,
+      email = NULL,
       name = EXCLUDED.name,
       username = EXCLUDED.username,
+      username_normalized = EXCLUDED.username_normalized,
       wca_id = EXCLUDED.wca_id,
       preferences = EXCLUDED.preferences,
       avatar = EXCLUDED.avatar,
@@ -76,16 +83,16 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
       OR (
         app.users.source_updated_at = EXCLUDED.source_updated_at
         AND ROW(
-          app.users.email,
           app.users.name,
           app.users.username,
+          app.users.username_normalized,
           app.users.wca_id,
           app.users.preferences,
           app.users.avatar
         ) IS DISTINCT FROM ROW(
-          EXCLUDED.email,
           EXCLUDED.name,
           EXCLUDED.username,
+          EXCLUDED.username_normalized,
           EXCLUDED.wca_id,
           EXCLUDED.preferences,
           EXCLUDED.avatar
@@ -94,9 +101,9 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
   `, [
     id,
     wcaUserId,
-    user.email || null,
     user.name,
     user.username || null,
+    user.usernameNormalized || null,
     user.wcaId || null,
     {
       showWCAID: !!user.showWCAID,
@@ -114,6 +121,114 @@ const upsertUser = async (client, user, fallbackUpdatedAt = new Date()) => {
 };
 
 const mirrorUser = (user) => withTransaction((client) => upsertUser(client, user));
+
+const mirrorRelationship = (relationship, users) => withTransaction(async (client) => {
+  const knownUserIds = new Set();
+  for (const user of users) {
+    const mirroredId = await upsertUser(client, user, relationship.updatedAt);
+    if (mirroredId) {
+      knownUserIds.add(numericUserId(user));
+    }
+  }
+  if (!knownUserIds.has(relationship.lowUserId)
+    || !knownUserIds.has(relationship.highUserId)) {
+    return null;
+  }
+
+  const updatedAt = sourceDate(relationship.updatedAt);
+  await client.query(`
+    INSERT INTO app.friend_relationships (
+      id, pair_key, low_user_id, high_user_id, status, requested_by_user_id,
+      cooldown_until, revision, state_changed_at, source_created_at, source_updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    ON CONFLICT (pair_key) DO UPDATE SET
+      status = EXCLUDED.status,
+      requested_by_user_id = EXCLUDED.requested_by_user_id,
+      cooldown_until = EXCLUDED.cooldown_until,
+      revision = EXCLUDED.revision,
+      state_changed_at = EXCLUDED.state_changed_at,
+      source_updated_at = EXCLUDED.source_updated_at,
+      ingested_at = now()
+    WHERE app.friend_relationships.revision < EXCLUDED.revision
+  `, [
+    stableId('friend-relationship', relationship.pairKey),
+    relationship.pairKey,
+    stableId('user', relationship.lowUserId),
+    stableId('user', relationship.highUserId),
+    relationship.status,
+    relationship.requestedBy ? stableId('user', relationship.requestedBy) : null,
+    relationship.cooldownUntil || null,
+    relationship.revision,
+    relationship.stateChangedAt,
+    relationship.createdAt || null,
+    updatedAt,
+  ]);
+  return relationship.pairKey;
+});
+
+const mirrorBlock = (block, blocker, blocked) => withTransaction(async (client) => {
+  const updatedAt = sourceDate(block.updatedAt, block.createdAt);
+  const blockerUserId = await upsertUser(client, blocker, updatedAt);
+  const blockedUserId = await upsertUser(client, blocked, updatedAt);
+  if (!blockerUserId || !blockedUserId) {
+    return null;
+  }
+
+  await client.query(`
+    INSERT INTO app.user_blocks (
+      id, blocker_id, blocked_id, pair_key, active, revision, state_changed_at,
+      source_created_at, source_updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
+      pair_key = EXCLUDED.pair_key,
+      active = EXCLUDED.active,
+      revision = EXCLUDED.revision,
+      state_changed_at = EXCLUDED.state_changed_at,
+      source_updated_at = EXCLUDED.source_updated_at,
+      ingested_at = now()
+    WHERE app.user_blocks.revision < EXCLUDED.revision
+  `, [
+    stableId('user-block', `${block.blockerId}:${block.blockedId}`),
+    blockerUserId,
+    blockedUserId,
+    block.pairKey,
+    block.active,
+    block.revision,
+    block.stateChangedAt,
+    block.createdAt || null,
+    updatedAt,
+  ]);
+  return block.pairKey;
+});
+
+// Notifications intentionally mirror numeric user references only. Do not call
+// upsertUser here: notifications have no email contract, including indirectly.
+const mirrorNotification = (notification) => withTransaction((client) => client.query(`
+  INSERT INTO app.social_notifications (
+    id, mongo_id, recipient_wca_user_id, actor_wca_user_id, type, source_type,
+    source_id, dedupe_key, read_at, expires_at, source_created_at, source_updated_at
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+  ON CONFLICT (mongo_id) DO UPDATE SET
+    read_at = EXCLUDED.read_at,
+    expires_at = EXCLUDED.expires_at,
+    source_updated_at = EXCLUDED.source_updated_at,
+    ingested_at = now()
+  WHERE app.social_notifications.source_updated_at <= EXCLUDED.source_updated_at
+`, [
+  stableId('social-notification', notification._id.toString()),
+  notification._id.toString(),
+  notification.recipientId,
+  notification.actorId,
+  notification.type,
+  notification.sourceType,
+  notification.sourceId,
+  notification.dedupeKey,
+  notification.readAt || null,
+  notification.expiresAt,
+  notification.createdAt || null,
+  sourceDate(notification.updatedAt, notification.createdAt),
+]));
 
 const upsertRoomState = async (client, room, options = {}) => {
   if (!room || !room._id) {
@@ -539,6 +654,8 @@ const mirrorMetricEvent = (event) => query(`
     privateRoom: event.privateRoom,
     failureReason: event.failureReason,
     leaveReason: event.leaveReason,
+    socialAction: event.socialAction,
+    socialOutcome: event.socialOutcome,
     activeUserCount: event.activeUserCount,
     roomSolveCount: event.roomSolveCount,
     durationMs: event.durationMs,
@@ -548,7 +665,10 @@ const mirrorMetricEvent = (event) => query(`
 
 module.exports = {
   markRoomDeleted,
+  mirrorBlock,
   mirrorMetricEvent,
+  mirrorNotification,
+  mirrorRelationship,
   mirrorRoom,
   mirrorRoomChanges,
   mirrorUser,

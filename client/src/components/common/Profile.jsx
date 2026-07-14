@@ -1,15 +1,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { makeStyles } from '@material-ui/core/styles';
-import Paper from '@material-ui/core/Paper';
-import Grid from '@material-ui/core/Grid';
-import Avatar from '@material-ui/core/Avatar';
-import Typography from '@material-ui/core/Typography';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Checkbox from '@material-ui/core/Checkbox';
-import Divider from '@material-ui/core/Divider';
-import Alert from '@material-ui/lab/Alert';
+import { makeStyles } from '@mui/styles';
+import Paper from '@mui/material/Paper';
+import Grid from '@mui/material/Grid';
+import Avatar from '@mui/material/Avatar';
+import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Divider from '@mui/material/Divider';
+import Alert from '@mui/material/Alert';
 import EditableTextField from './EditableTextField';
 import { lcFetch } from '../../lib/fetch';
 import { updateProfile } from '../../store/user/actions';
@@ -19,12 +19,9 @@ const validate = (username) => {
     return '';
   }
 
-  if (username.indexOf(' ') > -1) {
-    return 'Username cannot contains spaces';
-  }
-
-  if (username.length >= 16) {
-    return 'Username cannot be longer than 16 characters';
+  const normalizedUsername = username.normalize('NFKC').trim();
+  if (normalizedUsername.length > 15 || !/^[A-Za-z0-9_-]+$/.test(normalizedUsername)) {
+    return 'Use 1–15 letters, numbers, underscores, or hyphens';
   }
 
   return '';

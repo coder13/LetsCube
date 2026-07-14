@@ -1,73 +1,81 @@
-# Let's Cube Agent Gotchas
+# Let's Cube Agent Guidelines
 
-This file is intentionally short. It captures repo-specific traps that are easy
-to miss when making changes here.
+This file is only for durable, repository-specific instructions that change how
+coding agents should work. Feature behavior, architecture, deployment details,
+known bugs, and operational procedures belong in normal documentation and tests.
+Do not duplicate them here.
 
-## Project Layout
+## Find The Source Of Truth
 
-- This is a Yarn classic workspace monorepo. `client/` and `server/` are
-  workspaces, and the root `yarn.lock` is the only dependency lockfile.
-- Root scripts are workspace-aware and mostly run through Turbo. Prefer root
-  commands like `yarn lint`, `yarn test`, and `yarn build` unless you need a
-  narrow workspace command.
+- Read the relevant README, `docs/` file, tests, configuration, and surrounding
+  code before changing behavior. Prefer those sources over conversation history
+  or assumptions from similarly named branches.
+- When a change introduces a durable feature rule or operational procedure,
+  update the owning documentation or tests instead of adding it to this file.
+- Keep this file short. Do not use it for task status, backlog notes, temporary
+  workarounds, or descriptions of individual features.
 
-## Runtime Setup
+## Keep Changes Focused
 
-- Local development needs MongoDB and Redis.
-- The repo targets Node 22. Install from the repo root with `yarn install`.
-- The backend is two separate processes:
-  - `yarn start:server` starts Express/static/auth/API on port `8080`.
-  - `yarn start:socket` starts Socket.IO on port `9000`.
-- The client runs separately with `yarn start:client`.
-- Client env values live in `client/.env.development` and expect the API at
-  `http://localhost:8080` and Socket.IO at `http://localhost:9000`.
+- Match existing project patterns and make the smallest coherent change. The
+  repository contains legacy and modernized areas side by side, so avoid broad
+  rewrites or dependency upgrades unless they are part of the task.
+- Do not mix cleanup, refactoring, generated-file churn, or unrelated fixes into
+  a feature branch. Preserve pre-existing user changes and untracked files.
+- If the requested direction changes, remove the abandoned implementation before
+  building the replacement.
 
-## Dependency Age
+## Code Structure And Comments
 
-- The stack is old: React 16, Webpack 4, Material UI v4, Socket.IO v3,
-  Mongoose 6, and a customized CRA/Webpack toolchain.
-- Be cautious with modern Node/npm changes. The old CRA/Webpack toolchain is
-  likely to be the first thing to break.
+- Prefer clear names and structure over comments. Add a comment only to explain a
+  non-obvious invariant, external constraint, compatibility requirement, safety
+  concern, or intentional tradeoff. Explain why, not what the next line does.
+- Do not leave development narration, conversation history, commented-out code,
+  or vague TODO/FIXME notes. Link actionable follow-up work to an issue, and
+  update or remove comments when the surrounding behavior changes.
+- Keep functions cohesive and easy to understand, but do not mechanically
+  extract every expression. A function should own a meaningful unit of behavior,
+  not merely wrap a one-liner unless an interface or callback requires it.
+- Treat a convoluted function name as a design smell: simplify the responsibility
+  or keep the operation inline. Split functions that mix responsibilities or
+  accumulate difficult branching, without maximizing the number of functions.
+- Do not add speculative abstractions, configuration, or fallback paths for
+  hypothetical future needs. Implement the current contract and make violated
+  invariants visible instead of silently masking them.
 
-## Socket.IO
+## Branch And Worktree Hygiene
 
-- Socket protocol constants live in `client/src/lib/protocol.js` and are also
-  imported by the server. Update protocol constants, client middleware, and
-  server namespace handlers together.
-- `Protocol.ERROR` intentionally maps to the literal event name `errorrr`.
-  Do not casually rename it to `error`, which can collide with Socket.IO's own
-  error behavior.
-- Client socket connections are owned by Redux middleware in
-  `client/src/store/middlewares/`, not by React components.
-- Echo-style socket features often need separate incoming and outgoing events.
-  Reusing one event for both directions can create infinite loops.
+- This repository often has several active worktrees and stale local branches.
+  Confirm the current worktree, branch, status, and merge base before editing.
+- Start unrelated work in a fresh branch and worktree so active changes remain
+  isolated. Unless explicitly told otherwise, fetch first and create the new
+  worktree from `origin/master`, not from the currently checked-out feature
+  branch.
+- Before publishing, inspect both the commit list and
+  `git diff --stat origin/master...HEAD`. Rebase or cherry-pick onto the intended
+  base if the diff contains unrelated work.
 
-## Room State
+## Monorepo Discipline
 
-- Room user state uses Mongoose `Map`s keyed by WCA numeric user ids converted
-  to strings. Preserve that convention when reading or writing maps like
-  `waitingFor`, `competing`, `banned`, `inRoom`, and `registered`.
-- Room data is deliberately masked differently for lobby users and joined users
-  in `server/socket/namespaces/rooms.js`.
-- Normal rooms are marked stale with `expireAt` TTL when empty. Grand Prix rooms
-  are timer-driven and have different lifecycle behavior.
+- This is a Yarn classic workspace monorepo. Install from the repository root,
+  use the root `yarn.lock`, and do not create workspace-level lockfiles.
+- Prefer root Turbo commands for broad checks and workspace-filtered commands
+  for focused iteration. Follow existing package boundaries rather than adding
+  cross-workspace source imports.
+- Before adding a dependency, check whether the platform or an existing
+  dependency already solves the problem clearly. Add it only to the workspace
+  that uses it and explain non-obvious choices.
 
-## Auth And Sessions
+## Local Machine Gotcha
 
-- Express sessions are stored in MongoDB and shared with Socket.IO through
-  `express-socket.io-session`.
-- Client API requests use `credentials: 'include'`; auth, CORS, and socket
-  changes need to preserve cookie behavior.
-- WCA OAuth uses the `redirectUri` sent by the client. The mixed
-  `callbackUrl`/`callbackURL` config spelling is not currently the source of
-  truth for the auth redirect.
+- Use the system Docker engine on this machine. The Docker Desktop context is
+  unreliable, so inspect the current context and run project Compose commands
+  with `DOCKER_CONTEXT=default`.
 
-## Checks
+## Verification And Handoff
 
-- Tests are sparse. The server test script currently passes when no tests exist.
-- The root pre-commit hook runs `yarn lint && yarn test`.
-- Useful focused checks:
-  - `yarn turbo run lint --filter=letscube-client`
-  - `yarn turbo run test:ci --filter=letscube-client`
-  - `yarn turbo run lint --filter=letscube-server`
-  - `yarn turbo run test:ci --filter=letscube-server`
+- Run the narrowest meaningful lint and tests while iterating, then broaden
+  checks when a change crosses workspace or runtime boundaries.
+- Before handoff, review the complete diff for scope, run `git diff --check`,
+  and state exactly which checks passed, failed, or were not run.
+- When committing, include a concise body explaining what changed and why.

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import Popover from '@material-ui/core/Popover';
-import Typography from '@material-ui/core/Typography';
-import IconButton from '@material-ui/core/IconButton';
-import HelpIcon from '@material-ui/icons/Help';
+import Popover from '@mui/material/Popover';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import HelpIcon from '@mui/icons-material/Help';
 
-export default () => {
+const HelpPopover = () => {
   const [helpAnchor, setHelpAnchor] = useState(null);
 
   return (
@@ -39,3 +39,5 @@ export default () => {
     </div>
   );
 };
+
+export default HelpPopover;

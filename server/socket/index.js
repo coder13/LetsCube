@@ -2,15 +2,18 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
-const expressSocketSession = require('express-socket.io-session');
 
 const config = require('../runtimeConfig');
 const session = require('../middlewares/session');
 const { connect } = require('../database');
-const { initializePostgres } = require('../postgres');
+const { createHealthHandler, createHealthReporter } = require('../health');
+const { initializePostgres, pool } = require('../postgres');
 const logger = require('../logger');
 const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
+const { registerSocialEventSubscriber } = require('../realtime/socialEvents');
+const { isFeatureEnabled } = require('../features');
+const wrapExpressMiddleware = require('./middlewares/wrapExpressMiddleware');
 const initRooms = require('./namespaces/rooms');
 const initDefault = require('./namespaces/default');
 
@@ -59,22 +62,54 @@ const init = async () => {
     db: config.redis.db,
   });
   const subClient = pubClient.duplicate();
+  const socialSubClient = config.socialFeatures.enabled && isFeatureEnabled('friends')
+    ? pubClient.duplicate() : null;
 
   pubClient.on('error', logSocketError('redis pub client'));
   subClient.on('error', logSocketError('redis sub client'));
+  if (socialSubClient) {
+    socialSubClient.on('error', logSocketError('redis social sub client'));
+  }
 
   io.adapter(createAdapter(pubClient, subClient));
+  if (socialSubClient) {
+    registerSocialEventSubscriber(io, socialSubClient);
+  }
+
+  const reportHealth = createHealthReporter({
+    service: 'socket',
+    checks: {
+      mongodb: () => mongoose.connection.readyState === 1,
+      postgres: {
+        required: false,
+        check: async () => {
+          if (config.postgres.enabled) {
+            await pool.query('SELECT 1');
+          }
+          return true;
+        },
+      },
+      redis: async () => pubClient.status === 'ready'
+        && subClient.status === 'ready'
+        && (!socialSubClient || socialSubClient.status === 'ready')
+        && (await pubClient.ping()) === 'PONG',
+    },
+  });
+  const handleHealth = createHealthHandler(reportHealth);
+  server.on('request', (req, res) => {
+    if (req.method === 'GET' && req.url.split('?')[0] === '/health/socket') {
+      handleHealth(req, res);
+    }
+  });
 
   const middlewares = [
-    expressSocketSession(session(mongoose), {
-      autoSave: true,
-    }),
+    wrapExpressMiddleware(session),
     authenticateMiddleware,
     loggerMiddleware,
   ];
 
   initRooms(io, middlewares);
-  initDefault(io, middlewares);
+  initDefault(io, middlewares, reportHealth);
   watchNamespaceErrors(io, '/');
   watchNamespaceErrors(io, '/rooms');
 

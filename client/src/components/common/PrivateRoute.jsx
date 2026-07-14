@@ -4,7 +4,7 @@ import { Route, Redirect } from 'react-router-dom';
 import { connect } from 'react-redux';
 
 const PrivateRoute = ({
-  user, children, isAdminRoute, ...rest
+  user, isAdminRoute, ...rest
 }) => {
   const { fetching, id } = user;
   const loggedIn = !fetching && id;
@@ -24,16 +24,11 @@ const PrivateRoute = ({
 };
 
 PrivateRoute.propTypes = {
-  children: PropTypes.oneOfType([
-    PropTypes.arrayOf(PropTypes.node),
-    PropTypes.node,
-  ]),
   isAdminRoute: PropTypes.bool,
   user: PropTypes.shape(),
 };
 
 PrivateRoute.defaultProps = {
-  children: [],
   isAdminRoute: false,
   user: {
   },

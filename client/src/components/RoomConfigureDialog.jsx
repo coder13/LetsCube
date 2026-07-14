@@ -2,26 +2,26 @@ import React from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
-import { makeStyles } from '@material-ui/core/styles';
-import Divider from '@material-ui/core/Divider';
-import Typography from '@material-ui/core/Typography';
-import Button from '@material-ui/core/Button';
-import TextField from '@material-ui/core/TextField';
-import Switch from '@material-ui/core/Switch';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import FormControl from '@material-ui/core/FormControl';
-import FormHelperText from '@material-ui/core/FormHelperText';
-import InputLabel from '@material-ui/core/InputLabel';
-import Select from '@material-ui/core/Select';
-import MenuItem from '@material-ui/core/MenuItem';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import Accordion from '@material-ui/core/Accordion';
-import AccordionDetails from '@material-ui/core/AccordionDetails';
-import AccordionSummary from '@material-ui/core/AccordionSummary';
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import { makeStyles } from '@mui/styles';
+import Divider from '@mui/material/Divider';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormHelperText from '@mui/material/FormHelperText';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Accordion from '@mui/material/Accordion';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const useStyles = makeStyles((theme) => ({
   fab: {
@@ -47,7 +47,7 @@ function RoomConfigureDialog({
   const classes = useStyles();
   const [stateName, setName] = React.useState(room.name);
   const [statePrivate, setPrivate] = React.useState(room.private);
-  const [statePassword, setPassword] = React.useState(room.private ? room.accessCode : null);
+  const [statePassword, setPassword] = React.useState('');
   const [stateType, setType] = React.useState(room.type);
   const [stateRequireRI, setRequireRI] = React.useState(room.requireRevealedIdentity);
   const [stateStartTime, setStartTime] = React.useState(room.startTime ? (
@@ -58,7 +58,7 @@ function RoomConfigureDialog({
   const handleCancel = () => {
     setName(room.name);
     setPrivate(room.private);
-    setPassword(null);
+    setPassword('');
     setType(room.type);
     setRequireRI(room.requireRevealedIdentity);
     setStartTime(room.startTime ? (
@@ -73,14 +73,14 @@ function RoomConfigureDialog({
     onSave({
       name: stateName,
       private: statePrivate,
-      password: statePrivate ? statePassword : null,
+      password: statePrivate ? statePassword || undefined : null,
       type: stateType,
       requireRevealedIdentity: stateRequireRI,
       startTime: stateStartTime ? new Date(stateStartTime) : null,
       twitchChannel: stateTwitchChannel,
     });
 
-    setPassword(null);
+    setPassword('');
     onCancel(); // Close the dialog box
   };
 
@@ -117,6 +117,7 @@ function RoomConfigureDialog({
           autoComplete="off"
           autoFocus
           fullWidth
+          margin="dense"
         />
         <FormControlLabel
           className={classes.formControl}
@@ -132,7 +133,9 @@ function RoomConfigureDialog({
           type="password"
           disabled={!statePrivate}
           onChange={handlePasswordChange}
-          // autoFocus
+          value={statePassword}
+          helperText={room.private && statePrivate ? 'Leave blank to keep the current password.' : undefined}
+          autoComplete="new-password"
           fullWidth
         />
       </DialogContent>
@@ -203,7 +206,11 @@ function RoomConfigureDialog({
       <Divider />
       <DialogActions>
         <Button onClick={handleCancel} color="secondary">Cancel</Button>
-        <Button onClick={handleSave} color="primary" disabled={!stateName || (statePrivate && !statePassword)}>
+        <Button
+          onClick={handleSave}
+          color="primary"
+          disabled={!stateName || (statePrivate && !room.private && !statePassword)}
+        >
           {room._id ? 'Save' : 'Create'}
         </Button>
       </DialogActions>
@@ -216,7 +223,6 @@ RoomConfigureDialog.propTypes = {
     _id: PropTypes.string,
     name: PropTypes.string,
     private: PropTypes.bool,
-    accessCode: PropTypes.string,
     type: PropTypes.string,
     requireRevealedIdentity: PropTypes.bool,
     startTime: PropTypes.string,
@@ -232,7 +238,6 @@ RoomConfigureDialog.defaultProps = {
     _id: undefined,
     name: '',
     private: false,
-    accessCode: null,
     type: 'normal',
     requireRevealedIdentity: false,
     startTime: '',

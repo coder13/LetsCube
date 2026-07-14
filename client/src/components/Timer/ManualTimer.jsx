@@ -1,19 +1,19 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
-import { withStyles } from '@material-ui/core/styles';
-import Box from '@material-ui/core/Box';
-import Typography from '@material-ui/core/Typography';
-import Button from '@material-ui/core/Button';
-import Input from '@material-ui/core/Input';
-import Checkbox from '@material-ui/core/Checkbox';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
+import { withStyles } from '@mui/styles';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Input from '@mui/material/Input';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import {
   formatTime, parseTime, setInterval, clearInterval, now,
 } from '../../lib/utils';
 import initialStyles from './styles';
 
-const useStyles = withStyles((theme) => ({
+const withComponentStyles = withStyles((theme) => ({
   ...initialStyles(theme),
   input: {
     maxWidth: '300px',
@@ -60,7 +60,7 @@ const STATUS = {
 
 const STATUSES = [STATUS.RESTING, STATUS.INSPECTING, STATUS.TIMING, STATUS.SUBMITTING];
 
-class ManualTimer extends React.Component {
+export class ManualTimer extends React.Component {
   constructor(props) {
     super(props);
 
@@ -194,10 +194,15 @@ class ManualTimer extends React.Component {
 
     const { onSubmitTime } = this.props;
     const { penalties } = this.state;
+    const time = this.finalTime();
+
+    if (!Number.isFinite(time)) {
+      return;
+    }
 
     if (onSubmitTime) {
       onSubmitTime({
-        time: this.finalTime(),
+        time,
         penalties: {
           DNF: penalties.DNF,
           inspection: penalties.inspection,
@@ -554,4 +559,4 @@ ManualTimer.defaultProps = {
   onPriming: () => {},
 };
 
-export default useStyles(ManualTimer);
+export default withComponentStyles(ManualTimer);

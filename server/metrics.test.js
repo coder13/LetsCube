@@ -189,4 +189,26 @@ describe('metrics recorder', () => {
     await expect(recorder.recordAuthFailure('no_user')).resolves.toBeNull();
     expect(metricLogger.error).toHaveBeenCalledWith(error);
   });
+
+  it('records social outcomes without a target or graph edge', async () => {
+    const { model, recorder } = createRecorder();
+
+    await recorder.recordSocialOutcome({
+      action: 'accept',
+      outcome: 'request_accepted',
+      userId: 123,
+    });
+
+    const event = model.create.mock.calls[0][0];
+    expect(event).toEqual(expect.objectContaining({
+      actorType: 'authenticated',
+      event: METRIC_EVENTS.SOCIAL_ACTION,
+      socialAction: 'accept',
+      socialOutcome: 'request_accepted',
+    }));
+    expect(event.actorId).not.toContain('123');
+    expect(event).not.toHaveProperty('targetId');
+    expect(event).not.toHaveProperty('pairKey');
+    expect(event).not.toHaveProperty('relationshipId');
+  });
 });

@@ -1,10 +1,10 @@
 import React from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Button from '@material-ui/core/Button';
-import Typography from '@material-ui/core/Typography';
-import TableCell from '@material-ui/core/TableCell';
+import { makeStyles } from '@mui/styles';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import TableCell from '@mui/material/TableCell';
 import { formatTime } from '../../../lib/utils';
 import { useEditDialog } from './EditDialogProvider';
 

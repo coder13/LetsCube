@@ -1,14 +1,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { makeStyles } from '@material-ui/core/styles';
-import Paper from '@material-ui/core/Paper';
-import Toolbar from '@material-ui/core/Toolbar';
-// import Divider from '@material-ui/core/Divider';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
-import ListItemAvatar from '@material-ui/core/ListItemAvatar';
-import Avatar from '@material-ui/core/Avatar';
+import { makeStyles } from '@mui/styles';
+import Paper from '@mui/material/Paper';
+import Toolbar from '@mui/material/Toolbar';
+// import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import ListItemAvatar from '@mui/material/ListItemAvatar';
+import Avatar from '@mui/material/Avatar';
+import { Link } from 'react-router-dom';
 
 const useStyles = makeStyles(() => ({
   root: {
@@ -34,7 +35,12 @@ function LobbyUserList({ users }) {
       }}
       >
         {users.map((user) => (
-          <ListItem button key={user.id}>
+          <ListItem
+            button={!!user.profileKey}
+            component={user.profileKey ? Link : 'li'}
+            key={user.id}
+            {...(user.profileKey ? { to: `/users/${user.profileKey}` } : {})}
+          >
             <ListItemAvatar>
               <Avatar alt={user.displayName} src={user.avatar && user.avatar.thumb_url} />
             </ListItemAvatar>
@@ -51,6 +57,7 @@ LobbyUserList.propTypes = {
     id: PropTypes.number,
     displayName: PropTypes.string,
     inARoom: PropTypes.boolean,
+    profileKey: PropTypes.string,
   })),
 };
 

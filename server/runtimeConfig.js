@@ -18,6 +18,11 @@ const parsePositiveInteger = (value, fallback) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const parseNonNegativeInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+};
+
 const authSecret = process.env.AUTH_SECRET
   || process.env.SESSION_SECRET
   || baseConfig.auth.secret;
@@ -45,7 +50,7 @@ try {
       ? parsePort(parsedRedisUrl.pathname.slice(1), redis.db)
       : redis.db,
   };
-} catch (err) {
+} catch {
   // Keep host/port fallbacks for non-URL Redis config values.
 }
 
@@ -58,6 +63,10 @@ module.exports = {
   socketio: {
     ...baseConfig.socketio,
     port: parsePort(process.env.SOCKETIO_PORT, baseConfig.socketio.port),
+    reconnectGraceMs: parseNonNegativeInteger(
+      process.env.ROOM_RECONNECT_GRACE_MS,
+      baseConfig.socketio.reconnectGraceMs,
+    ),
   },
   mongodb: process.env.MONGO_URL || process.env.MONGODB_URI || baseConfig.mongodb,
   redis,
@@ -84,6 +93,12 @@ module.exports = {
     enabled: process.env.METRICS_ENABLED !== 'false',
     hashSecret: process.env.METRICS_HASH_SECRET || authSecret,
     retentionDays: parsePositiveInteger(process.env.METRICS_RETENTION_DAYS, 90),
+  },
+  grandPrix: {
+    enabled: process.env.GRAND_PRIX_ENABLED === 'true',
+  },
+  socialFeatures: {
+    enabled: process.env.SOCIAL_FEATURES_ENABLED === 'true',
   },
   postgres: {
     enabled: process.env.POSTGRES_ENABLED !== 'false',
