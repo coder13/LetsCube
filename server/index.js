@@ -64,7 +64,7 @@ const init = async () => {
 
   app.set('trust proxy', 1);
 
-  app.use(session(mongoose));
+  app.use(session);
 
   app.use(passport.initialize());
   app.use(passport.session());
