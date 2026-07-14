@@ -9,7 +9,8 @@ import {
 export const CONNECT = 'manager/connect';
 
 const queryParams = qs.parse(window.location.search, { ignoreQueryPrefix: true });
-const port = process.env.NODE_ENV === 'development' ? queryParams.port || 9000 : 0;
+const port = process.env.NODE_ENV === 'development'
+  ? queryParams.port || process.env.REACT_APP_SOCKETIO_PORT || 9000 : 0;
 export const URI = `${process.env.REACT_APP_SOCKETIO_ORIGIN}${port ? `:${port}` : ''}`;
 
 export const manager = new Manager(URI, {

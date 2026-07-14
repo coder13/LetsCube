@@ -17,4 +17,13 @@ describe('notification registry', () => {
     expect(presentation).not.toHaveProperty('url');
     expect(presentation).not.toHaveProperty('callback');
   });
+
+  it('maps a typed room invitation to an explicit join action', () => {
+    expect(notificationPresentation({
+      actor: { username: 'solver' }, type: 'room_invitation',
+    })).toEqual({
+      actions: ['join race'],
+      text: 'solver invited you to race.',
+    });
+  });
 });

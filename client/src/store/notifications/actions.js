@@ -1,3 +1,4 @@
+import { push } from 'connected-react-router';
 import { lcFetch } from '../../lib/fetch';
 
 export const NOTIFICATIONS_FETCHING = 'notifications/fetching';
@@ -75,12 +76,27 @@ const FRIEND_ACTIONS = {
   decline: 'decline',
 };
 
+const ROOM_INVITATION_ACTION = 'join race';
+
 const isStaleFriendAction = (error) => error.status === 409 && [
   'invalid_relationship_transition',
   'relationship_unavailable',
 ].includes(error.code);
 
 export const runFriendNotificationAction = (notification, action) => (dispatch) => {
+  if (notification.type === 'room_invitation' && action === ROOM_INVITATION_ACTION
+    && notification.source && notification.source.id) {
+    dispatch({ notificationId: notification.id, type: NOTIFICATION_ACTION_STARTED });
+    return dispatch(markNotificationRead(notification.id))
+      .then(() => {
+        dispatch({ notificationId: notification.id, type: NOTIFICATION_ACTION_FINISHED });
+        dispatch(push(`/rooms/${encodeURIComponent(notification.source.id)}`));
+      })
+      .catch((error) => {
+        dispatch({ error, notificationId: notification.id, type: NOTIFICATION_ACTION_FINISHED });
+        throw error;
+      });
+  }
   const suffix = action === FRIEND_ACTIONS.accept ? 'accept' : 'decline';
   if (notification.type !== 'friend_request' || !notification.actor || !FRIEND_ACTIONS[action]) {
     return Promise.reject(new Error('Notification action is no longer available'));

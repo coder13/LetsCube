@@ -34,6 +34,10 @@ jest.mock('../../models', () => ({
 jest.mock('../../postgres/dualWrite', () => ({
   markRoomDeleted: jest.fn(),
 }));
+jest.mock('../../social/raceInvitationService', () => ({
+  authorize: jest.fn(),
+  invite: jest.fn(),
+}));
 jest.mock('../lib/reconnectGrace', () => ({
   createReconnectGrace: jest.fn(({ finalizeDeparture }) => ({
     cancel: jest.fn().mockResolvedValue(false),

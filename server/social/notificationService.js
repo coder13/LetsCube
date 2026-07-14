@@ -159,6 +159,16 @@ const createNotificationService = ({
     type: NOTIFICATION_TYPES.FRIEND_REQUEST_ACCEPTED,
   });
 
+  const createRoomInvitation = ({ actor, recipient, room }) => create({
+    actorId: actor.id,
+    dedupeKey: `room-invitation:${room._id}:${recipient.id}`,
+    expiresAt: new Date(now().getTime() + 24 * 60 * 60 * 1000),
+    recipientId: recipient.id,
+    sourceId: room._id,
+    sourceType: NOTIFICATION_SOURCE_TYPES.ROOM_INVITATION,
+    type: NOTIFICATION_TYPES.ROOM_INVITATION,
+  });
+
   const list = async (actor, { cursor, limit } = {}) => {
     const recipientId = normalizeUserId(actor && actor.id);
     const parsedCursor = parseCursor(cursor);
@@ -252,6 +262,7 @@ const createNotificationService = ({
     create,
     createFriendRequest,
     createFriendRequestAccepted,
+    createRoomInvitation,
     list,
     markAllRead,
     markRead,

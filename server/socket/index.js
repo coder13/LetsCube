@@ -13,6 +13,7 @@ const logger = require('../logger');
 const loggerMiddleware = require('./middlewares/logger');
 const authenticateMiddleware = require('./middlewares/authenticate');
 const { registerSocialEventSubscriber } = require('../realtime/socialEvents');
+const { isFeatureEnabled } = require('../features');
 const initRooms = require('./namespaces/rooms');
 const initDefault = require('./namespaces/default');
 
@@ -61,7 +62,8 @@ const init = async () => {
     db: config.redis.db,
   });
   const subClient = pubClient.duplicate();
-  const socialSubClient = config.socialFeatures.enabled ? pubClient.duplicate() : null;
+  const socialSubClient = config.socialFeatures.enabled && isFeatureEnabled('friends')
+    ? pubClient.duplicate() : null;
 
   pubClient.on('error', logSocketError('redis pub client'));
   subClient.on('error', logSocketError('redis sub client'));

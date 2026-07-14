@@ -10,6 +10,7 @@ import Paper from '@material-ui/core/Paper';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import { lcFetch } from '../lib/fetch';
+import { isFeatureEnabled } from '../lib/features';
 
 const actionRequest = (action, id) => {
   const encodedId = encodeURIComponent(id);
@@ -160,7 +161,7 @@ function PublicProfile() {
                 {relationshipLabel[profile.relationship] || 'Not connected'}
               </Typography>
               <div className={classes.actions}>
-                {profile.actions.map((action) => (
+                {isFeatureEnabled('friends') && profile.actions.map((action) => (
                   <Button
                     color={action === 'request' || action === 'accept' ? 'primary' : 'default'}
                     disabled={acting}

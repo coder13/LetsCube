@@ -6,11 +6,13 @@ action while the dual-write migration is in progress.
 
 ## Rollout gate
 
-The server surface is disabled unless `SOCIAL_FEATURES_ENABLED=true`. When it
-is disabled, `/api/friends` returns `404 feature_disabled` and the socket
-process does not subscribe to social invalidations. Existing room behavior is
-unchanged. Issue #188 owns launch hardening and production operation of this
-same switch; adding the foundation does not enable it.
+The feature is controlled by the small in-code `friends` map in `server/features.js`
+and `client/src/lib/features.js`, in addition to requiring
+`SOCIAL_FEATURES_ENABLED=true` on the server. When either gate is disabled,
+`/api/friends` returns `404 feature_disabled`, social navigation is hidden, and
+the socket process does not subscribe to social invalidations. Existing room
+behavior is unchanged. Issue #188 owns launch hardening and production
+operation of this same switch; adding the foundation does not enable it.
 
 ## Identity and privacy
 

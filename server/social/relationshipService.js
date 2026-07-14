@@ -412,12 +412,36 @@ const createRelationshipService = ({
     return response;
   };
 
+  const requireAcceptedFriend = async (actorUser, targetValue) => {
+    const {
+      pair, targetUser,
+    } = await loadUsers(actorUser, targetValue);
+    const unavailable = () => {
+      throw new SocialError(
+        409,
+        'relationship_unavailable',
+        'The requested relationship action is not available',
+      );
+    };
+
+    if (await pairIsBlocked(pair.pairKey)) {
+      return unavailable();
+    }
+
+    const relationship = await lean(relationshipModel.findOne({ pairKey: pair.pairKey }));
+    if (!relationship || relationship.status !== RELATIONSHIP_STATUSES.ACCEPTED) {
+      return unavailable();
+    }
+    return targetUser;
+  };
+
   return {
     acceptRequest: (actor, targetId) => act(actor, targetId, ACTIONS.ACCEPT),
     block,
     cancelRequest: (actor, targetId) => act(actor, targetId, ACTIONS.CANCEL),
     declineRequest: (actor, targetId) => act(actor, targetId, ACTIONS.DECLINE),
     list,
+    requireAcceptedFriend,
     sendRequest: (actor, targetId) => act(actor, targetId, ACTIONS.SEND),
     unblock,
     unfriend: (actor, targetId) => act(actor, targetId, ACTIONS.UNFRIEND),

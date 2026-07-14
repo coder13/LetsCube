@@ -62,8 +62,8 @@ export default function NotificationList({
             <div className={classes.actions}>
               {!stale && presentation.actions.map((action) => (
                 <Button
-                  aria-label={`${action} friend request`}
-                  color={action === 'accept' ? 'primary' : 'default'}
+                  aria-label={`${action} notification`}
+                  color={action === 'accept' || action === 'join race' ? 'primary' : 'default'}
                   disabled={pending}
                   key={action}
                   onClick={() => onAction(notification, action)}

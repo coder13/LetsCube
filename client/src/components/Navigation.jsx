@@ -24,6 +24,7 @@ import {
   pendingResultBelongsToUser,
 } from '../store/room/resultOutbox';
 import Text from './Text';
+import { isFeatureEnabled } from '../lib/features';
 
 const Lobby = lazy(() => import('./Lobby/index'));
 const Room = lazy(() => import('./Room/index'));
@@ -230,7 +231,7 @@ function Navigation({
                 <PrivateRoute exact path="/profile" component={Profile} user={user} />
                 <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
                 <PrivateRoute exact path="/notifications" component={Notifications} user={user} />
-                <PrivateRoute exact path="/friends" component={Friends} user={user} />
+                {isFeatureEnabled('friends') && <PrivateRoute exact path="/friends" component={Friends} user={user} />}
                 <PrivateRoute exact path="/users/:id" component={PublicProfile} user={user} />
                 <PrivateRoute path="/admin" isAdminRoute component={Admin} />
                 <Route path="/wca-redirect" component={WCARedirect} />

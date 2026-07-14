@@ -111,6 +111,21 @@ describe('notification service', () => {
     expect(payload).not.toHaveProperty('url');
   });
 
+  it('creates a typed room invitation without room access details', async () => {
+    await expect(service.createRoomInvitation({
+      actor: { id: 1 },
+      recipient: { id: 2 },
+      room: { _id: 'room-1' },
+    })).resolves.toMatchObject({ created: true });
+
+    expect(models.notifications[0]).toEqual(expect.objectContaining({
+      sourceId: 'room-1',
+      sourceType: 'room_invitation',
+      type: 'room_invitation',
+    }));
+    expect(events.publishCreated.mock.calls[0][0].notification).not.toHaveProperty('password');
+  });
+
   it('lists only the recipient records with cursor metadata and public actors', async () => {
     await request();
     await service.createFriendRequestAccepted({

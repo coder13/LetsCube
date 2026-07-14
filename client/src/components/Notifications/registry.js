@@ -11,7 +11,7 @@ const notificationPresentation = (notification) => {
     case 'friend_request_accepted':
       return { actions: [], text: `${actorName} accepted your friend request.` };
     case 'room_invitation':
-      return { actions: [], text: `${actorName} invited you to a room.` };
+      return { actions: ['join race'], text: `${actorName} invited you to race.` };
     default:
       return { actions: [], text: 'You have a notification from Let\'s Cube.' };
   }

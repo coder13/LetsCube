@@ -42,3 +42,11 @@ so Redis delivery is an optimization rather than a source of truth.
 
 Email is not a notification identity, lookup, persistence, delivery, render,
 metric, or logging field.
+
+## Race invitations
+
+An accepted friend can be invited to a newly created public normal room. The
+notification source id is the room id; the client presents a fixed “Join race”
+action that opens that room. The recipient is never sent a password, access
+code, email address, or membership list. The socket-side creation path checks
+the friendship again before the room is created.

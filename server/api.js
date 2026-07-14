@@ -6,6 +6,7 @@ const { updateUsername } = require('./username');
 const createFriendsRouter = require('./api/friends');
 const createNotificationsRouter = require('./api/notifications');
 const createUsersRouter = require('./api/users');
+const { isFeatureEnabled } = require('./features');
 
 const PREFERENCE_KEYS = new Set([
   'showWCAID',
@@ -41,7 +42,7 @@ module.exports = (app) => {
     }
   });
 
-  if (app && app.get('config').socialFeatures.enabled) {
+  if (app && app.get('config').socialFeatures.enabled && isFeatureEnabled('friends')) {
     router.use('/friends', createFriendsRouter());
     router.use('/notifications', createNotificationsRouter());
     router.use('/users', createUsersRouter());

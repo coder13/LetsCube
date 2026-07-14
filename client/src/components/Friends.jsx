@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
@@ -21,6 +22,7 @@ import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import { lcFetch } from '../lib/fetch';
+import { createRoom } from '../store/rooms/actions';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -205,6 +207,7 @@ AddFriendDialog.propTypes = {
 
 function Friends() {
   const classes = useStyles();
+  const dispatch = useDispatch();
   const [data, setData] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState(null);
@@ -235,6 +238,13 @@ function Friends() {
   });
 
   const requestFriend = (user) => performAction('/api/friends/requests', 'POST', { userId: user.id });
+  const raceWith = (user) => {
+    dispatch(createRoom({
+      name: `Race with ${userName(user)}`,
+      raceWithUserId: user.id,
+      type: 'normal',
+    }));
+  };
   const handleAction = (url, method, body) => {
     performAction(url, method, body).catch((actionError) => setError(actionError.message));
   };
@@ -283,7 +293,12 @@ function Friends() {
             <FriendsSection emptyMessage="No friends yet. Add a cuber to get started." title="Your friends">
               {data.friends.map((entry) => (
                 <FriendEntry
-                  action={<Button className={classes.action} onClick={() => handleAction(`/api/friends/${entry.user.id}`, 'DELETE')}>Remove</Button>}
+                  action={(
+                    <>
+                      <Button className={classes.action} color="primary" onClick={() => raceWith(entry.user)} variant="contained">Race with me</Button>
+                      <Button className={classes.action} onClick={() => handleAction(`/api/friends/${entry.user.id}`, 'DELETE')}>Remove</Button>
+                    </>
+                  )}
                   entry={entry}
                   key={entry.user.id}
                   secondary="Friends"

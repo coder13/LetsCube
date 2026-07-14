@@ -194,6 +194,19 @@ describe('relationship service', () => {
     expect(notifications.createFriendRequestAccepted).toHaveBeenCalledTimes(1);
   });
 
+  it('requires an accepted relationship before a friend can be invited to race', async () => {
+    const { service, users } = createService();
+
+    await expect(service.requireAcceptedFriend(users.get(1), 2)).rejects.toMatchObject({
+      code: 'relationship_unavailable',
+      statusCode: 409,
+    });
+    await service.sendRequest(users.get(1), 2);
+    await service.acceptRequest(users.get(2), 1);
+
+    await expect(service.requireAcceptedFriend(users.get(1), 2)).resolves.toMatchObject({ id: 2 });
+  });
+
   it('makes duplicate sends and concurrent accepts idempotent', async () => {
     const { relationships, service, users } = createService();
 

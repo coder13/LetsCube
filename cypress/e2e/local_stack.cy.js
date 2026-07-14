@@ -155,10 +155,41 @@ describe('local app stack', () => {
     cy.contains('sent you a friend request.').should('be.visible');
     cy.contains('View all notifications').click();
     cy.location('pathname').should('eq', '/notifications');
-    cy.get('button[aria-label="accept friend request"]').click();
+    cy.get('button[aria-label="accept notification"]').click();
 
     loginAs(requesterId);
     cy.visit('/notifications');
     cy.contains('accepted your friend request.', { timeout: 10000 }).should('be.visible');
+  });
+
+  it('starts a race with an accepted friend and lets them join from the invitation', () => {
+    const hostId = 800000 + (Date.now() % 99999);
+    const guestId = hostId + 1;
+
+    loginAs(guestId);
+    loginAs(hostId);
+    cy.request('POST', `${apiOrigin}/api/friends/requests`, { userId: guestId })
+      .its('status').should('eq', 201);
+    loginAs(guestId);
+    cy.request('POST', `${apiOrigin}/api/friends/requests/${hostId}/accept`)
+      .its('status').should('eq', 200);
+
+    loginAs(hostId);
+    cy.visit('/friends');
+    cy.contains(`cypress-${guestId}`, { timeout: 10000 }).parents('li')
+      .contains('button', 'Race with me').click();
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+
+    loginAs(guestId);
+    cy.request(`${apiOrigin}/api/notifications`).then((response) => {
+      expect(response.body.notifications.some((notification) => (
+        notification.type === 'room_invitation' && notification.actor.id === hostId
+      ))).to.eq(true);
+    });
+    cy.visit('/notifications');
+    cy.contains('invited you to race.', { timeout: 10000 }).should('be.visible');
+    cy.get('button[aria-label="join race notification"]').click();
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.contains('Waiting For:', { timeout: 10000 }).should('be.visible');
   });
 });

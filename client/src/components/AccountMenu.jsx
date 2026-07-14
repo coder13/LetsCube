@@ -16,6 +16,7 @@ import Typography from '@material-ui/core/Typography';
 import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 import PeopleIcon from '@material-ui/icons/People';
 import PersonIcon from '@material-ui/icons/Person';
+import { isFeatureEnabled } from '../lib/features';
 
 const useStyles = makeStyles((theme) => ({
   desktopPaper: {
@@ -87,10 +88,12 @@ function AccountItems({ itemComponent: Item, itemClassName, onClose, onLogout })
 
   return (
     <>
-      <Item className={itemClassName} component={Link} onClick={onClose} to="/friends">
-        <ListItemIcon className={classes.menuIcon}><PeopleIcon /></ListItemIcon>
-        <ListItemText primary="Friends" secondary="Requests and connections" />
-      </Item>
+      {isFeatureEnabled('friends') && (
+        <Item className={itemClassName} component={Link} onClick={onClose} to="/friends">
+          <ListItemIcon className={classes.menuIcon}><PeopleIcon /></ListItemIcon>
+          <ListItemText primary="Friends" secondary="Requests and connections" />
+        </Item>
+      )}
       <Item className={itemClassName} component={Link} onClick={onClose} to="/profile">
         <ListItemIcon className={classes.menuIcon}><PersonIcon /></ListItemIcon>
         <ListItemText primary="Profile" secondary="Your cuber identity" />

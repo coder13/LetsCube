@@ -9,6 +9,8 @@ const metrics = require('../../metrics');
 const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const publicUserProjection = require('../../social/publicUser');
+const raceInvitationService = require('../../social/raceInvitationService');
+const { isFeatureEnabled } = require('../../features');
 const { encodeUserRoom } = require('../utils');
 const roomMap = require('../lib/roomMap');
 const {
@@ -635,6 +637,34 @@ module.exports = (io, middlewares) => {
         });
       }
 
+      let raceRecipient;
+      if (options.raceWithUserId !== undefined) {
+        if (!config.socialFeatures || !config.socialFeatures.enabled || !isFeatureEnabled('friends')) {
+          return acknowledgment({
+            statusCode: 404,
+            message: 'Friends are not available',
+          });
+        }
+        if (options.password) {
+          return acknowledgment({
+            statusCode: 400,
+            message: 'Race invitations are available for public rooms only',
+          });
+        }
+        try {
+          raceRecipient = await raceInvitationService.authorize(
+            socket.user,
+            options.raceWithUserId,
+          );
+        } catch (err) {
+          return acknowledgment({
+            code: err.code || 'relationship_unavailable',
+            message: err.message || 'The selected cuber is not available to race',
+            statusCode: err.statusCode || 409,
+          });
+        }
+      }
+
       const newRoom = new Room({
         name: options.name,
         type: options.type,
@@ -653,6 +683,22 @@ module.exports = (io, middlewares) => {
       newRoom.owner = socket.user;
 
       const room = await newRoom.save();
+      if (raceRecipient) {
+        try {
+          await raceInvitationService.invite({
+            actor: socket.user,
+            recipient: raceRecipient,
+            room,
+          });
+        } catch (err) {
+          logger.error(err);
+          await Room.deleteOne({ _id: room._id });
+          return acknowledgment({
+            message: 'Unable to send the race invitation',
+            statusCode: 503,
+          });
+        }
+      }
       await metrics.recordRoomCreated({
         room,
         userId: socket.userId,
