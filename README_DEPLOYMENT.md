@@ -187,6 +187,53 @@ Keep this setting disabled until the legacy scheduler is redesigned. Setting
 it to `true` explicitly restores the old mode for development or controlled
 testing.
 
+## WCA Email Privacy Cutover
+
+The privacy cutover is deliberately separate from ordinary database migrations.
+PostgreSQL migrations run before a new application image is healthy, so using a
+migration to purge data could let the automatic rollback restore an image that
+writes the data again.
+
+Perform the cutover in this order:
+
+1. Deploy this release to both application services with `DEPLOY_TARGET=all`.
+2. Confirm the API and socket health checks pass, the browser's WCA authorization
+   request has exactly `scope=public`, and a new login succeeds.
+3. From `/opt/letscube`, record the running safe commit as the rollback floor:
+
+   ```bash
+   git rev-parse HEAD | tee .privacy-email-cutover
+   ```
+
+   Future `scripts/deploy.sh` runs refuse any commit that does not descend from
+   this floor. Do not use direct Compose commands or a saved image tag to restore
+   an older release after creating the marker.
+4. Run the purge from the newly deployed image:
+
+   ```bash
+   docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod run --rm --no-deps api node server/privacy/purgeUserEmails.js
+   ```
+
+   The command reports record counts only. It never prints field values and
+   exits unsuccessfully if either database still has a value.
+5. Run the same command a second time. Every matched, modified, cleared, and
+   remaining count should be zero; this verifies that the operation is
+   idempotent.
+6. Create and verify a fresh post-cutover backup. Remove every pre-cutover local
+   and remote backup according to the storage provider's secure deletion
+   procedure; normal retention is not sufficient for historical private data.
+
+If the initial deployment rolls back before step 3, do not create the marker or
+run the purge. Correct the release and redeploy it first. After step 3, the
+privacy-safe commit is the minimum supported rollback image.
+
+The PostgreSQL `app.users.email` column remains temporarily as an always-empty
+compatibility column. Current dual writes never send it a value and clear a
+legacy value whenever they update an existing row. Removing the column is phase two:
+first deploy an application release that no longer references the compatibility
+column, advance every supported rollback image to that release, and only then
+apply a migration that drops it. Do not combine that drop with this cutover.
+
 ### Health Checks
 
 The API and socket processes expose dependency-aware health endpoints.
