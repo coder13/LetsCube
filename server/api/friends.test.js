@@ -3,8 +3,10 @@
 
 const http = require('http');
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const createFriendsRouter = require('./friends');
+const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
 const request = (server, {
   authenticated = true, body, method = 'GET', path = '/api/friends',
@@ -58,6 +60,7 @@ describe('friend REST routes', () => {
     };
     const app = express();
     app.use(express.json());
+    app.use(rateLimit(apiRateLimitOptions()));
     app.use((req, res, next) => {
       req.isAuthenticated = () => req.headers.authorization === 'test-session';
       if (req.isAuthenticated()) {

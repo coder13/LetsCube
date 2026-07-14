@@ -8,7 +8,7 @@ const lusca = require('lusca');
 
 const request = (server, { cookie, headers, method = 'GET', path = '/' } = {}) => new Promise((resolve, reject) => {
   const req = http.request({
-    headers: { ...(cookie ? { cookie } : {}), ...headers },
+    headers: { 'x-forwarded-proto': 'https', ...(cookie ? { cookie } : {}), ...headers },
     host: '127.0.0.1',
     method,
     path,
@@ -19,6 +19,7 @@ const request = (server, { cookie, headers, method = 'GET', path = '/' } = {}) =
     res.on('end', () => resolve({
       body: body ? JSON.parse(body) : null,
       cookie: res.headers['set-cookie'] && res.headers['set-cookie'][0].split(';')[0],
+      setCookie: res.headers['set-cookie'] && res.headers['set-cookie'][0],
       status: res.statusCode,
     }));
   });
@@ -31,7 +32,17 @@ describe('CSRF protection', () => {
 
   beforeEach((done) => {
     const app = express();
-    app.use(session({ resave: false, saveUninitialized: false, secret: 'test-secret' }));
+    app.set('trust proxy', 1);
+    app.use(session({
+      cookie: {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: true,
+      },
+      resave: false,
+      saveUninitialized: false,
+      secret: 'test-secret',
+    }));
     app.use(lusca.csrf());
     app.get('/csrf-token', (req, res) => res.json({ csrfToken: req.csrfToken() }));
     app.post('/change', (req, res) => res.json({ changed: true }));
@@ -51,6 +62,7 @@ describe('CSRF protection', () => {
     expect(tokenResponse.status).toBe(200);
     expect(tokenResponse.body.csrfToken).toEqual(expect.any(String));
     expect(tokenResponse.cookie).toEqual(expect.stringContaining('connect.sid='));
+    expect(tokenResponse.setCookie).toEqual(expect.stringContaining('Secure'));
 
     expect(await request(server, {
       cookie: tokenResponse.cookie,
