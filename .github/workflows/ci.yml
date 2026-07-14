@@ -7,6 +7,16 @@ on:
       - master
 
 jobs:
+  configuration:
+    name: Production configuration checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate production metrics configuration
+        run: scripts/test-compose-metrics-config.sh
+
   server:
     name: Server lint and unit tests
     runs-on: ubuntu-latest
