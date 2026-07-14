@@ -197,6 +197,6 @@ and `http://localhost:9000/health/socket`.
 
 ### Tooling changes break unexpectedly
 
-The repository combines React 16, Material UI v4, Jest 26, ESLint 6, and modern
-Vite. Run client unit tests and `yarn workspace letscube-client build` after
-dependency or build-tool changes; success in only one path is not sufficient.
+The client uses React 18, Material UI 6, Jest 30, ESLint 9, and Vite 8. Run
+client unit tests and `yarn workspace letscube-client build` after dependency or
+build-tool changes; success in only one path is not sufficient.

@@ -21,19 +21,27 @@ Do not run separate installs or create lockfiles inside workspaces.
 
 ## Branches
 
-Create branches from the latest `master`:
+Create feature branches from the latest integration branch:
 
 ```sh
 git fetch origin
-git switch -c your-branch origin/master
+git switch -c your-branch origin/dev
 ```
 
 If you use a fork, replace `origin` with the remote that tracks the canonical
-repository. Pull requests should target `master`.
+repository. Pull requests should target `dev`; `master` receives only a
+reviewed promotion from `dev`.
+
+The branch flow is feature branch → `dev` → release-candidate validation →
+reviewed promotion to `master`. CI runs on every pull request and on pushes to
+both `dev` and `master`, so the merge commit on `dev` is the release candidate
+that must be validated. Do not merge a feature branch directly to `master`.
 
 Keep each pull request limited to one coherent change. Before publishing,
-inspect both the commit list and the complete diff against `master` to make sure
-the branch does not include work inherited from another feature branch.
+inspect both the commit list and the complete diff against `dev` to make sure
+the branch does not include work inherited from another feature branch. Compare
+a release promotion against both `origin/master` and the intended `origin/dev`
+commit so its scope is explicit.
 
 ## Code Style
 
@@ -109,3 +117,9 @@ explains what changed and why.
 Do not include credentials, production data, access tokens, or private logs. If
 you discover a vulnerability, follow [SECURITY.md](SECURITY.md) instead of
 opening a public issue.
+
+## Release Promotion
+
+Use the [release workflow](docs/release-workflow.md) before promoting `dev` to
+`master`. It records the required CI, review, migration, deploy, and rollback
+evidence; it does not authorize a production deployment by itself.
