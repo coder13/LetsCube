@@ -22,6 +22,6 @@
     "clientSecret": "example-secret"
   },
   "cors": {
-    "origin": ["localhost", "192.168.1.18"]
+    "origin": ["http://localhost:3000", "localhost", "192.168.1.18"]
   }
 }
