@@ -132,8 +132,14 @@ The deploy script can be tested without production access:
 scripts/test-deploy-classifier.sh
 scripts/test-deploy.sh
 scripts/test-mongo-backup-restore.sh
+scripts/test-mongo-backup-restore-live.sh
 scripts/classify-deploy-target.sh client/src/components/App.jsx
 ```
+
+The live MongoDB rehearsal starts two disposable `mongo:7` containers on an
+isolated Docker network, writes only a synthetic attempt, restores it with
+`--drop`, verifies it, and removes the containers and network on exit. It never
+connects to the configured production or development database.
 
 ## Verification And Monitoring
 
