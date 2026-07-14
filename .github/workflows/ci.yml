@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - dev
       - master
 
 jobs:
@@ -16,6 +17,9 @@ jobs:
 
       - name: Validate production metrics configuration
         run: scripts/test-compose-metrics-config.sh
+
+      - name: Validate CI branch coverage
+        run: scripts/test-ci-branches.sh
 
   server:
     name: Server lint and unit tests
