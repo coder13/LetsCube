@@ -68,6 +68,20 @@ describe('local app stack', () => {
     cy.get('[aria-label="Find a cuber by username or visible WCA ID"]').should('not.exist');
   });
 
+  it('opens cuber discovery from the Add friend dialog', () => {
+    const searchUserId = 990003;
+
+    loginAs(searchUserId);
+    login();
+    cy.visit('/friends');
+    cy.contains('Friends', { timeout: 10000 }).should('be.visible');
+    cy.contains('button', 'Add friend').click();
+    cy.get('[role="dialog"]').contains('Add friend').should('be.visible');
+    cy.get('[role="dialog"] input[aria-label="Find a cuber by username or visible WCA ID"]').type(`cypress-${searchUserId}`);
+    cy.get('[role="dialog"]').contains('button', 'Search').click();
+    cy.get('[role="dialog"]').contains(`cypress-${searchUserId}`).should('be.visible');
+  });
+
   it('creates a room, reloads it directly, and lists it in the lobby', () => {
     const roomName = `Cypress Room ${Date.now()}`;
     login();

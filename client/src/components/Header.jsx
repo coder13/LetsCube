@@ -138,7 +138,7 @@ function Header({ user, room, notifications }) {
                 open={open}
                 onClose={handleClose}
               >
-                <MenuItem component={Link} onClick={handleClose} to="/users">Find cubers</MenuItem>
+                <MenuItem component={Link} onClick={handleClose} to="/friends">Friends</MenuItem>
                 <MenuItem component={Link} to="/profile" variant="contained" color="primary">Profile</MenuItem>
                 <MenuItem onClick={logout}>Log out</MenuItem>
               </Menu>
