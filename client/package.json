@@ -24,7 +24,7 @@
     "react-twitch-embed": "^3.0.2",
     "react-virtualized": "^9.22.6",
     "redux": "^4.2.1",
-    "redux-thunk": "^2.4.2",
+    "redux-thunk": "^3.1.0",
     "reselect": "^4.0.0",
     "socket.io-client": "^4.8.3",
     "stackmat-signal-processor": "^0.1.0",
