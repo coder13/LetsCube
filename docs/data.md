@@ -111,10 +111,10 @@ Metrics must not contain:
 
 Raw events expire after 90 days by default. The Node runtime recognizes
 `METRICS_RETENTION_DAYS`, `METRICS_ENABLED`, and `METRICS_HASH_SECRET` when they
-are present in its process environment. The current Compose service environment
-does not forward those names from its env file, so adding them only to
-`.env.prod` does not override the defaults; pass them to both application
-services or update Compose as part of the configuration change.
+are present in its process environment. The production Compose configuration
+forwards those values from `.env.prod` to both application services. Keep the
+hash secret only in `.env.prod`; Compose does not print it during normal
+startup.
 
 MongoDB uses a TTL index; PostgreSQL maintenance deletes expired analytics
 records periodically.
