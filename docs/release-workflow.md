@@ -9,7 +9,7 @@ Production deployment remains a separately authorized operation described in
 1. Open each focused feature pull request against `dev`.
 2. Review and merge the feature into `dev`.
 3. Treat the resulting `dev` merge commit as the release candidate. Its push
-   CI run must finish before promotion is considered.
+   CI and CodeQL push runs must finish before promotion is considered.
 4. Open a reviewed promotion from that exact `dev` commit to `master`.
 5. After the promotion is merged and its `master` push CI passes, perform the
    separately authorized deployment procedure.
@@ -22,8 +22,8 @@ on `dev` after release-candidate validation requires a new validation run.
 Before approving a `dev` to `master` promotion, record or link the following in
 the promotion pull request:
 
-- the exact `dev` commit SHA and its successful CI run, including Cypress for
-  full-stack changes;
+- the exact `dev` commit SHA and its successful CI and CodeQL push runs,
+  including Cypress for full-stack changes;
 - the review that approved the promotion and any issue or milestone links;
 - focused and broad checks relevant to the change, including checks not run;
 - schema migration compatibility and data-backfill evidence when persistence
