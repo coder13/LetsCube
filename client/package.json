@@ -18,7 +18,7 @@
     "react-cube-svg": "^0.2.3",
     "react-dom": "18.3.1",
     "react-ga4": "^3.0.1",
-    "react-markdown": "6.0.3",
+    "react-markdown": "10.1.0",
     "react-redux": "^9.3.0",
     "react-router-dom": "^5.3.4",
     "react-twitch-embed": "^3.0.2",
