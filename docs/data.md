@@ -142,3 +142,8 @@ Before a data change, identify:
 
 Moving reads to PostgreSQL or making PostgreSQL required is a separate migration
 decision and must not happen incidentally as part of a schema change.
+
+The planned Room-to-RaceSession cutover has a separate
+[backfill and reconciliation contract](race-session-backfill.md). It requires
+resumable, privacy-safe verification before PostgreSQL becomes authoritative
+for rooms, race sessions, attempts, and solves.
