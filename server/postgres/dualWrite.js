@@ -537,7 +537,7 @@ const syncAttemptResults = async (client, roomState, attemptState, attempt, user
 
 const writeRoomChanges = async (client, room, changes) => {
   const resultUserIds = new Set();
-  if (changes.replaceAttempts) {
+  if (changes.syncAllAttempts) {
     (room.attempts || []).forEach((attempt) => {
       resultEntries(attempt.results).forEach(([userId]) => resultUserIds.add(userId));
     });
@@ -563,8 +563,7 @@ const writeRoomChanges = async (client, room, changes) => {
     return null;
   }
 
-  if (changes.replaceAttempts) {
-    await client.query('DELETE FROM app.attempts WHERE room_id = $1', [roomState.roomId]);
+  if (changes.syncAllAttempts) {
     for (const [attemptIndex, attempt] of (room.attempts || []).entries()) {
       const attemptState = await upsertAttempt(client, room, roomState, attempt, attemptIndex);
       await syncAttemptResults(

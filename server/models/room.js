@@ -527,7 +527,9 @@ const collectPostgresChanges = (room) => {
   return {
     attempts,
     participantUserIds: [...participantUserIds],
-    replaceAttempts: !room.isNew && room.isModified('event'),
+    // An event switch starts a new attempt stream. The migration writer must
+    // mirror it without deleting attempts from the previous event.
+    syncAllAttempts: !room.isNew && room.isModified('event'),
     syncAllParticipants: room.isNew,
     syncRoomOwners: room.isNew || room.isModified('owner') || room.isModified('admin'),
   };

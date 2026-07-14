@@ -175,6 +175,48 @@ describe('PostgreSQL dual writer', () => {
       .toContain(12001);
   });
 
+  it('retains prior-event rows when an event switch starts a new attempt stream', async () => {
+    const updatedAt = new Date('2026-07-10T20:00:00.000Z');
+    const room = {
+      _id: '507f1f77bcf86cd799439011',
+      name: 'Practice room',
+      event: '222',
+      accessCode: 'room-access-code',
+      type: 'normal',
+      owner: user,
+      admin: user,
+      users: [user],
+      attempts: [{
+        id: 0,
+        scrambles: ['R U2 R\''],
+        results: new Map([['1234', {
+          time: 8000,
+          penalties: {},
+          createdAt: updatedAt,
+          updatedAt,
+        }]]),
+        createdAt: updatedAt,
+        updatedAt,
+      }],
+      createdAt: updatedAt,
+      updatedAt,
+    };
+
+    await mirrorRoomChanges(room, {
+      attempts: [],
+      participantUserIds: [],
+      syncAllAttempts: true,
+      syncAllParticipants: false,
+      syncRoomOwners: true,
+    });
+
+    const statements = client.query.mock.calls.map(([sql]) => sql);
+    expect(statements.some((sql) => sql.includes('DELETE FROM app.attempts'))).toBe(false);
+    expect(statements.some((sql) => sql.includes('DELETE FROM app.solves'))).toBe(false);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.attempts'))).toHaveLength(1);
+    expect(statements.filter((sql) => sql.includes('INSERT INTO app.solves'))).toHaveLength(1);
+  });
+
   it('mirrors sanitized metric events and soft-deletes rooms', async () => {
     const occurredAt = new Date('2026-07-09T20:00:00.000Z');
     await mirrorMetricEvent({
