@@ -24,6 +24,9 @@ jobs:
       - name: Validate CodeQL branch coverage
         run: scripts/test-codeql-branches.sh
 
+      - name: Rehearse MongoDB backup and restore scripts
+        run: scripts/test-mongo-backup-restore.sh
+
   server:
     name: Server lint and unit tests
     runs-on: ubuntu-latest
