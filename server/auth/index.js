@@ -13,6 +13,14 @@ const checkStatus = async (res) => {
   throw await res.json();
 };
 
+const deserializeUser = async (userModel, id, done) => {
+  try {
+    done(null, await userModel.findOne({ id }));
+  } catch (error) {
+    done(error);
+  }
+};
+
 module.exports = (app, passport) => {
   const router = express.Router();
   const config = app.get('config');
@@ -80,15 +88,15 @@ module.exports = (app, passport) => {
 
       const profile = meRes.me;
 
-      User.findOneAndUpdate({
+      const user = await User.findOneAndUpdate({
         id: +profile.id,
       }, buildWcaUserUpdate(profile, tokenRes.access_token), {
         upsert: true,
         useFindAndModify: false,
         new: true,
-      }, (err, user) => {
-        done(err, user.toObject());
       });
+
+      done(null, user.toObject());
     } catch (e) {
       done(e);
     }
@@ -98,11 +106,7 @@ module.exports = (app, passport) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser((id, done) => {
-    User.findOne({ id }, (err, user) => {
-      done(err, user);
-    });
-  });
+  passport.deserializeUser((id, done) => deserializeUser(User, id, done));
 
   router.post('/code',
     (req, res, next) => {
@@ -144,3 +148,5 @@ module.exports = (app, passport) => {
 
   return router;
 };
+
+module.exports.deserializeUser = deserializeUser;
