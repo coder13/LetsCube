@@ -8,8 +8,8 @@
     "@mui/icons-material": "^6.5.0",
     "@mui/material": "^6.5.0",
     "@mui/styles": "^6.5.0",
-    "clsx": "1.1.0",
-    "date-fns": "^4.4.0",
+    "clsx": "2.1.1",
+    "date-fns": "^4.4.0"
     "history": "4.10.1",
     "material-ui-confirm": "^4.0.0",
     "prop-types": "15.8.1",
