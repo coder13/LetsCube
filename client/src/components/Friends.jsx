@@ -269,17 +269,6 @@ function Friends() {
               ))}
             </FriendsSection>
             <Divider />
-            <FriendsSection emptyMessage="No friends yet. Add a cuber to get started." title="Your friends">
-              {data.friends.map((entry) => (
-                <FriendEntry
-                  action={<Button className={classes.action} onClick={() => handleAction(`/api/friends/${entry.user.id}`, 'DELETE')}>Remove</Button>}
-                  entry={entry}
-                  key={entry.user.id}
-                  secondary="Friends"
-                />
-              ))}
-            </FriendsSection>
-            <Divider />
             <FriendsSection emptyMessage="No outgoing requests." title="Sent requests">
               {data.outgoing.map((entry) => (
                 <FriendEntry
@@ -287,6 +276,17 @@ function Friends() {
                   entry={entry}
                   key={entry.user.id}
                   secondary="Waiting for a response"
+                />
+              ))}
+            </FriendsSection>
+            <Divider />
+            <FriendsSection emptyMessage="No friends yet. Add a cuber to get started." title="Your friends">
+              {data.friends.map((entry) => (
+                <FriendEntry
+                  action={<Button className={classes.action} onClick={() => handleAction(`/api/friends/${entry.user.id}`, 'DELETE')}>Remove</Button>}
+                  entry={entry}
+                  key={entry.user.id}
+                  secondary="Friends"
                 />
               ))}
             </FriendsSection>
