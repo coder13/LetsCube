@@ -114,9 +114,10 @@ RaceSession and starts a new one; earlier attempts and solves remain preserved
 under their earlier session.
 
 Solve penalties use dedicated boolean columns rather than JSON so histories and
-statistics remain compact and index-friendly. Development-only
-`GET /api/solve-history` reads PostgreSQL session-linked history for the
-authenticated participant and is explicitly disabled in production.
+statistics remain compact and index-friendly. `GET /api/solve-history` reads
+PostgreSQL session-linked history for the authenticated participant. It is
+enabled in development and may be enabled for selected production users with
+`FEATURE_SOLVE_HISTORY_USER_IDS`.
 
 Set `POSTGRES_ENABLED=false` to disable mirroring. Production should set
 `PGHOST`, `PGDATABASE`, `PGUSER`, and `POSTGRES_PASSWORD`, or provide a

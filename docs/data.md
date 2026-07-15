@@ -51,11 +51,12 @@ new one, preserving the earlier session's attempts and solves. Complete
 snapshots are reserved for explicit backfill behavior.
 
 `GET /api/solve-history` is a PostgreSQL-only, authenticated self-history
-endpoint enabled only when `NODE_ENV=development`. It returns only
-session-linked solves for a current non-banned room participant; hidden,
-expired, and soft-deleted rooms remain readable to that participant. It never
-falls back to MongoDB or selects access codes, passwords, membership lists,
-moderation data, or email data.
+endpoint enabled in development and optionally for selected production users
+through `FEATURE_SOLVE_HISTORY_USER_IDS`. It returns only session-linked solves
+for a current non-banned room participant; hidden, expired, and soft-deleted
+rooms remain readable to that participant. It never falls back to MongoDB or
+selects access codes, passwords, membership lists, moderation data, or email
+data.
 
 The mirror intentionally catches database failures and returns control to the
 MongoDB-backed request. Monitoring must surface mirror errors because users may
