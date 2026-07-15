@@ -37,11 +37,7 @@ module.exports = (app) => {
     res.json(req.user.toObject());
   });
 
-  if (isFeatureEnabled('solveHistory')) {
-    router.use('/solve-history', auth, createSolveHistoryRouter());
-  } else {
-    router.use('/solve-history', createSolveHistoryRouter());
-  }
+  router.use('/solve-history', auth, createSolveHistoryRouter());
 
   router.put('/updateUsername', auth, async (req, res) => {
     try {
