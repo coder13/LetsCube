@@ -26,26 +26,37 @@ Prisma defines PostgreSQL in `server/prisma/schema.prisma`, using two schemas:
 
 | Schema | Contents |
 | --- | --- |
-| `app` | users, rooms, participants, attempts, and solves |
+| `app` | users, rooms, room/session participants, RaceSessions, attempts, and solves |
 | `analytics` | pseudonymous metric events |
 
 PostgreSQL receives normalized copies of users/preferences, rooms and
-participant state, attempts, durable solves, and sanitized analytics. OAuth
-access tokens are deliberately not mirrored.
+participant state, normal-room RaceSession projections, attempts, durable
+solves, and sanitized analytics. OAuth access tokens are deliberately not
+mirrored. Existing PostgreSQL attempts and solves that predate the expansion
+remain unlinked until the backfill/reconciliation operation assigns them.
 
-Application reads do not use PostgreSQL yet. Setting `POSTGRES_ENABLED=false`
-disables initialization and mirrors. PostgreSQL failures are logged, while API
-and Socket.IO health report the service as `degraded` instead of unavailable.
+Application reads remain MongoDB-backed except for the development-only solve
+history experiment. Setting `POSTGRES_ENABLED=false` disables initialization
+and mirrors. PostgreSQL failures are logged, while API and Socket.IO health
+report the service as `degraded` instead of unavailable.
 
 ## Dual-Write Guarantees
 
 `server/postgres/dualWrite.js` derives stable UUIDs from Mongo/WCA identifiers
 and uses upserts so retries and future backfills remain idempotent.
 
-Room saves collect changed attempts/results and mirror only that delta. An
-explicit event change replaces that room's PostgreSQL attempts so attempts
-removed from MongoDB do not remain queryable. Complete snapshots are reserved
-for explicit backfill behavior.
+Room saves collect changed attempts/results and mirror only that delta. A
+normal-room event change ends the current projected RaceSession and creates a
+new one, preserving the earlier session's attempts and solves. Complete
+snapshots are reserved for explicit backfill behavior.
+
+`GET /api/solve-history` is a PostgreSQL-only, authenticated self-history
+endpoint enabled in development and optionally for selected production users
+through `FEATURE_SOLVE_HISTORY_USER_IDS`. It returns only session-linked solves
+for a current non-banned room participant; hidden, expired, and soft-deleted
+rooms remain readable to that participant. It never falls back to MongoDB or
+selects access codes, passwords, membership lists, moderation data, or email
+data.
 
 The mirror intentionally catches database failures and returns control to the
 MongoDB-backed request. Monitoring must surface mirror errors because users may

@@ -22,9 +22,9 @@
     "test:ci": "yarn test"
   },
   "devDependencies": {
-    "eslint": "6.8.0",
-    "eslint-config-airbnb-base": "14.1.0",
-    "eslint-plugin-import": "2.20.2",
+    "eslint": "8.57.0",
+    "eslint-config-airbnb-base": "15.0.0",
+    "eslint-plugin-import": "2.32.0",
     "jest": "^30.4.2"
   }
 }

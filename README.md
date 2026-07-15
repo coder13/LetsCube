@@ -104,17 +104,20 @@ access codes, OAuth credentials, chat content, scramble text, or solve times.
 
 New MongoDB writes are mirrored into PostgreSQL without changing application
 reads. PostgreSQL receives public identity and preferences, rooms and
-participant state, attempts, durable solve results, and sanitized analytics
-events. OAuth access tokens are deliberately not copied. Writes use
+participant state, RaceSession projections for normal rooms, attempts, durable
+solve results, and sanitized analytics events. OAuth access tokens are deliberately not copied. Writes use
 deterministic UUIDs and upserts,
 so retries and future backfills are idempotent. Live room saves mirror only the
 attempts and results changed by that save; complete room snapshots are reserved
-for explicit backfills. Changing a room event explicitly replaces that room's
-PostgreSQL attempts so removed MongoDB attempts do not remain queryable.
+for explicit backfills. Changing a normal room event ends its projected
+RaceSession and starts a new one; earlier attempts and solves remain preserved
+under their earlier session.
 
 Solve penalties use dedicated boolean columns rather than JSON so histories and
-statistics remain compact and index-friendly. User solve history is indexed by
-creation time and solve ID for stable cursor pagination.
+statistics remain compact and index-friendly. `GET /api/solve-history` reads
+PostgreSQL session-linked history for the authenticated participant. It is
+enabled in development and may be enabled for selected production users with
+`FEATURE_SOLVE_HISTORY_USER_IDS`.
 
 Set `POSTGRES_ENABLED=false` to disable mirroring. Production should set
 `PGHOST`, `PGDATABASE`, `PGUSER`, and `POSTGRES_PASSWORD`, or provide a

@@ -4,9 +4,10 @@
 jest.mock('./models', () => ({
   User: { findOne: jest.fn() },
 }));
-jest.mock('./middlewares/auth.js', () => (req, res, next) => next());
+jest.mock('./middlewares/auth.js', () => jest.fn((req, res, next) => next()));
 
 const { User } = require('./models');
+const auth = require('./middlewares/auth.js');
 const router = require('./api')();
 
 const updateUsernameHandler = router.stack
@@ -72,5 +73,15 @@ describe('username API responses', () => {
       code: 'MISSING_USERNAME',
       status: 400,
     }));
+  });
+});
+
+describe('solve history API access', () => {
+  it('requires authentication before checking the feature flag', () => {
+    const authLayer = router.stack.find((layer) => (
+      String(layer.regexp).includes('solve-history') && layer.handle === auth
+    ));
+
+    expect(authLayer).toBeDefined();
   });
 });

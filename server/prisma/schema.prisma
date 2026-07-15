@@ -20,6 +20,7 @@ model User {
   ownedRooms         Room[]            @relation("RoomOwner")
   administeredRooms  Room[]            @relation("RoomAdmin")
   roomParticipations RoomParticipant[]
+  sessionParticipations SessionParticipant[]
   solves             Solve[]
   friendshipsAsLow   FriendRelationship[] @relation("FriendshipLowUser")
   friendshipsAsHigh  FriendRelationship[] @relation("FriendshipHighUser")
@@ -122,8 +123,54 @@ model Room {
   participants            RoomParticipant[]
   attempts                Attempt[]
   solves                  Solve[]
+  raceSessions            RaceSession[]
+  kind                    String            @default("normal")
+  competitionRef          String?           @map("competition_ref")
 
   @@map("rooms")
+  @@schema("app")
+}
+
+model RaceSession {
+  id                    String               @id @db.Uuid
+  roomId                String               @map("room_id") @db.Uuid
+  cubeEvent             String               @map("cube_event")
+  raceFormat            String               @map("race_format")
+  scrambleSource        String               @map("scramble_source")
+  status                String
+  scheduledStartAt      DateTime?            @map("scheduled_start_at") @db.Timestamptz(6)
+  startedAt             DateTime?            @map("started_at") @db.Timestamptz(6)
+  endedAt               DateTime?            @map("ended_at") @db.Timestamptz(6)
+  currentAttemptOrdinal Int?                 @map("current_attempt_ordinal")
+  nextSolveAt           DateTime?            @map("next_solve_at") @db.Timestamptz(6)
+  sourceKey             String               @unique(map: "race_sessions_source_key_key") @map("source_key")
+  sourceCreatedAt       DateTime?            @map("source_created_at") @db.Timestamptz(6)
+  sourceUpdatedAt       DateTime             @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt            DateTime             @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  room                  Room                 @relation(fields: [roomId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  participants          SessionParticipant[]
+  attempts              Attempt[]
+
+  @@unique([id, roomId], map: "race_sessions_id_room_id_key")
+  @@index([roomId, status, sourceUpdatedAt(sort: Desc)], map: "race_sessions_room_status_idx")
+  @@map("race_sessions")
+  @@schema("app")
+}
+
+model SessionParticipant {
+  raceSessionId   String      @map("race_session_id") @db.Uuid
+  userId          String      @map("user_id") @db.Uuid
+  eligible        Boolean     @default(true)
+  competing       Boolean     @default(false)
+  waitingFor      Boolean     @default(false) @map("waiting_for")
+  registered      Boolean     @default(false)
+  sourceUpdatedAt DateTime    @map("source_updated_at") @db.Timestamptz(6)
+  ingestedAt      DateTime    @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  raceSession     RaceSession @relation(fields: [raceSessionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user            User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@id([raceSessionId, userId])
+  @@map("session_participants")
   @@schema("app")
 }
 
@@ -149,6 +196,7 @@ model Attempt {
   id              String    @id @db.Uuid
   mongoId         String    @unique(map: "attempts_mongo_id_unique") @map("mongo_id")
   roomId          String    @map("room_id") @db.Uuid
+  raceSessionId   String?   @map("race_session_id") @db.Uuid
   ordinal         Int
   cubeEvent       String    @map("cube_event")
   scrambles       Json      @db.JsonB
@@ -156,9 +204,12 @@ model Attempt {
   sourceUpdatedAt DateTime  @map("source_updated_at") @db.Timestamptz(6)
   ingestedAt      DateTime  @default(now()) @map("ingested_at") @db.Timestamptz(6)
   room            Room      @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  raceSession     RaceSession? @relation(fields: [raceSessionId, roomId], references: [id, roomId], onDelete: Restrict, onUpdate: NoAction)
   solves          Solve[]
 
   @@index([roomId, ordinal], map: "attempts_room_ordinal_idx")
+  @@index([raceSessionId, ordinal, id], map: "attempts_race_session_ordinal_idx")
+  @@unique([id, roomId], map: "attempts_id_room_id_key")
   @@map("attempts")
   @@schema("app")
 }
@@ -170,17 +221,20 @@ model Solve {
   userId            String   @map("user_id") @db.Uuid
   timeMs            Int      @map("time_ms")
   dnf               Boolean  @default(false)
+  plusTwoPenalty    Boolean  @default(false) @map("plus_two_penalty")
   inspectionPenalty Boolean  @default(false) @map("inspection_penalty")
   aufPenalty        Boolean  @default(false) @map("auf_penalty")
+  submissionId      String?  @map("submission_id")
   sourceCreatedAt   DateTime @map("source_created_at") @db.Timestamptz(6)
   sourceUpdatedAt   DateTime @map("source_updated_at") @db.Timestamptz(6)
   ingestedAt        DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
-  attempt           Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  attempt           Attempt  @relation(fields: [attemptId, roomId], references: [id, roomId], onDelete: Restrict, onUpdate: NoAction)
   room              Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([attemptId, userId], map: "solves_attempt_id_user_id_key")
   @@index([userId, sourceCreatedAt(sort: Desc), id(sort: Desc)], map: "solves_user_created_idx")
+  @@index([userId, sourceCreatedAt(sort: Desc), id(sort: Desc), attemptId], map: "solves_user_session_history_idx")
   @@map("solves")
   @@schema("app")
 }

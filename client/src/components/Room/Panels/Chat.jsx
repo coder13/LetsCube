@@ -33,21 +33,10 @@ const Icons = {
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
-    flexGrow: 0,
-    flexShrink: 1,
-    width: '20rem',
+    flexGrow: 1,
+    minWidth: 0,
     flexDirection: 'column',
     height: '100%',
-    [theme.breakpoints.down('sm')]: {
-      width: '100%',
-      flexGrow: 1,
-    },
-  },
-  closed: {
-    flexGrow: 0,
-    width: 0,
-    position: 'relative',
-    border: 'none',
   },
   messages: {
     display: 'flex',
@@ -85,14 +74,8 @@ const useStyles = makeStyles((theme) => ({
     'user-select': 'text',
   },
   toolbarClosed: {
-    position: 'absolute',
-    width: '10em',
-    right: 0,
-  },
-  hiddenOnMobile: {
-    [theme.breakpoints.down('sm')]: {
-      display: 'none',
-    },
+    justifyContent: 'center',
+    padding: 0,
   },
 }));
 
@@ -105,11 +88,10 @@ const UNKOWN_USER = {
 };
 
 function Chat({
-  dispatch, messages, users, user,
+  dispatch, messages, users, user, open, onToggle,
 }) {
   const classes = useStyles();
   const [message, setMessage] = useState('');
-  const [open, setOpen] = useState(true);
   const listRef = useRef();
 
   const findUser = (id) => {
@@ -157,9 +139,7 @@ function Chat({
 
   return (
     <Panel
-      className={clsx(classes.root, {
-        [classes.closed]: !open,
-      })}
+      className={classes.root}
       toolbar={(
         <Toolbar
           variant="dense"
@@ -167,12 +147,16 @@ function Chat({
             [classes.toolbarClosed]: !open,
           })}
         >
-          <Typography variant="h6" style={{ flexGrow: 1 }}>
-            Chat
-          </Typography>
-          <IconButton className={classes.hiddenOnMobile} onClick={() => setOpen(!open)}>
-            {open ? <ArrowForwardIcon /> : <ArrowBackIcon /> }
-          </IconButton>
+          {open && (
+            <Typography variant="h6" style={{ flexGrow: 1 }}>
+              Chat
+            </Typography>
+          )}
+          {onToggle && (
+            <IconButton onClick={onToggle} aria-label={open ? 'Close chat' : 'Open chat'}>
+              {open ? <ArrowForwardIcon /> : <ArrowBackIcon /> }
+            </IconButton>
+          )}
         </Toolbar>
       )}
     >
@@ -278,6 +262,8 @@ Chat.propTypes = {
     id: PropTypes.number,
     canJoinRoom: PropTypes.bool,
   }),
+  open: PropTypes.bool,
+  onToggle: PropTypes.func,
 };
 
 Chat.defaultProps = {
@@ -287,6 +273,8 @@ Chat.defaultProps = {
     id: undefined,
     canJoinRoom: false,
   },
+  open: true,
+  onToggle: undefined,
 };
 
 const mapStateToProps = (state) => ({

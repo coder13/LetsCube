@@ -81,6 +81,11 @@ environment variables. Important groups are documented in `.env.example`:
 - CORS origins and metric retention; and
 - production TLS and backup paths.
 
+An otherwise disabled feature that opts into user targeting can be scoped to selected WCA users with
+`FEATURE_<FLAG>_USER_IDS`, a comma-separated allowlist of numeric user IDs.
+For example, `FEATURE_SOLVE_HISTORY_USER_IDS=8184` enables the solve-history
+preview only for that signed-in user while its global production flag remains off.
+
 `.env.example` is a template, not a file automatically sourced by host Node
 processes. Compose only passes variables referenced in its service environment;
 export any additional server override explicitly or add it to the relevant

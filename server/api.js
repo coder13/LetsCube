@@ -7,6 +7,7 @@ const { updateUsername } = require('./username');
 const createFriendsRouter = require('./api/friends');
 const createNotificationsRouter = require('./api/notifications');
 const createUsersRouter = require('./api/users');
+const { createSolveHistoryRouter } = require('./api/solveHistory');
 const { isFeatureEnabled } = require('./features');
 const { apiRateLimitOptions } = require('./middlewares/apiRateLimit');
 
@@ -35,6 +36,8 @@ module.exports = (app) => {
   router.get('/me', auth, (req, res) => {
     res.json(req.user.toObject());
   });
+
+  router.use('/solve-history', auth, createSolveHistoryRouter());
 
   router.put('/updateUsername', auth, async (req, res) => {
     try {

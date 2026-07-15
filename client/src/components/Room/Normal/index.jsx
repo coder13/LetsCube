@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { makeStyles } from '@mui/styles';
 import { connect } from 'react-redux';
-import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
@@ -46,12 +45,30 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   container: {
+    display: 'flex',
     flexGrow: 1,
     flexWrap: 'nowrap',
+    minHeight: 0,
   },
-  panel: {
-    flexGrow: 1,
-    transition: `display 5s ${theme.transitions.easing.easeInOut}`,
+  mainPanel: {
+    display: 'flex',
+    flex: '1 1 auto',
+    minWidth: 0,
+  },
+  chatPanel: {
+    display: 'flex',
+    flex: '0 0 24rem',
+    minWidth: 0,
+    transition: theme.transitions.create('flex-basis'),
+    [theme.breakpoints.down('sm')]: {
+      flexBasis: '100%',
+    },
+  },
+  chatPanelClosed: {
+    flexBasis: '3rem',
+    [theme.breakpoints.down('sm')]: {
+      flexBasis: '100%',
+    },
   },
   backdrop: {
     zIndex: theme.zIndex.drawer + 1,
@@ -73,6 +90,7 @@ const panels = [{
 export const NormalRoom = ({ room, user }) => {
   const classes = useStyles();
   const [currentPanel, setCurrentPanel] = useState(0);
+  const [chatOpen, setChatOpen] = useState(true);
 
   const isAdmin = () => room.admin && room.admin.id === user.id;
 
@@ -91,27 +109,23 @@ export const NormalRoom = ({ room, user }) => {
       </Paper>
       <Divider />
 
-      <Grid container direction="row" className={classes.container}>
-        <Grid
-          item
-          className={clsx(classes.panel, {
+      <div className={classes.container}>
+        <div
+          className={clsx(classes.mainPanel, {
             [classes.hiddenOnMobile]: currentPanel !== 0,
           })}
-          style={{
-            flexGrow: 1,
-          }}
         >
           <Main />
-        </Grid>
-        <Grid
-          item
-          className={clsx(classes.panel, {
+        </div>
+        <div
+          className={clsx(classes.chatPanel, {
             [classes.hiddenOnMobile]: currentPanel !== 1,
+            [classes.chatPanelClosed]: !chatOpen,
           })}
         >
-          <Chat />
-        </Grid>
-      </Grid>
+          <Chat open={chatOpen} onToggle={() => setChatOpen((isOpen) => !isOpen)} />
+        </div>
+      </div>
 
       <BottomNavigation
         value={currentPanel}

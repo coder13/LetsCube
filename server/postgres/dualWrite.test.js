@@ -115,7 +115,7 @@ describe('PostgreSQL dual writer', () => {
 
     const solveCall = client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO app.solves'));
     expect(solveCall[0]).toContain('inspection_penalty');
-    expect(solveCall[1].slice(4, 8)).toEqual([-1, true, true, false]);
+    expect(solveCall[1].slice(4, 9)).toEqual([-1, true, false, true, false]);
     expect(solveCall[1]).not.toContain('room-access-code');
   });
 
