@@ -16,7 +16,7 @@
     "lodash": "^4.17.21",
     "lusca": "^1.7.0",
     "mongodb": "^6.21.0",
-    "mongoose": "^8.24.1",
+    "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
     "passport": "^0.7.0",
     "passport-custom": "^1.1.1",
