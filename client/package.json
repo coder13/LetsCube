@@ -20,7 +20,7 @@
     "react-ga4": "^3.0.1",
     "react-markdown": "6.0.3",
     "react-redux": "^9.3.0",
-    "react-router-dom": "^5.3.4",
+    "react-router-dom": "^7.18.1",
     "react-twitch-embed": "^3.0.2",
     "react-virtualized": "^9.22.6",
     "redux": "^4.2.1",
