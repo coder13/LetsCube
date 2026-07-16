@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22.17.0
           cache: yarn
@@ -90,7 +90,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22.17.0
           cache: yarn
@@ -113,7 +113,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node for client
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22.17.0
           cache: yarn
@@ -126,7 +126,7 @@ jobs:
         run: BROWSER=none yarn workspace letscube-client start > client.log 2>&1 &
 
       - name: Set up Node for server and Cypress
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22.17.0
 
