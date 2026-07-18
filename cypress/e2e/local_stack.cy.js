@@ -53,6 +53,25 @@ describe('local app stack', () => {
     });
   });
 
+  it('scrolls the room list when it exceeds the viewport', () => {
+    cy.viewport(800, 500);
+    cy.visit('/');
+
+    cy.get('[data-testid="room-list-scroll-container"]', { timeout: 10000 })
+      .then(($roomList) => {
+        const filler = $roomList[0].ownerDocument.createElement('div');
+        filler.style.flex = '0 0 1000px';
+        $roomList[0].appendChild(filler);
+      })
+      .should(($roomList) => {
+        expect($roomList[0].scrollHeight).to.be.greaterThan($roomList[0].clientHeight);
+      })
+      .scrollTo('bottom')
+      .should(($roomList) => {
+        expect($roomList[0].scrollTop).to.be.greaterThan(0);
+      });
+  });
+
   it('renders markdown announcements in the lobby', () => {
     cy.intercept('GET', '**/api/announcements', '[Docs](https://example.com)').as('announcements');
 
