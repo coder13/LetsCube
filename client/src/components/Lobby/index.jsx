@@ -44,11 +44,14 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: 'column',
     flexGrow: 1,
     height: '100%',
+    minHeight: 0,
   },
   roomList: {
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
+    height: '100%',
+    minHeight: 0,
   },
   roomListContainer: {
     display: 'flex',
@@ -79,10 +82,12 @@ const useStyles = makeStyles((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
+    height: '100%',
   },
   flexGrow: {
     display: 'flex',
     flexGrow: 1,
+    minHeight: 0,
   },
   bottomNav: {
     width: '100%',
@@ -147,6 +152,7 @@ function Lobby({
         >
           <div
             className={classes.roomListContainer}
+            data-testid="room-list-scroll-container"
           >
             <Container
               maxWidth="md"

@@ -140,6 +140,7 @@ const useStyles = makeStyles((theme) => ({
   content: {
     display: 'flex',
     flexGrow: 1,
+    minHeight: 0,
     flexDirection: 'column',
   },
 }));
