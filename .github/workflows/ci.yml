@@ -24,12 +24,6 @@ jobs:
       - name: Validate CodeQL branch coverage
         run: scripts/test-codeql-branches.sh
 
-      - name: Rehearse MongoDB backup and restore scripts
-        run: scripts/test-mongo-backup-restore.sh
-
-      - name: Rehearse a live MongoDB backup and restore
-        run: scripts/test-mongo-backup-restore-live.sh
-
   server:
     name: Server lint and unit tests
     runs-on: ubuntu-latest
@@ -108,6 +102,26 @@ jobs:
   cypress:
     name: Cypress full-stack smoke
     runs-on: ubuntu-latest
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: letscube
+      PGUSER: letscube
+      PGPASSWORD: letscube
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: letscube
+          POSTGRES_USER: letscube
+          POSTGRES_PASSWORD: letscube
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U letscube -d letscube"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -131,13 +145,16 @@ jobs:
           node-version: 22.17.0
 
       - name: Start backing services
-        run: docker compose -f compose.yml -f compose.dev.yml up -d mongo redis
+        run: docker compose -f compose.yml -f compose.dev.yml up -d redis
+
+      - name: Apply PostgreSQL migrations
+        run: yarn workspace letscube-server postgres:migrate
 
       - name: Start server
-        run: CORS_ORIGINS=http://localhost:3000,http://localhost:8080 LETSCUBE_TEST_AUTH=true SOCIAL_FEATURES_ENABLED=true POSTGRES_ENABLED=false yarn workspace letscube-server node index.js > server.log 2>&1 &
+        run: CORS_ORIGINS=http://localhost:3000,http://localhost:8080 LETSCUBE_TEST_AUTH=true SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node index.js > server.log 2>&1 &
 
       - name: Start socket server
-        run: SOCIAL_FEATURES_ENABLED=true POSTGRES_ENABLED=false yarn workspace letscube-server node socket/ > socket.log 2>&1 &
+        run: SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node socket/ > socket.log 2>&1 &
 
       - name: Wait for local stack
         run: |

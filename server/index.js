@@ -8,7 +8,6 @@ const lusca = require('lusca');
 const rateLimit = require('express-rate-limit');
 
 const config = require('./runtimeConfig');
-const { connect } = require('./database');
 const { createHealthHandler, createHealthReporter } = require('./health');
 const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
 const session = require('./middlewares/session');
@@ -31,22 +30,17 @@ const init = async () => {
   app.use(express.json()); // for parsing application/json
   app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
-  const mongoose = await connect();
-  await initializePostgres();
+  if (!(await initializePostgres())) {
+    throw new Error('PostgreSQL is required for the API runtime');
+  }
   startPostgresMaintenance();
 
   const reportHealth = createHealthReporter({
     service: 'api',
     checks: {
-      mongodb: () => mongoose.connection.readyState === 1,
-      postgres: {
-        required: false,
-        check: async () => {
-          if (config.postgres.enabled) {
-            await pool.query('SELECT 1');
-          }
-          return true;
-        },
+      postgres: async () => {
+        await pool.query('SELECT 1');
+        return true;
       },
     },
   });

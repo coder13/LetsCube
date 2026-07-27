@@ -57,7 +57,7 @@ const usernameConflict = () => new UsernameError(
   409,
 );
 
-const isUsernameDuplicateKeyError = (err) => err && err.code === 11000 && (
+const isUsernameDuplicateKeyError = (err) => err && (err.code === 11000 || err.code === '23505') && (
   (err.keyPattern && err.keyPattern.usernameNormalized)
   || (err.message && err.message.includes('users_username_normalized_unique'))
 );

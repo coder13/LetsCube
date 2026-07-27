@@ -1,7 +1,8 @@
 # In-app social notifications
 
-Social notifications are a MongoDB-backed, recipient-only inbox. PostgreSQL is
-a non-blocking mirror only and is never used to authorize reads or actions.
+Social notifications are a PostgreSQL-backed, recipient-only inbox. Redis is
+used only to fan out invalidation events and is never used as the source of
+truth for reads or actions.
 The social feature gate remains disabled unless `SOCIAL_FEATURES_ENABLED=true`.
 
 ## Typed resource contract

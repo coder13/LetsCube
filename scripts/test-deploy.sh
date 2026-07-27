@@ -210,7 +210,7 @@ run_bootstrap_test() {
   assert_contains "$(<"$output")" 'Missing runtime services: api socket nginx; deploying all.'
   assert_contains "$(<"$output")" '(target: all)'
 
-  backing_line="$(command_line "$log" 'up -d --no-recreate --wait --wait-timeout 17 mongo postgres redis')"
+  backing_line="$(command_line "$log" 'up -d --no-recreate --wait --wait-timeout 17 postgres redis')"
   migration_line="$(command_line "$log" 'run --rm --no-deps migrate')"
   socket_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 socket')"
   api_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 api')"

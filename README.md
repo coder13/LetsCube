@@ -84,8 +84,8 @@ The server's owner/admin handoff and reconnect guarantees are documented in
 
 ## Metrics
 
-The server stores pseudonymous room and authentication events in both the
-`metric_events` MongoDB collection and the PostgreSQL `analytics.events` table.
+The server stores pseudonymous room and authentication events in the
+PostgreSQL `analytics.events` table.
 It records room creations, joins, join failures, leaves and visit duration,
 accepted result counts, and authentication failures. Peak room users and peak
 room solve counts are the maximum `activeUserCount` and `roomSolveCount` values
@@ -100,18 +100,14 @@ ability to correlate pseudonymous users and rooms across the change.
 Metrics never include names, email addresses, WCA IDs, room names, passwords,
 access codes, OAuth credentials, chat content, scramble text, or solve times.
 
-## PostgreSQL dual writes
+## PostgreSQL storage
 
-New MongoDB writes are mirrored into PostgreSQL without changing application
-reads. PostgreSQL receives public identity and preferences, rooms and
-participant state, RaceSession projections for normal rooms, attempts, durable
-solve results, and sanitized analytics events. OAuth access tokens are deliberately not copied. Writes use
-deterministic UUIDs and upserts,
-so retries and future backfills are idempotent. Live room saves mirror only the
-attempts and results changed by that save; complete room snapshots are reserved
-for explicit backfills. Changing a normal room event ends its projected
-RaceSession and starts a new one; earlier attempts and solves remain preserved
-under their earlier session.
+PostgreSQL stores public identity and preferences, rooms and participant state,
+RaceSessions, attempts, durable solve results, social data, sessions, and
+sanitized analytics events. OAuth access tokens are deliberately not persisted.
+Writes use deterministic UUIDs and upserts, so retries remain idempotent. A
+one-time MongoDB backfill tool exists only for cutover and is not loaded by the
+runtime.
 
 Solve penalties use dedicated boolean columns rather than JSON so histories and
 statistics remain compact and index-friendly. `GET /api/solve-history` reads
@@ -119,14 +115,13 @@ PostgreSQL session-linked history for the authenticated participant. It is
 enabled in development and may be enabled for selected production users with
 `FEATURE_SOLVE_HISTORY_USER_IDS`.
 
-Set `POSTGRES_ENABLED=false` to disable mirroring. Production should set
+Production should set
 `PGHOST`, `PGDATABASE`, `PGUSER`, and `POSTGRES_PASSWORD`, or provide a
 `DATABASE_URL`. When runtime traffic uses a pooled connection, set
 `DIRECT_DATABASE_URL` to the direct connection used by Prisma Migrate. External
 TLS connections can set `PGSSL=true` and provide a CA with `PGSSL_CA`;
-certificate verification is enabled by default. PostgreSQL failures are logged
-but do not fail the corresponding MongoDB-backed application operation during
-this migration phase.
+certificate verification is enabled by default. PostgreSQL is required for both
+application processes; startup and health checks fail closed if it is unavailable.
 
 Username lookup uses a separately normalized, uniquely indexed key while
 preserving display casing. See [the normalized username migration](docs/username-migration.md)

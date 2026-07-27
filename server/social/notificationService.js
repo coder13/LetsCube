@@ -1,8 +1,5 @@
-const mongoose = require('mongoose');
-
 const logger = require('../logger');
 const { SocialNotification, User } = require('../models');
-const { mirrorNotification } = require('../postgres/dualWrite');
 const {
   publishNotificationCreated,
   publishNotificationUpdated,
@@ -17,6 +14,7 @@ const {
 const DEFAULT_RETENTION_DAYS = 30;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
+const NOTIFICATION_ID_PATTERN = /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
 class NotificationError extends Error {
   constructor(statusCode, code, message) {
@@ -52,10 +50,10 @@ const parseCursor = (cursor) => {
   try {
     const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
     const createdAt = new Date(parsed.createdAt);
-    if (Number.isNaN(createdAt.getTime()) || !mongoose.Types.ObjectId.isValid(parsed.id)) {
+    if (Number.isNaN(createdAt.getTime()) || !NOTIFICATION_ID_PATTERN.test(String(parsed.id))) {
       throw new Error('invalid cursor');
     }
-    return { createdAt, id: new mongoose.Types.ObjectId(parsed.id) };
+    return { createdAt, id: String(parsed.id) };
   } catch {
     throw new NotificationError(400, 'invalid_cursor', 'Invalid notification cursor');
   }
@@ -102,7 +100,7 @@ const createNotificationService = ({
     publishCreated: publishNotificationCreated,
     publishUpdated: publishNotificationUpdated,
   },
-  mirror = mirrorNotification,
+  mirror = async () => null,
   notificationModel = SocialNotification,
   notificationLogger = logger,
   now = () => new Date(),
@@ -124,7 +122,7 @@ const createNotificationService = ({
     try {
       notification = toPlain(await notificationModel.create(document));
     } catch (err) {
-      if (err && err.code === 11000) {
+      if (err && (err.code === 11000 || err.code === '23505')) {
         return { created: false, notification: null };
       }
       throw err;
@@ -213,7 +211,7 @@ const createNotificationService = ({
 
   const markRead = async (actor, notificationId) => {
     const recipientId = normalizeUserId(actor && actor.id);
-    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+    if (!NOTIFICATION_ID_PATTERN.test(String(notificationId))) {
       throw new NotificationError(404, 'notification_not_found', 'Notification not found');
     }
     const notification = toPlain(await notificationModel.findOneAndUpdate({

@@ -4,7 +4,6 @@ const { v4: uuidv4 } = require('uuid');
 const config = require('./runtimeConfig');
 const logger = require('./logger');
 const { METRIC_EVENTS, MetricEvent } = require('./models');
-const { mirrorMetricEvent } = require('./postgres/dualWrite');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -19,7 +18,7 @@ const createMetricRecorder = ({
   model = MetricEvent,
   metricsConfig = config.metrics,
   metricLogger = logger,
-  metricMirror = mirrorMetricEvent,
+  metricMirror = async () => null,
   now = () => new Date(),
 } = {}) => {
   const enabled = !!metricsConfig.enabled;

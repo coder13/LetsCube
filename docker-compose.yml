@@ -16,14 +16,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  mongo:
-    image: mongo:7.0
-    ports:
-      - "127.0.0.1:27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -39,6 +31,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongo-data:
   postgres-data:
   redis-data:

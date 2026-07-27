@@ -1,8 +1,7 @@
 # Friendship and blocking contract
 
-MongoDB is the source of truth for friendship state. PostgreSQL receives
-non-blocking, idempotent mirrors and must never be read to authorize a social
-action while the dual-write migration is in progress.
+PostgreSQL is the source of truth for friendship state. Redis is used for
+rate limiting and invalidation; it is not an authorization datastore.
 
 ## Rollout gate
 
@@ -59,7 +58,7 @@ Both friendship writes and block writes check blocking after mutation, so a
 concurrent block wins and tombstones the relationship. After bounded contention,
 the API returns `409 relationship_conflict` and the caller should reconcile.
 
-`removed` relationships and inactive blocks are durable MongoDB tombstones,
+`removed` relationships and inactive blocks are durable PostgreSQL tombstones,
 not physical deletes. Each update increments that resource's revision.
 PostgreSQL upserts accept only a strictly newer revision, so a delayed request,
 friendship, or active-block mirror cannot overwrite a newer remove/unblock.
@@ -71,7 +70,7 @@ so failures remain fail-closed. Unblocking repeats relationship cleanup before
 deactivating the block. If cleanup fails, the active block remains and the
 hidden relationship cannot reappear.
 
-New request creation is atomically rate-limited in Redis before MongoDB writes:
+New request creation is atomically rate-limited in Redis before PostgreSQL writes:
 each actor may create 30 requests per 10-minute window, and each normalized
 pair may create 3 requests per 24-hour window. One Lua operation checks both
 limits before it increments either counter and gives both counters a Redis TTL.

@@ -1,13 +1,13 @@
 # LetsCube Deployment
 
-This repo supports running LetsCube with Docker Compose on one VPS. The intended production stack is `api`, `socket`, `mongo`, `postgres`, `redis`, and `nginx`.
+This repo supports running LetsCube with Docker Compose on one VPS. The intended production stack is `api`, `socket`, `postgres`, `redis`, and `nginx`.
 
 ## Current Startup Audit
 
 - The app currently has two Node entrypoints, not one: `server/index.js` for Express/API/static frontend on port `8080`, and `server/socket/index.js` for Socket.IO on port `9000`.
 - The Express server serves `client/build` directly, so the production Docker image builds the React client and copies it next to the server code.
 - PM2 is no longer needed in Docker. Compose runs `api` and `socket` as separate services with `restart: unless-stopped`.
-- MongoDB was previously read from `server/config/*.json` as `mongodb://127.0.0.1/letscube`; containers should use `MONGO_URL=mongodb://mongo:27017/letscube`.
+- PostgreSQL is the only durable application datastore. The runtime does not connect to MongoDB.
 - Redis was previously hardcoded to `localhost:6379` in the socket process; it is now env-driven with `REDIS_URL=redis://redis:6379`.
 - Required production secrets are `AUTH_SECRET`, `WCA_CLIENT_ID`, and `WCA_CLIENT_SECRET`. The client build also needs `REACT_APP_WCA_CLIENT_ID`.
 - The target Node runtime is Node `22.17.0`, and the frontend is built with Vite.
@@ -26,7 +26,6 @@ Development ports:
 - Client: `http://localhost:3000`
 - API/static server: `http://localhost:8080`
 - Socket.IO: `http://localhost:9000`
-- MongoDB: `127.0.0.1:27017`
 - Redis: `127.0.0.1:6379`
 
 The dev override bind mounts the repo and keeps container `node_modules` in named volumes.
@@ -51,7 +50,7 @@ immutable. `APP_IMAGE_TAG=local` remains available for direct development and
 one-off Compose use. The deployment script always overrides `APP_IMAGE_TAG`
 with the commit it checked out.
 
-The nginx container listens on ports `80` and `443`, proxies `/socket.io/` to `socket:9000`, and proxies everything else to `api:8080`. MongoDB, PostgreSQL, and Redis are internal only.
+The nginx container listens on ports `80` and `443`, proxies `/socket.io/` to `socket:9000`, and proxies everything else to `api:8080`. PostgreSQL and Redis are internal only.
 
 TLS expects Let’s Encrypt files at:
 
@@ -75,7 +74,6 @@ View logs:
 ```bash
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f api
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f socket
-docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f mongo
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f postgres
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f redis
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs -f nginx
@@ -228,8 +226,8 @@ run the purge. Correct the release and redeploy it first. After step 3, the
 privacy-safe commit is the minimum supported rollback image.
 
 The PostgreSQL `app.users.email` column remains temporarily as an always-empty
-compatibility column. Current dual writes never send it a value and clear a
-legacy value whenever they update an existing row. Removing the column is phase two:
+compatibility column. Runtime writes never send it a value and clear a legacy
+value whenever they update an existing row. Removing the column is phase two:
 first deploy an application release that no longer references the compatibility
 column, advance every supported rollback image to that release, and only then
 apply a migration that drops it. Do not combine that drop with this cutover.
@@ -247,10 +245,8 @@ their realtime relay; normal room behavior is unaffected.
 ### Health Checks
 
 The API and socket processes expose dependency-aware health endpoints.
-Unavailable MongoDB or Redis returns HTTP `503` with the failing check marked
-`error`. PostgreSQL dual writes are optional, so a PostgreSQL outage returns
-HTTP `200` with overall status `degraded` while the primary MongoDB/Redis path
-remains ready.
+Unavailable PostgreSQL or Redis returns HTTP `503` with the failing check marked
+`error`. PostgreSQL is required for both application processes.
 
 ```bash
 curl -sS https://letscube.net/health/api
@@ -264,43 +260,47 @@ connection in addition to the HTTP readiness endpoint.
 
 ## Backups And Restore
 
-Run a MongoDB backup:
+Run a PostgreSQL backup from the host or a trusted administration environment:
 
 ```bash
-APP_DIR=/opt/letscube BACKUP_DIR=/opt/letscube/backups scripts/backup-mongo.sh
+BACKUP_DIR=/opt/letscube/backups
+mkdir -p "$BACKUP_DIR"
+docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod \
+  exec -T postgres pg_dump -U "$PGUSER" -d "$PGDATABASE" -Fc \
+  > "$BACKUP_DIR/letscube-postgres-$(date -u +%Y%m%dT%H%M%SZ).dump"
 ```
 
-The backup script creates timestamped gzip archives and keeps 7 daily, 4 weekly, and 3 monthly local backups. To upload off-server, configure `BACKUP_S3_URI` plus AWS or S3-compatible credentials in the environment.
+Retain encrypted PostgreSQL backups according to the hosting policy and test
+restores against a separate database before relying on them.
 
 Example cron:
 
 ```cron
-15 3 * * * cd /opt/letscube && /opt/letscube/scripts/backup-mongo.sh >> /opt/letscube/logs/backup-mongo.log 2>&1
+15 3 * * * cd /opt/letscube && docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod exec -T postgres pg_dump -U "$PGUSER" -d "$PGDATABASE" -Fc > "/opt/letscube/backups/letscube-postgres-$(date -u +\%Y\%m\%dT\%H\%M\%SZ).dump"
 ```
 
-Restore from a backup:
+Restore into a separate PostgreSQL database for verification:
 
 ```bash
-APP_DIR=/opt/letscube scripts/restore-mongo.sh /opt/letscube/backups/letscube-mongo-daily-YYYYmmddTHHMMSSZ.archive.gz
+docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod \
+  exec -T postgres pg_restore -U "$PGUSER" -d "$PGDATABASE" --clean --if-exists < /path/to/letscube-postgres.dump
 ```
-
-The restore script requires typing `RESTORE` and uses `mongorestore --drop`.
 
 ## Migration To A New VPS
 
 Do not upgrade the old VPS in place for this migration.
 
 1. Snapshot the existing VPS.
-2. Take a fresh MongoDB backup on the current server and copy it off-server.
+2. Take a fresh backup of the source database and copy it off-server.
 3. Create a new VPS.
 4. Install Docker Engine and the modern `docker compose` plugin.
 5. Clone this repo to `/opt/letscube`.
 6. Create `.env.prod` with production secrets and domains.
 7. Copy or issue Let’s Encrypt certs for `letscube.net`.
-8. Start MongoDB, PostgreSQL, and Redis containers.
-9. Restore MongoDB from the production backup.
+8. Start PostgreSQL and Redis containers.
+9. Run `yarn workspace letscube-server postgres:migrate` and the documented one-time MongoDB backfill during the maintenance window.
 10. Start the full production stack.
 11. Test frontend loading, login, room create/join, race/session flows, Redis-backed socket behavior, backups, and restore on non-production data.
-12. Confirm MongoDB, PostgreSQL, and Redis are not publicly reachable.
+12. Confirm PostgreSQL and Redis are not publicly reachable.
 13. Point DNS at the new VPS.
 14. Keep the old VPS available for rollback until the new stack has been stable.

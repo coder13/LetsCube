@@ -1,7 +1,7 @@
 const session = require('express-session');
-const { default: MongoStore } = require('connect-mongo');
 
 const config = require('../runtimeConfig');
+const PostgresSessionStore = require('../postgres/sessionStore');
 
 module.exports = session({
   secret: config.auth.secret,
@@ -13,7 +13,5 @@ module.exports = session({
     secure: process.env.NODE_ENV === 'prod',
     sameSite: 'strict',
   },
-  store: MongoStore.create({
-    mongoUrl: config.mongodb,
-  }),
+  store: new PostgresSessionStore(),
 });

@@ -11,7 +11,6 @@ x-app-environment: &app-environment
   METRICS_ENABLED: ${METRICS_ENABLED:-true}
   METRICS_RETENTION_DAYS: ${METRICS_RETENTION_DAYS:-90}
   METRICS_HASH_SECRET: ${METRICS_HASH_SECRET:-}
-  MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}
   DATABASE_URL: ${DATABASE_URL:-}
@@ -49,7 +48,7 @@ services:
     environment:
       <<: *app-environment
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -69,7 +68,7 @@ services:
     environment:
       <<: *app-environment
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -80,17 +79,6 @@ services:
       interval: 30s
       start_interval: 2s
       timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  mongo:
-    image: mongo:7.0
-    volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
-      interval: 30s
-      timeout: 10s
       retries: 5
       start_period: 30s
 
@@ -121,6 +109,5 @@ services:
       retries: 5
 
 volumes:
-  mongo-data:
   postgres-data:
   redis-data:

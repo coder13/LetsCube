@@ -176,7 +176,7 @@ if ! "${COMPOSE[@]}" build api; then
 fi
 
 if ! "${COMPOSE[@]}" up -d --no-recreate --wait \
-  --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" mongo postgres redis; then
+  --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" postgres redis; then
   echo "Failed to start backing services; no application containers were replaced." >&2
   print_retry_hint
   exit 1

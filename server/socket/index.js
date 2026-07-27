@@ -5,7 +5,6 @@ const Redis = require('ioredis');
 
 const config = require('../runtimeConfig');
 const session = require('../middlewares/session');
-const { connect } = require('../database');
 const { createHealthHandler, createHealthReporter } = require('../health');
 const { initializePostgres, pool } = require('../postgres');
 const logger = require('../logger');
@@ -52,8 +51,9 @@ const init = async () => {
   server.on('error', logSocketError('http server'));
   io.on('error', logSocketError('server'));
 
-  const mongoose = await connect();
-  await initializePostgres();
+  if (!(await initializePostgres())) {
+    throw new Error('PostgreSQL is required for the socket runtime');
+  }
 
   const pubClient = new Redis(config.redis.url || {
     host: config.redis.host,
@@ -79,15 +79,9 @@ const init = async () => {
   const reportHealth = createHealthReporter({
     service: 'socket',
     checks: {
-      mongodb: () => mongoose.connection.readyState === 1,
-      postgres: {
-        required: false,
-        check: async () => {
-          if (config.postgres.enabled) {
-            await pool.query('SELECT 1');
-          }
-          return true;
-        },
+      postgres: async () => {
+        await pool.query('SELECT 1');
+        return true;
       },
       redis: async () => pubClient.status === 'ready'
         && subClient.status === 'ready'

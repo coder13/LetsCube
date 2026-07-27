@@ -1,17 +1,15 @@
 # Room-to-RaceSession backfill and reconciliation contract
 
-This document defines the safe migration contract for issue #175. It is a
-specification only: it adds no migration, command, MongoDB write, or production
-operation. It applies after the additive `RaceSession` schema is available and
-before PostgreSQL becomes authoritative for the complete room aggregate.
+This document defines the safe one-time migration contract for issue #175. The
+implemented command is `postgres:migrate-from-mongo`; it is run only during the
+maintenance-window cutover after the `RaceSession` schema is available.
 
-The [data migration guide](data.md) describes the current MongoDB-backed
-dual-write phase. The target Room and RaceSession ownership contract is a
-prerequisite for implementing this specification.
+The [data migration guide](data.md) describes the runtime source-of-truth and
+backfill procedure.
 
 ## Scope and source boundary
 
-At the start of this work, MongoDB is authoritative. A legacy Mongo room maps
+The legacy Mongo source maps
 to exactly one PostgreSQL Room and exactly one initial RaceSession, including
 its current attempts, results, and participant state. The backfill must not
 infer, synthesize, or claim to recover events that a prior legacy event change

@@ -1,4 +1,4 @@
-const { RELATIONSHIP_STATUSES } = require('../models/friendRelationship');
+const { RELATIONSHIP_STATUSES } = require('../postgres/sqlSocialModels');
 
 const ACTIONS = Object.freeze({
   ACCEPT: 'accept',

@@ -6,7 +6,6 @@ const { parseCommand } = require('../lib/commands');
 const config = require('../../runtimeConfig');
 const logger = require('../../logger');
 const metrics = require('../../metrics');
-const { markRoomDeleted } = require('../../postgres/dualWrite');
 const { Room, User } = require('../../models');
 const publicUserProjection = require('../../social/publicUser');
 const raceInvitationService = require('../../social/raceInvitationService');
@@ -738,7 +737,6 @@ module.exports = (io, middlewares) => {
 
         const res = await Room.deleteOne({ _id: room._id });
         if (res.deletedCount > 0) {
-          await markRoomDeleted(room._id);
           socket.room = undefined;
           acknowledgment(null);
           ns().emit(Protocol.ROOM_DELETED, id);

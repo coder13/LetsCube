@@ -94,7 +94,7 @@ module.exports = (app, passport, rateLimitOptions = apiRateLimitOptions()) => {
 
       const user = await User.findOneAndUpdate({
         id: +profile.id,
-      }, buildWcaUserUpdate(profile, tokenRes.access_token), {
+      }, buildWcaUserUpdate(profile), {
         upsert: true,
         useFindAndModify: false,
         new: true,
