@@ -225,9 +225,9 @@ const SocialNotification = {
       INSERT INTO app.social_notifications (
         id, mongo_id, recipient_wca_user_id, actor_wca_user_id, type, source_type,
         source_id, dedupe_key, expires_at, source_created_at, source_updated_at
-      ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
       RETURNING *
-    `, [id, document.recipientId, document.actorId, document.type, document.sourceType,
+    `, [id, id, document.recipientId, document.actorId, document.type, document.sourceType,
       String(document.sourceId), document.dedupeKey, document.expiresAt]);
     return notificationRow(rows[0]);
   },
