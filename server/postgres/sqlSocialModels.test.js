@@ -6,7 +6,7 @@ jest.mock('./index', () => ({
 }));
 
 const { pool } = require('./index');
-const { SocialNotification } = require('./sqlSocialModels');
+const { FriendRelationship, SocialNotification } = require('./sqlSocialModels');
 
 describe('PostgreSQL social notification model', () => {
   beforeEach(() => {
@@ -41,5 +41,22 @@ describe('PostgreSQL social notification model', () => {
       'friend_request:relationship-1',
       expiresAt,
     ]);
+  });
+
+  it('does not use the read-query alias in relationship updates', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'relationship-id' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'relationship-id' }] });
+
+    await FriendRelationship.findOneAndUpdate(
+      { _id: 'relationship-id', revision: 1 },
+      { $set: { status: 'accepted' }, $inc: { revision: 1 } },
+    );
+
+    const [sql] = pool.query.mock.calls[0];
+    expect(sql).toContain('UPDATE app.friend_relationships');
+    expect(sql).toContain('WHERE id = $2::uuid AND revision = $3');
+    expect(sql).not.toContain('fr.id');
+    expect(sql).not.toContain('fr.revision');
   });
 });

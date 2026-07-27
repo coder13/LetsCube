@@ -51,17 +51,18 @@ const blockSelect = `
   JOIN app.users blocked ON blocked.id = ub.blocked_id
 `;
 
-const relationshipWhere = (criteria, values, offset = 0) => {
+const relationshipWhere = (criteria, values, offset = 0, alias = 'fr') => {
+  const column = (name) => (alias ? `${alias}.${name}` : name);
   const clauses = [];
-  if (criteria.pairKey) { values.push(criteria.pairKey); clauses.push(`fr.pair_key = $${values.length + offset}`); }
-  if (criteria._id) { values.push(String(criteria._id)); clauses.push(`fr.id = $${values.length + offset}::uuid`); }
-  if (criteria.revision !== undefined) { values.push(criteria.revision); clauses.push(`fr.revision = $${values.length + offset}`); }
-  if (criteria.status?.$in) { values.push(criteria.status.$in); clauses.push(`fr.status = ANY($${values.length + offset}::text[])`); }
+  if (criteria.pairKey) { values.push(criteria.pairKey); clauses.push(`${column('pair_key')} = $${values.length + offset}`); }
+  if (criteria._id) { values.push(String(criteria._id)); clauses.push(`${column('id')} = $${values.length + offset}::uuid`); }
+  if (criteria.revision !== undefined) { values.push(criteria.revision); clauses.push(`${column('revision')} = $${values.length + offset}`); }
+  if (criteria.status?.$in) { values.push(criteria.status.$in); clauses.push(`${column('status')} = ANY($${values.length + offset}::text[])`); }
   const or = criteria.$or;
   if (or && or.length) {
     const parts = or.map((item) => {
-      if (item.lowUserId !== undefined) { values.push(userId(item.lowUserId)); return `fr.low_user_id = $${values.length + offset}`; }
-      if (item.highUserId !== undefined) { values.push(userId(item.highUserId)); return `fr.high_user_id = $${values.length + offset}`; }
+      if (item.lowUserId !== undefined) { values.push(userId(item.lowUserId)); return `${column('low_user_id')} = $${values.length + offset}`; }
+      if (item.highUserId !== undefined) { values.push(userId(item.highUserId)); return `${column('high_user_id')} = $${values.length + offset}`; }
       return 'FALSE';
     });
     clauses.push(`(${parts.join(' OR ')})`);
@@ -134,7 +135,7 @@ const createRelationshipModel = () => ({
     if (!changes.fields.length) return createRelationshipModel().findOne(criteria);
     const offset = changes.values.length;
     const values = [];
-    const where = relationshipWhere(criteria, values, offset);
+    const where = relationshipWhere(criteria, values, offset, null);
     const updateResult = await pool.query(`UPDATE app.friend_relationships SET ${changes.fields.join(', ')}, source_updated_at = now(), ingested_at = now() WHERE ${where} RETURNING *`, [...changes.values, ...values]);
     if (!updateResult.rows[0] && options.upsert) return null;
     return createRelationshipModel().findOne({ _id: criteria._id });
