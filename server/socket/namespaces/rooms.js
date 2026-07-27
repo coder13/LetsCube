@@ -28,6 +28,11 @@ const {
   createSafeSocketHandler,
   optionalAcknowledgment,
 } = require('../lib/socketHandler');
+const {
+  mapToObject,
+  serializeAttempt,
+  serializeRoomMask,
+} = require('../lib/roomSerialization');
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -47,7 +52,7 @@ const roomMask = (room) => ({
 });
 
 // Data for people in room
-const joinRoomMask = _.partial(_.pick, _, privateRoomKeys);
+const joinRoomMask = (room) => serializeRoomMask(room, privateRoomKeys);
 const isRoomTypeEnabled = (type) => checkRoomTypeEnabled(type, config.grandPrix.enabled);
 
 const fetchRoom = (id) => Room.findById({ _id: id }).populate('users').populate('admin').populate('owner');
@@ -99,8 +104,8 @@ module.exports = (io, middlewares) => {
     const updatedRoom = await room.newAttempt();
     logger.debug('Sending new scramble to room', { roomId: room.id });
     ns().in(room.accessCode).emit(Protocol.NEW_ATTEMPT, {
-      waitingFor: updatedRoom.waitingFor,
-      attempt: updatedRoom.attempts[updatedRoom.attempts.length - 1],
+      waitingFor: mapToObject(updatedRoom.waitingFor),
+      attempt: serializeAttempt(updatedRoom.attempts[updatedRoom.attempts.length - 1]),
     });
     return updatedRoom;
   }
