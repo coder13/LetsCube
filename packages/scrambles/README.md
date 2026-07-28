@@ -30,8 +30,9 @@ details so Vite can consume it as a stable default export.
 Provider selection is explicit in `index.js`:
 
 - cubing.js is preferred for the events listed in `cubingEventIds`;
-- Scrambow handles custom practice events such as PLL, ZBLL, LSE, RU, and
-  optimal Clock; and
+- Scrambow handles 2x2 and Clock to preserve R/U/F 2x2 notation and the
+  conventional WCA Clock pin order, as well as custom practice events such as
+  PLL, ZBLL, LSE, RU, and optimal Clock; and
 - unknown event IDs are rejected.
 
 Do not treat Scrambow as a fallback for arbitrary cubing.js failures. A provider

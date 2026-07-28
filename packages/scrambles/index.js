@@ -3,7 +3,6 @@ const { generateCubingScramble } = require('./providers/cubing');
 const { generateScrambowScramble } = require('./providers/scrambow');
 
 const cubingEventIds = new Set([
-  '222',
   '333',
   '333bf',
   '333oh',
@@ -16,7 +15,6 @@ const cubingEventIds = new Set([
   '777',
   'minx',
   'pyram',
-  'clock',
   'skewb',
   'sq1',
   'fto',
