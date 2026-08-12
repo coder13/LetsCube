@@ -51,6 +51,19 @@ const normalizeUsername = (value, { allowEmpty = true } = {}) => {
   };
 };
 
+const normalizeStoredUsername = (value) => {
+  try {
+    return normalizeUsername(value);
+  } catch (err) {
+    if (err.code !== 'INVALID_USERNAME' || typeof value !== 'string') {
+      throw err;
+    }
+
+    // Keep legacy values readable while their owner chooses a valid username.
+    return { username: value, usernameNormalized: undefined };
+  }
+};
+
 const usernameConflict = () => new UsernameError(
   'USERNAME_TAKEN',
   'Username is already in use',
@@ -117,6 +130,7 @@ module.exports = {
   findUserByUsername,
   isUsernameDuplicateKeyError,
   normalizeUsername,
+  normalizeStoredUsername,
   searchUsersByUsernamePrefix,
   updateUsername,
 };
