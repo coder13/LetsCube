@@ -35,9 +35,8 @@ describe('PostgreSQL user repository', () => {
       usernameNormalized: undefined,
     });
 
-    expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('username_normalized'),
-      expect.arrayContaining(['Αλέξανδρος', null]),
-    );
+    const params = pool.query.mock.calls[0][1];
+    expect(params[3]).toBe('Αλέξανδρος');
+    expect(params[4]).toBeNull();
   });
 });

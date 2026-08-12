@@ -41,12 +41,15 @@ const userParams = (user, fallbackName = 'Unknown User') => {
   const id = numericId(user.id);
   if (!id) throw new Error('A valid WCA user ID is required');
   const normalized = normalizeStoredUsername(user.username);
+  const username = normalized.username === undefined ? null : normalized.username;
+  const usernameNormalized = normalized.usernameNormalized === undefined
+    ? null : normalized.usernameNormalized;
   return [
     stableId('user', id),
     id,
     user.name || fallbackName,
-    normalized.username || null,
-    normalized.usernameNormalized || null,
+    username,
+    usernameNormalized,
     user.wcaId || null,
     {
       showWCAID: !!user.showWCAID,
