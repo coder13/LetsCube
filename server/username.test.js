@@ -1,10 +1,10 @@
 /** @jest-environment node */
-/* eslint-env jest */
 
 const {
   canonicalizeUsername,
   findUserByUsername,
   normalizeUsername,
+  normalizeStoredUsername,
   searchUsersByUsernamePrefix,
   updateUsername,
 } = require('./username');
@@ -25,6 +25,13 @@ describe('username normalization and lookup', () => {
   it('represents empty optional usernames as absent fields', () => {
     expect(normalizeUsername('   ')).toEqual({
       username: undefined,
+      usernameNormalized: undefined,
+    });
+  });
+
+  it('preserves legacy non-ASCII usernames during unrelated writes', () => {
+    expect(normalizeStoredUsername('Αλέξανδρος')).toEqual({
+      username: 'Αλέξανδρος',
       usernameNormalized: undefined,
     });
   });

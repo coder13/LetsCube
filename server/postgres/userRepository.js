@@ -1,6 +1,6 @@
 const { pool } = require('./index');
 const { stableId } = require('./dualWrite');
-const { normalizeUsername } = require('../username');
+const { normalizeStoredUsername } = require('../username');
 
 const numericId = (value) => {
   const id = Number(value);
@@ -40,7 +40,7 @@ const toUser = (row) => {
 const userParams = (user, fallbackName = 'Unknown User') => {
   const id = numericId(user.id);
   if (!id) throw new Error('A valid WCA user ID is required');
-  const normalized = normalizeUsername(user.username);
+  const normalized = normalizeStoredUsername(user.username);
   return [
     stableId('user', id),
     id,
