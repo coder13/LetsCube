@@ -57,6 +57,22 @@ case "$DEPLOY_STRATEGY" in
 esac
 
 current_commit="$(git rev-parse HEAD)"
+changed_files=()
+
+if [ "$previous_commit" != "$current_commit" ]; then
+  mapfile -d '' changed_files < <(
+    git diff --name-only --no-renames -z "$previous_commit" "$current_commit"
+  )
+fi
+
+production_compose_changed="false"
+for changed_file in "${changed_files[@]}"; do
+  case "$changed_file" in
+    compose.yml|compose.prod.yml)
+      production_compose_changed="true"
+      ;;
+  esac
+done
 
 privacy_cutover_file="${PRIVACY_EMAIL_CUTOVER_FILE:-$APP_DIR/.privacy-email-cutover}"
 if [ -f "$privacy_cutover_file" ]; then
@@ -97,9 +113,6 @@ if [ "$DEPLOY_TARGET" = "auto" ]; then
     # behavior of replacing the complete application deployment.
     resolved_target="all"
   else
-    mapfile -d '' changed_files < <(
-      git diff --name-only --no-renames -z "$previous_commit" "$current_commit"
-    )
     resolved_target="$(
       bash scripts/classify-deploy-target.sh "${changed_files[@]}"
     )"
@@ -169,13 +182,18 @@ fi
 # Compose usage compatible with the default `local` tag.
 export APP_IMAGE_TAG="$current_commit"
 
+compose_recreate_args=()
+if [ "$production_compose_changed" = "true" ]; then
+  compose_recreate_args=(--force-recreate)
+fi
+
 if ! "${COMPOSE[@]}" build api; then
   echo "Application image build failed; no application containers were replaced." >&2
   print_retry_hint
   exit 1
 fi
 
-if ! "${COMPOSE[@]}" up -d --wait \
+if ! "${COMPOSE[@]}" up -d "${compose_recreate_args[@]}" --wait \
   --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" postgres redis; then
   echo "Failed to start backing services; no application containers were replaced." >&2
   print_retry_hint
@@ -223,7 +241,7 @@ reload_nginx() {
     echo "nginx is not running; starting it without replacing dependencies."
   fi
 
-  "${compose_command[@]}" up -d --no-deps --wait \
+  "${compose_command[@]}" up -d --no-deps "${compose_recreate_args[@]}" --wait \
     --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" nginx || return 1
 
   "${compose_command[@]}" exec -T nginx nginx -s reload
@@ -322,4 +340,8 @@ echo "Deployment complete: $resolved_target now uses letscube-app:$current_commi
 
 if ! docker image prune -af --filter "until=168h"; then
   echo "Deployment succeeded, but unused image cleanup failed." >&2
+fi
+
+if ! docker builder prune -af --max-used-space 2GB; then
+  echo "Deployment succeeded, but build cache cleanup failed." >&2
 fi
