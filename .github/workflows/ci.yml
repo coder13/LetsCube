@@ -18,6 +18,12 @@ jobs:
       - name: Validate production metrics configuration
         run: scripts/test-compose-metrics-config.sh
 
+      - name: Validate production deployment
+        run: |
+          scripts/test-deploy-classifier.sh
+          scripts/test-deploy.sh
+          scripts/test-backup-postgres.sh
+
       - name: Validate CI branch coverage
         run: scripts/test-ci-branches.sh
 

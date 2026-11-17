@@ -260,23 +260,32 @@ connection in addition to the HTTP readiness endpoint.
 
 ## Backups And Restore
 
-Run a PostgreSQL backup from the host or a trusted administration environment:
+Run the backup script from the production checkout:
 
 ```bash
-BACKUP_DIR=/opt/letscube/backups
-mkdir -p "$BACKUP_DIR"
-docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod \
-  exec -T postgres pg_dump -U "$PGUSER" -d "$PGDATABASE" -Fc \
-  > "$BACKUP_DIR/letscube-postgres-$(date -u +%Y%m%dT%H%M%SZ).dump"
+APP_DIR=/opt/letscube \
+BACKUP_DIR=/opt/letscube/backups \
+BACKUP_RETENTION_DAYS=14 \
+  ./scripts/backup-postgres.sh
 ```
 
-Retain encrypted PostgreSQL backups according to the hosting policy and test
-restores against a separate database before relying on them.
+The script writes a temporary file before it publishes the backup. It removes
+PostgreSQL backups that are older than the retention period. It does not remove
+other files.
+
+Copy encrypted backups to a different host. Test restores against a separate
+database before you rely on the backups.
 
 Example cron:
 
+Create the log directory before you install the cron entry:
+
+```bash
+mkdir -p /opt/letscube/logs
+```
+
 ```cron
-15 3 * * * cd /opt/letscube && docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod exec -T postgres pg_dump -U "$PGUSER" -d "$PGDATABASE" -Fc > "/opt/letscube/backups/letscube-postgres-$(date -u +\%Y\%m\%dT\%H\%M\%SZ).dump"
+17 8 * * * flock -n /tmp/letscube-postgres-backup.lock sh -c 'cd /opt/letscube && APP_DIR=/opt/letscube BACKUP_DIR=/opt/letscube/backups BACKUP_RETENTION_DAYS=14 ./scripts/backup-postgres.sh' >> /opt/letscube/logs/backup-postgres.log 2>&1
 ```
 
 Restore into a separate PostgreSQL database for verification:
