@@ -53,6 +53,16 @@ model SocialNotification {
   @@schema("app")
 }
 
+model Session {
+  sid    String   @id
+  sess   Json     @db.JsonB
+  expire DateTime @db.Timestamptz(6)
+
+  @@index([expire], map: "sessions_expire_idx")
+  @@map("sessions")
+  @@schema("app")
+}
+
 model FriendRelationship {
   id                String    @id @db.Uuid
   pairKey           String    @unique(map: "friend_relationships_pair_key_key") @map("pair_key")
@@ -126,6 +136,7 @@ model Room {
   raceSessions            RaceSession[]
   kind                    String            @default("normal")
   competitionRef          String?           @map("competition_ref")
+  membershipRevision      Int               @default(0) @map("membership_revision")
 
   @@map("rooms")
   @@schema("app")
@@ -182,6 +193,7 @@ model RoomParticipant {
   banned          Boolean  @default(false)
   inRoom          Boolean  @default(false) @map("in_room")
   registered      Boolean  @default(false)
+  presenceRevision Int     @default(0) @map("presence_revision")
   sourceUpdatedAt DateTime @map("source_updated_at") @db.Timestamptz(6)
   ingestedAt      DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
   room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction)

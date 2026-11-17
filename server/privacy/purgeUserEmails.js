@@ -1,32 +1,14 @@
-const mongoose = require('mongoose');
-const database = require('../database');
 const logger = require('../logger');
-const { pool } = require('../postgres');
-const { purgeUserEmails } = require('./userEmailPurge');
-
-const report = (summary) => {
-  logger.info(
-    '[PRIVACY] User email purge result: '
-      + `MongoDB matched=${summary.mongoMatched} modified=${summary.mongoModified} `
-      + `remaining=${summary.mongoRemaining}; PostgreSQL cleared=${summary.postgresCleared} `
-      + `remaining=${summary.postgresRemaining}`,
-  );
-};
+const { initializePostgres, pool } = require('../postgres');
 
 const run = async () => {
-  const connection = await database.connect();
-
   try {
-    return await purgeUserEmails({
-      mongoUsers: connection.connection.collection('users'),
-      postgresClient: pool,
-      report,
-    });
+    if (!(await initializePostgres())) throw new Error('PostgreSQL is unavailable');
+    const result = await pool.query('UPDATE app.users SET email = NULL WHERE email IS NOT NULL');
+    logger.info(`[PRIVACY] Cleared ${result.rowCount} PostgreSQL user email values`);
+    return { postgresCleared: result.rowCount };
   } finally {
-    await Promise.allSettled([
-      mongoose.disconnect(),
-      pool.end(),
-    ]);
+    await pool.end();
   }
 };
 

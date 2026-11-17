@@ -19,7 +19,7 @@ The root `yarn.lock` is authoritative. Do not install separately inside
 
 ## Local Services With Host Node
 
-The simplest workflow runs MongoDB, PostgreSQL, and Redis in Docker while the
+The simplest workflow runs PostgreSQL and Redis in Docker while the
 three application processes run on the host:
 
 ```sh
@@ -34,7 +34,6 @@ Service ports are bound to localhost:
 | Client | `http://localhost:3000` |
 | API | `http://localhost:8080` |
 | Socket.IO | `http://localhost:9000` |
-| MongoDB | `127.0.0.1:27017` |
 | PostgreSQL | `127.0.0.1:55433` |
 | Redis | `127.0.0.1:6379` |
 
@@ -76,7 +75,7 @@ environment variables. Important groups are documented in `.env.example`:
 
 - process ports and feature flags;
 - public client build origins;
-- MongoDB, Redis, and PostgreSQL connections;
+- PostgreSQL and Redis connections;
 - session and WCA OAuth secrets;
 - CORS origins and metric retention; and
 - production TLS and backup paths.
@@ -194,7 +193,7 @@ failure.
 
 ```sh
 docker compose -f docker-compose.yml ps
-docker compose -f docker-compose.yml logs mongo postgres redis
+  docker compose -f docker-compose.yml logs postgres redis
 ```
 
 The API and Socket.IO health endpoints are `http://localhost:8080/health/api`

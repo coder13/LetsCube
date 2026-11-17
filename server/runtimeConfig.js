@@ -68,7 +68,6 @@ module.exports = {
       baseConfig.socketio.reconnectGraceMs,
     ),
   },
-  mongodb: process.env.MONGO_URL || process.env.MONGODB_URI || baseConfig.mongodb,
   redis,
   wcaSource: process.env.WCA_SOURCE || process.env.REACT_APP_WCA_ORIGIN || baseConfig.wcaSource,
   auth: {

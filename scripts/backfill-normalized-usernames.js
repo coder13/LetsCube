@@ -1,116 +1,45 @@
 #!/usr/bin/env node
-/* eslint-disable import/no-extraneous-dependencies, no-console */
-const path = require('path');
-const mongoose = require('mongoose');
+/* eslint-disable no-console */
 
-process.env.GETCONFIG_ROOT = process.env.GETCONFIG_ROOT
-  || path.join(__dirname, '../server/config');
-
-const config = require('../server/runtimeConfig');
-const {
-  assertUsernameRolloutReady,
-  planUsernameBackfill,
-} = require('../server/usernameBackfill');
-const { reconcilePostgresUsernames } = require('../server/usernamePostgresBackfill');
+const { normalizeUsername } = require('../server/username');
+const { initializePostgres, pool } = require('../server/postgres');
 
 const args = new Set(process.argv.slice(2));
-const supportedArgs = new Set(['--apply', '--create-index']);
-const unknownArg = [...args].find((arg) => !supportedArgs.has(arg));
-
-const duplicateNormalizedUsernames = (collection) => collection.aggregate([
-  { $match: { usernameNormalized: { $exists: true } } },
-  { $group: { _id: '$usernameNormalized', count: { $sum: 1 } } },
-  { $match: { count: { $gt: 1 } } },
-  { $limit: 1 },
-]).toArray();
-
-const readUsers = (collection) => collection.find({}, {
-  projection: {
-    _id: 1,
-    id: 1,
-    username: 1,
-    usernameNormalized: 1,
-  },
-}).toArray();
-
-let postgresPool;
+const apply = args.has('--apply');
+const unknownArg = [...args].find((arg) => !['--apply', '--create-index'].includes(arg));
 
 const run = async () => {
-  if (unknownArg) {
-    throw new Error(`Unknown argument: ${unknownArg}`);
-  }
+  if (unknownArg) throw new Error(`Unknown argument: ${unknownArg}`);
+  if (!(await initializePostgres())) throw new Error('PostgreSQL is unavailable');
 
-  const apply = args.has('--apply');
-  const createIndex = args.has('--create-index');
-  if (createIndex && !apply) {
-    throw new Error('--create-index must be used with --apply');
-  }
+  const { rows } = await pool.query(
+    'SELECT id, username, username_normalized FROM app.users ORDER BY wca_user_id',
+  );
+  const changes = rows.flatMap((row) => {
+    const normalized = normalizeUsername(row.username);
+    return normalized.usernameNormalized === row.username_normalized
+      ? [] : [{ ...row, normalized }];
+  });
+  console.log(JSON.stringify({ mode: apply ? 'apply' : 'dry-run', pendingChanges: changes.length }, null, 2));
 
-  mongoose.set('strictQuery', false);
-  await mongoose.connect(config.mongodb, { autoIndex: false });
-  const users = mongoose.connection.collection('users');
-  const documents = await readUsers(users);
-  const plan = planUsernameBackfill(documents);
-
-  console.log(JSON.stringify({
-    mode: apply ? 'apply' : 'dry-run',
-    ...plan.report,
-  }, null, 2));
-
-  if (!apply) {
-    return;
-  }
-
-  if (plan.operations.length) {
-    const result = await users.bulkWrite(plan.operations, { ordered: false });
-    console.log(`Updated ${result.modifiedCount} user records.`);
-  }
-
-  const verifiedPlan = planUsernameBackfill(await readUsers(users));
-  if (verifiedPlan.report.pendingChanges || verifiedPlan.report.privacyRemoved) {
-    throw new Error('MongoDB username backfill verification failed');
-  }
-
-  let postgres = { status: 'disabled' };
-  if (config.postgres.enabled) {
-    // Avoid creating a PostgreSQL pool for dry runs or explicitly disabled mirrors.
-    // eslint-disable-next-line global-require
-    ({ pool: postgresPool } = require('../server/postgres'));
-    postgres = {
-      status: 'reconciled',
-      ...await reconcilePostgresUsernames({
-        client: postgresPool,
-        users: verifiedPlan.postgresUsers,
-      }),
-    };
-  }
-
-  console.log(JSON.stringify({
-    verification: {
-      mongoPendingChanges: verifiedPlan.report.pendingChanges,
-      mongoPrivateValuesRemaining: verifiedPlan.report.privacyRemoved,
-      postgres,
-    },
-  }, null, 2));
-
-  if (createIndex) {
-    assertUsernameRolloutReady(verifiedPlan.report);
-    const duplicates = await duplicateNormalizedUsernames(users);
-    if (duplicates.length) {
-      throw new Error('Duplicate normalized usernames remain; unique index was not created');
+  if (apply) {
+    for (const row of changes) {
+      await pool.query(`
+        UPDATE app.users
+        SET username = $2, username_normalized = $3, source_updated_at = now(), ingested_at = now()
+        WHERE id = $1
+      `, [row.id, row.normalized.username || null, row.normalized.usernameNormalized || null]);
     }
-    const name = await users.createIndex(
-      { usernameNormalized: 1 },
-      { name: 'users_username_normalized_unique', sparse: true, unique: true },
-    );
-    console.log(`Verified MongoDB index ${name}.`);
+    console.log(`Updated ${changes.length} user records.`);
   }
+  return changes.length;
 };
 
-run().catch((err) => {
-  console.error(err.message);
-  process.exitCode = 1;
-}).finally(() => Promise.allSettled([
-  mongoose.disconnect(),
-  ...(postgresPool ? [postgresPool.end()] : []),
-]));
+if (require.main === module) {
+  run().catch((err) => {
+    console.error(err.message);
+    process.exitCode = 1;
+  }).finally(() => pool.end());
+}
+
+module.exports = { run };

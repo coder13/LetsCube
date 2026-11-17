@@ -55,10 +55,18 @@ fake_docker() {
 
   case "$1" in
     inspect)
-      printf 'sha256:old-image\n'
+      if [[ "$*" == *'.State.Health'* ]]; then
+        if [ "${FAKE_UNHEALTHY_CONTAINER:-}" = "${*: -1}" ]; then
+          printf 'unhealthy\n'
+        else
+          printf 'healthy\n'
+        fi
+      else
+        printf 'sha256:old-image\n'
+      fi
       return 0
       ;;
-    image)
+    builder|image)
       return 0
       ;;
     compose)
@@ -99,6 +107,12 @@ fake_docker() {
         ;;
       nginx)
         [ -z "${FAKE_RUNNING_NGINX:-}" ] || printf '%s\n' "$FAKE_RUNNING_NGINX"
+        ;;
+      postgres)
+        [ -z "${FAKE_RUNNING_POSTGRES:-}" ] || printf '%s\n' "$FAKE_RUNNING_POSTGRES"
+        ;;
+      redis)
+        [ -z "${FAKE_RUNNING_REDIS:-}" ] || printf '%s\n' "$FAKE_RUNNING_REDIS"
         ;;
     esac
     return 0
@@ -207,13 +221,17 @@ run_bootstrap_test() {
     TMPDIR="$scenario/tmp" \
     bash "$app_dir/scripts/deploy.sh" > "$output" 2>&1
 
-  assert_contains "$(<"$output")" 'Missing runtime services: api socket nginx; deploying all.'
+  assert_contains "$(<"$output")" \
+    'Missing production services: postgres redis api socket nginx; deploying all.'
   assert_contains "$(<"$output")" '(target: all)'
 
-  backing_line="$(command_line "$log" 'up -d --no-recreate --wait --wait-timeout 17 mongo postgres redis')"
+  backing_line="$(command_line "$log" \
+    'up -d --force-recreate --wait --wait-timeout 17 postgres')"
   migration_line="$(command_line "$log" 'run --rm --no-deps migrate')"
-  socket_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 socket')"
-  api_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 api')"
+  socket_line="$(command_line "$log" \
+    'up -d --no-deps --force-recreate --wait --wait-timeout 17 socket')"
+  api_line="$(command_line "$log" \
+    'up -d --no-deps --force-recreate --wait --wait-timeout 17 api')"
 
   if [ "$backing_line" -ge "$migration_line" ]; then
     echo 'Migrations ran before backing services became ready.' >&2
@@ -223,6 +241,44 @@ run_bootstrap_test() {
     echo 'Bootstrap did not deploy socket before API.' >&2
     exit 1
   fi
+
+  assert_contains "$(<"$log")" 'docker image prune -af --filter until=168h'
+  assert_contains "$(<"$log")" 'docker builder prune -af --max-used-space 2GB'
+}
+
+run_compose_change_test() {
+  local scenario="$TEST_ROOT/compose-change"
+  local app_dir="$scenario/app"
+  local log="$scenario/commands.log"
+  local output="$scenario/output.log"
+  local git_state="$scenario/git-state"
+  local rollback_marker="$scenario/rollback"
+  local previous_commit="1111111111111111111111111111111111111111"
+  local current_commit="2222222222222222222222222222222222222222"
+
+  mkdir -p "$scenario/tmp"
+  prepare_app "$app_dir"
+
+  PATH="$FAKE_BIN:$PATH" \
+    APP_DIR="$app_dir" \
+    DEPLOY_TEST_LOG="$log" \
+    DEPLOY_WAIT_TIMEOUT_SECONDS=17 \
+    ENV_FILE=.env.prod \
+    FAKE_CHANGED_PATH=compose.prod.yml \
+    FAKE_CURRENT_COMMIT="$current_commit" \
+    FAKE_GIT_STATE="$git_state" \
+    FAKE_PREVIOUS_COMMIT="$previous_commit" \
+    FAKE_ROLLBACK_MARKER="$rollback_marker" \
+    FAKE_RUNNING_API=api-container \
+    FAKE_RUNNING_NGINX=nginx-container \
+    FAKE_RUNNING_SOCKET=socket-container \
+    TMPDIR="$scenario/tmp" \
+    bash "$app_dir/scripts/deploy.sh" > "$output" 2>&1
+
+  assert_contains "$(<"$log")" \
+    'up -d --force-recreate --wait --wait-timeout 17 postgres redis'
+  assert_contains "$(<"$log")" \
+    'up -d --no-deps --force-recreate --wait --wait-timeout 17 nginx'
 }
 
 run_rollback_test() {
@@ -270,6 +326,78 @@ run_rollback_test() {
   assert_contains "$rollback_details" 'APP_IMAGE_TAG=rollback-socket-111111111111-'
   assert_contains "$(<"$log")" "git show $previous_commit:compose.yml"
   assert_contains "$(<"$log")" "git show $previous_commit:compose.prod.yml"
+
+  if [ "$(<"$app_dir/.last-successful-deploy")" != "$previous_commit" ]; then
+    echo 'Failed deployment changed the last successful commit.' >&2
+    exit 1
+  fi
+  if grep -Eq 'docker (image|builder) prune' "$log"; then
+    echo 'Failed deployment removed Docker data.' >&2
+    exit 1
+  fi
+
+  PATH="$FAKE_BIN:$PATH" \
+    APP_DIR="$app_dir" \
+    DEPLOY_TEST_LOG="$log" \
+    DEPLOY_WAIT_TIMEOUT_SECONDS=17 \
+    ENV_FILE=.env.prod \
+    FAKE_CHANGED_PATH=server/index.js \
+    FAKE_CURRENT_COMMIT="$current_commit" \
+    FAKE_GIT_STATE="$git_state" \
+    FAKE_PREVIOUS_COMMIT="$previous_commit" \
+    FAKE_ROLLBACK_MARKER="$rollback_marker" \
+    FAKE_RUNNING_API=api-container \
+    FAKE_RUNNING_NGINX=nginx-container \
+    FAKE_RUNNING_POSTGRES=postgres-container \
+    FAKE_RUNNING_REDIS=redis-container \
+    FAKE_RUNNING_SOCKET=socket-container \
+    TMPDIR="$scenario/tmp" \
+    bash "$app_dir/scripts/deploy.sh" >> "$output" 2>&1
+
+  if [ "$(<"$app_dir/.last-successful-deploy")" != "$current_commit" ]; then
+    echo 'Successful retry did not record the deployed commit.' >&2
+    exit 1
+  fi
+
+}
+
+run_unhealthy_service_test() {
+  local scenario="$TEST_ROOT/unhealthy"
+  local app_dir="$scenario/app"
+  local log="$scenario/commands.log"
+  local output="$scenario/output.log"
+  local git_state="$scenario/git-state"
+  local rollback_marker="$scenario/rollback"
+  local commit="3333333333333333333333333333333333333333"
+
+  mkdir -p "$scenario/tmp"
+  prepare_app "$app_dir"
+
+  PATH="$FAKE_BIN:$PATH" \
+    APP_DIR="$app_dir" \
+    DEPLOY_TEST_LOG="$log" \
+    DEPLOY_WAIT_TIMEOUT_SECONDS=17 \
+    ENV_FILE=.env.prod \
+    FAKE_CURRENT_COMMIT="$commit" \
+    FAKE_GIT_STATE="$git_state" \
+    FAKE_PREVIOUS_COMMIT="$commit" \
+    FAKE_ROLLBACK_MARKER="$rollback_marker" \
+    FAKE_RUNNING_API=api-container \
+    FAKE_RUNNING_NGINX=nginx-container \
+    FAKE_RUNNING_POSTGRES=postgres-container \
+    FAKE_RUNNING_REDIS=redis-container \
+    FAKE_RUNNING_SOCKET=socket-container \
+    FAKE_UNHEALTHY_CONTAINER=api-container \
+    TMPDIR="$scenario/tmp" \
+    bash "$app_dir/scripts/deploy.sh" > "$output" 2>&1
+
+  assert_contains "$(<"$output")" 'Unhealthy production services: api:unhealthy; deploying all.'
+  assert_contains "$(<"$log")" \
+    'up -d --no-deps --force-recreate --wait --wait-timeout 17 socket'
+  if grep -Fq 'up -d --force-recreate --wait --wait-timeout 17 postgres redis' "$log"; then
+    echo 'An unhealthy API caused healthy backing services to be recreated.' >&2
+    exit 1
+  fi
 }
 
 run_privacy_floor_test() {
@@ -309,7 +437,9 @@ run_privacy_floor_test() {
 }
 
 run_bootstrap_test
+run_compose_change_test
 run_rollback_test
+run_unhealthy_service_test
 run_privacy_floor_test
 
 echo 'Deploy script checks passed.'

@@ -153,7 +153,7 @@ describe('local app stack', () => {
     });
     cy.get('[role="dialog"]').contains('button', 'Create').click();
 
-    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[0-9a-f-]{36}$/);
     cy.get('.MuiBottomNavigation-root').should('not.be.visible');
     cy.get('thead tr').first().should('have.css', 'display', 'flex');
     cy.location('pathname').then((pathname) => {
@@ -178,7 +178,7 @@ describe('local app stack', () => {
     cy.get('#roomName').type(roomName);
     cy.get('[role="dialog"]').contains('button', 'Create').click();
 
-    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[0-9a-f-]{36}$/);
     cy.contains('Chat', { timeout: 10000 }).should('be.visible');
     cy.get('input[placeholder="Send Message"]').type(`${message}{enter}`);
 
@@ -239,7 +239,7 @@ describe('local app stack', () => {
     cy.visit('/friends');
     cy.contains(`cypress-${guestId}`, { timeout: 10000 }).parents('li')
       .contains('button', 'Race with me').click();
-    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[0-9a-f-]{36}$/);
 
     loginAs(guestId);
     cy.request(`${apiOrigin}/api/notifications`).then((response) => {
@@ -250,7 +250,7 @@ describe('local app stack', () => {
     cy.visit('/notifications');
     cy.contains('invited you to race.', { timeout: 10000 }).should('be.visible');
     cy.get('button[aria-label="join race notification"]').click();
-    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[a-f0-9]+$/);
+    cy.location('pathname', { timeout: 10000 }).should('match', /^\/rooms\/[0-9a-f-]{36}$/);
     cy.contains('Waiting For:', { timeout: 10000 }).should('be.visible');
   });
 });

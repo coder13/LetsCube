@@ -32,4 +32,13 @@ jq -e \
       )
   ' "$RENDERED_CONFIG" > /dev/null
 
-echo "Production metrics Compose configuration checks passed."
+jq -e '
+  [.services.api, .services.socket, .services.postgres, .services.redis, .services.nginx]
+  | all(
+      .logging.driver == "json-file"
+      and .logging.options["max-size"] == "20m"
+      and .logging.options["max-file"] == "3"
+    )
+' "$RENDERED_CONFIG" > /dev/null
+
+echo "Production Compose configuration checks passed."

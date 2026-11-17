@@ -1,0 +1,207 @@
+name: Production deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [master]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, branch, or tag to deploy. Defaults to master.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve release source
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.head_branch == 'master'
+      )
+    runs-on: ubuntu-24.04
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.ref || 'master' }}
+          fetch-depth: 0
+
+      - name: Resolve exact commit
+        id: source
+        run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Build immutable image
+    needs: resolve
+    runs-on: ubuntu-24.04
+    outputs:
+      image_ref: ${{ steps.image.outputs.image_ref }}
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish release image with retries
+        id: build
+        env:
+          IMAGE_TAG: ghcr.io/${{ github.repository }}:${{ needs.resolve.outputs.source_sha }}
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+        run: |
+          for attempt in 1 2 3; do
+            if docker buildx build . \
+              --build-arg "SOURCE_SHA=$SOURCE_SHA" \
+              --cache-from type=gha,scope=production-image \
+              --cache-to type=gha,mode=max,scope=production-image \
+              --metadata-file /tmp/build-metadata.json \
+              --push \
+              --tag "$IMAGE_TAG"; then
+              digest=$(jq -r '."containerimage.digest" // empty' /tmp/build-metadata.json)
+              [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+              echo "digest=$digest" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Image build attempt $attempt failed. Retrying in 30 seconds." >&2
+              sleep 30
+            fi
+          done
+          exit 1
+
+      - name: Record digest-qualified image
+        id: image
+        env:
+          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image_ref=$IMAGE_REPOSITORY@$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Activate production release
+    needs: [resolve, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    env:
+      APP_DIR: /opt/letscube/runtime
+      ENV_FILE: /home/www/letscube/.env.prod
+      PRIVACY_EMAIL_CUTOVER_FILE: /home/www/letscube/.privacy-email-cutover
+      SERVER_IP: ${{ secrets.SERVER_IP }}
+      SERVER_USER: www
+      SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+      IMAGE_REF: ${{ needs.image.outputs.image_ref }}
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Configure deployment SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Pull and validate the immutable image
+        run: |
+          docker pull "$IMAGE_REF"
+          test "$(docker image inspect "$IMAGE_REF" --format '{{index .RepoDigests 0}}')" = "$IMAGE_REF"
+          test "$(docker image inspect "$IMAGE_REF" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$SOURCE_SHA"
+          docker tag "$IMAGE_REF" "letscube-app:$SOURCE_SHA"
+
+      - name: Enforce the production privacy floor
+        run: |
+          cutover=$(ssh -q "$SERVER_USER@$SERVER_IP" \
+            "test ! -f '$PRIVACY_EMAIL_CUTOVER_FILE' || cat '$PRIVACY_EMAIL_CUTOVER_FILE'")
+          if [ -n "$cutover" ]; then
+            [[ "$cutover" =~ ^[0-9a-f]{40}$ ]]
+            git merge-base --is-ancestor "$cutover" "$SOURCE_SHA"
+          fi
+
+      - name: Stage release configuration
+        run: |
+          remote_release_dir="/tmp/letscube-release-$SOURCE_SHA"
+          ssh -q "$SERVER_USER@$SERVER_IP" "mkdir -p '$remote_release_dir'"
+          scp -q compose.yml compose.prod.yml nginx.conf \
+            scripts/deploy-image-release.sh scripts/check-production-health.sh \
+            scripts/repair-production-services.sh \
+            scripts/disable-legacy-deploy-cron.sh \
+            "$SERVER_USER@$SERVER_IP:$remote_release_dir/"
+
+      - name: Transfer the release image
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if docker save "letscube-app:$SOURCE_SHA" | gzip | \
+              ssh -q "$SERVER_USER@$SERVER_IP" 'gzip -d | docker load'; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Image transfer attempt $attempt failed. Retrying in 30 seconds." >&2
+              sleep 30
+            fi
+          done
+          exit 1
+
+      - name: Deploy with bounded automatic retries
+        run: |
+          remote_release_dir="/tmp/letscube-release-$SOURCE_SHA"
+          for attempt in 1 2 3; do
+            if ssh -q "$SERVER_USER@$SERVER_IP" \
+              "APP_DIR='$APP_DIR' ENV_FILE='$ENV_FILE' bash '$remote_release_dir/deploy-image-release.sh' '$SOURCE_SHA' '$remote_release_dir'"; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Deployment attempt $attempt failed. Retrying the same image in 30 seconds." >&2
+              sleep 30
+            fi
+          done
+          exit 1
+
+      - name: Replace the legacy deployment cron with health repair
+        run: |
+          remote_release_dir="/tmp/letscube-release-$SOURCE_SHA"
+          ssh -q "$SERVER_USER@$SERVER_IP" \
+            "APP_DIR='$APP_DIR' ENV_FILE='$ENV_FILE' bash '$remote_release_dir/disable-legacy-deploy-cron.sh'"
+
+      - name: Remove staged release files
+        if: always()
+        run: |
+          remote_release_dir="/tmp/letscube-release-$SOURCE_SHA"
+          ssh -q "$SERVER_USER@$SERVER_IP" "rm -rf -- '$remote_release_dir'" || true

@@ -31,7 +31,6 @@ services:
       NODE_ENV: dev
       PORT: ${PORT:-8080}
       SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
-      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       AUTH_SECRET: ${AUTH_SECRET:-dev-secret}
       AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-http://localhost:8080/auth/callback}
@@ -53,7 +52,6 @@ services:
       NODE_ENV: dev
       PORT: ${PORT:-8080}
       SOCKETIO_PORT: ${SOCKETIO_PORT:-9000}
-      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/letscube}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       AUTH_SECRET: ${AUTH_SECRET:-dev-secret}
       AUTH_CALLBACK_URL: ${AUTH_CALLBACK_URL:-http://localhost:8080/auth/callback}
@@ -66,10 +64,6 @@ services:
       - socket-node-modules:/app/node_modules
     ports:
       - "9000:9000"
-
-  mongo:
-    ports:
-      - "127.0.0.1:27017:27017"
 
   redis:
     ports:

@@ -5,8 +5,8 @@ stream of racing activity within that room. This distinction lets a room retain
 completed attempts when its event changes and lets a competition room host more
 than one event without making ordinary rooms more complicated.
 
-This is the target contract for the PostgreSQL migration. It does not change
-the current MongoDB-backed runtime by itself.
+This contract is implemented by the PostgreSQL runtime. MongoDB is used only by
+the one-time cutover backfill.
 
 ## Ownership
 
@@ -138,9 +138,7 @@ rooms map to one Room and one RaceSession for their current event; historical
 event sessions that legacy behavior deleted are not invented. Existing attempt
 and solve identifiers remain deterministic during backfill.
 
-The migration expands PostgreSQL first, dual-writes and reconciles the complete
-aggregate, then switches Room, RaceSession, Attempt, Solve, and participant
-reads together. MongoDB must not remain authoritative for room metadata while
-PostgreSQL is authoritative for results. The temporary rollback path retains
-compatible data without reversing migrations; the later cleanup removes MongoDB
-room/result persistence only after the observation window succeeds.
+The cutover backfill reconciles the complete aggregate before the big-bang
+switch. Room, RaceSession, Attempt, Solve, and participant reads then use
+PostgreSQL together. The runtime retains Mongo-shaped compatibility IDs in SQL
+for stable client references, but does not read or write MongoDB.

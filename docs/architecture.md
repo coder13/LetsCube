@@ -27,27 +27,21 @@ in production.
                            |               |          |
                            +-------+-------+          |
                                    |                  |
-                              +----v----+       +-----v----+
-                              | MongoDB |       |  Redis   |
-                              +----+----+       +----------+
-                                   |
-                          non-blocking mirrors
-                                   |
-                              +----v------+
-                              |PostgreSQL |
-                              +-----------+
+                              +----v------+       +----------+
+                              |PostgreSQL |       |  Redis   |
+                              | source    |       |coordination|
+                              +-----------+       +----------+
 ```
 
-PostgreSQL is written independently by both Node processes; it is shown below
-MongoDB to emphasize the current migration direction, not a direct
-MongoDB-to-PostgreSQL connection.
+PostgreSQL owns durable application state. Redis provides ephemeral
+coordination; active room aggregates are bounded by a per-process LRU cache.
 
 ## Repository Boundaries
 
 | Path | Responsibility |
 | --- | --- |
 | `client/` | React UI, Redux state, socket middleware, timers, and PWA assets |
-| `server/` | Express API, authentication, Socket.IO, MongoDB models, PostgreSQL mirrors, and metrics |
+| `server/` | Express API, authentication, Socket.IO, PostgreSQL repositories, cache, and metrics |
 | `packages/scrambles/` | Browser-safe event catalog and server-side scramble generation |
 | `cypress/` | Full-stack browser smoke tests |
 | `scripts/` | Deployment, rollback tests, backup, and restore tooling |
@@ -70,8 +64,8 @@ state stay coordinated outside the component lifecycle.
 
 `server/index.js` starts Express on port `8080`. It:
 
-- connects to MongoDB and optionally PostgreSQL;
-- installs the shared Mongo-backed session middleware and Passport;
+- connects to PostgreSQL;
+- installs the shared PostgreSQL session middleware and Passport;
 - serves `/auth`, `/api`, and `/health/api`;
 - serves the production client build; and
 - falls back to `index.html` for client-side routes.
@@ -93,7 +87,7 @@ during a deployment.
 ## Authentication And Sessions
 
 WCA OAuth is the normal authentication path. The API creates an Express session
-stored in MongoDB, and both the HTTP and Socket.IO processes read that session.
+stored in PostgreSQL, and both the HTTP and Socket.IO processes read that session.
 Browser API requests include credentials, and Socket.IO is configured for
 credentialed cross-origin connections.
 
@@ -103,17 +97,17 @@ production.
 
 ## Data Services
 
-- **MongoDB** is the application source of truth and backs sessions, users,
-  rooms, results, and metric events.
+- **PostgreSQL** is the application source of truth and backs sessions, users,
+  rooms, results, social data, and metric events.
 - **Redis** supports the Socket.IO adapter and cross-instance presence checks.
-- **PostgreSQL** is an optional, non-blocking dual-write target for normalized
-  application data and analytics. Application reads do not depend on it yet.
+- **PostgreSQL** is required by both application processes. MongoDB models are
+  retained only by the one-time migration tool.
 
 See [Data and migrations](data.md) for schemas and consistency guarantees.
 
 ## Production Shape
 
-The production Compose stack runs `api`, `socket`, `mongo`, `postgres`,
+The production Compose stack runs `api`, `socket`, `postgres`,
 `redis`, and `nginx`. API and Socket.IO use the same immutable application image
 tagged with the deployed commit SHA. nginx terminates TLS, routes Socket.IO
 traffic to `socket`, and sends all other traffic to `api`.

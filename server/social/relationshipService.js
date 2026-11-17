@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop, no-continue */
 const logger = require('../logger');
 const metrics = require('../metrics');
 const {
@@ -7,10 +6,6 @@ const {
   User,
   UserBlock,
 } = require('../models');
-const {
-  mirrorBlock,
-  mirrorRelationship,
-} = require('../postgres/dualWrite');
 const { publishSocialInvalidation } = require('../realtime/socialEvents');
 const notificationService = require('./notificationService');
 const publicUserProjection = require('./publicUser');
@@ -68,8 +63,8 @@ const createRelationshipService = ({
   socialLogger = logger,
   userModel = User,
   mirrors = {
-    mirrorBlock,
-    mirrorRelationship,
+    mirrorBlock: async () => null,
+    mirrorRelationship: async () => null,
   },
   notifier = publishSocialInvalidation,
   notifications = notificationService,
@@ -127,7 +122,7 @@ const createRelationshipService = ({
           revision: 0,
         }));
       } catch (err) {
-        if (err.code === 11000) {
+        if (err.code === 11000 || err.code === '23505') {
           return undefined;
         }
         throw err;

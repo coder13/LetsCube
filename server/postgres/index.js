@@ -4,6 +4,9 @@ const config = require('../runtimeConfig');
 const logger = require('../logger');
 
 const RETRY_DELAY_MS = 30 * 1000;
+const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
+const SESSION_CLEANUP_BATCH_SIZE = 10_000;
+const SESSION_CLEANUP_MAX_BATCHES = 100;
 
 const poolConfig = config.postgres.connectionString
   ? { connectionString: config.postgres.connectionString }
@@ -36,6 +39,7 @@ pool.on('error', (err) => {
 let initialized = false;
 let initializationPromise;
 let lastFailureAt = 0;
+let maintenancePromise;
 
 const initializePostgres = async () => {
   if (!config.postgres.enabled) {
@@ -109,17 +113,67 @@ const deleteExpiredMetrics = () => query(
   'DELETE FROM analytics.events WHERE expires_at <= now()',
 );
 
+const deleteExpiredSessions = async () => {
+  let deleted = 0;
+
+  for (let batch = 0; batch < SESSION_CLEANUP_MAX_BATCHES; batch += 1) {
+    // Small transactions keep cleanup from holding one large table lock when
+    // a server starts with a large expired-session backlog.
+    const result = await query(`
+      WITH expired AS (
+        SELECT sid
+        FROM app.sessions
+        WHERE expire <= now()
+        ORDER BY expire
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED
+      )
+      DELETE FROM app.sessions AS sessions
+      USING expired
+      WHERE sessions.sid = expired.sid
+    `, [SESSION_CLEANUP_BATCH_SIZE]);
+
+    if (!result) {
+      return deleted;
+    }
+
+    deleted += result.rowCount;
+    if (result.rowCount < SESSION_CLEANUP_BATCH_SIZE) {
+      return deleted;
+    }
+  }
+
+  return deleted;
+};
+
+const runPostgresMaintenance = () => {
+  if (maintenancePromise) {
+    return maintenancePromise;
+  }
+
+  maintenancePromise = Promise.all([
+    deleteExpiredMetrics(),
+    deleteExpiredSessions(),
+  ]).finally(() => {
+    maintenancePromise = undefined;
+  });
+
+  return maintenancePromise;
+};
+
 const startPostgresMaintenance = () => {
-  deleteExpiredMetrics();
-  const timer = setInterval(deleteExpiredMetrics, 6 * 60 * 60 * 1000);
+  runPostgresMaintenance();
+  const timer = setInterval(runPostgresMaintenance, MAINTENANCE_INTERVAL_MS);
   timer.unref();
 };
 
 module.exports = {
   deleteExpiredMetrics,
+  deleteExpiredSessions,
   initializePostgres,
   pool,
   query,
+  runPostgresMaintenance,
   startPostgresMaintenance,
   withTransaction,
 };

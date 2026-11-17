@@ -19,7 +19,6 @@ describe('WCA profile ingestion', () => {
       id: 1234,
       name: 'Test Solver',
       wcaId: '2026TEST01',
-      accessToken: 'oauth-token',
       avatar: { thumb_url: 'avatar.png' },
     });
     expect(update).not.toHaveProperty('email');

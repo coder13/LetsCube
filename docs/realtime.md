@@ -26,7 +26,7 @@ independent namespace connections.
 
 ## Session Authentication
 
-The Express session is stored in MongoDB and attached to Socket.IO through
+The Express session is stored in PostgreSQL and attached to Socket.IO through
 `express-socket.io-session`. Socket authentication derives the user from that
 shared session. Socket.IO and API requests therefore depend on credentialed
 cookie behavior remaining aligned across the browser, CORS, nginx, and both
@@ -69,8 +69,8 @@ During the grace window, preserve:
 - waiting and competing state; and
 - room administration.
 
-Normal empty rooms receive an expiration timestamp. Explicit moderation and
-leave actions do not use reconnect grace.
+Rooms with no connected users receive a ten-minute expiration timestamp.
+Explicit moderation and leave actions do not use reconnect grace.
 
 ## Client Rejoin
 
@@ -119,7 +119,7 @@ not depend on Grand Prix behavior.
 
 ## Health
 
-`GET /health/socket` checks MongoDB, Redis, and optional PostgreSQL. The default
+`GET /health/socket` checks PostgreSQL and Redis. The default
 namespace also accepts `health_check`; it returns the same report through the
 acknowledgement callback or emits `health_status` when no callback is supplied.
 

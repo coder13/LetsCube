@@ -1,8 +1,7 @@
-const buildWcaUserUpdate = (profile, accessToken) => ({
+const buildWcaUserUpdate = (profile) => ({
   id: Number(profile.id),
   name: profile.name,
   wcaId: profile.wca_id,
-  accessToken,
   avatar: profile.avatar,
 });
 
