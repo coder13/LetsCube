@@ -7,15 +7,50 @@ backfill tool.
 
 ## Deployment
 
-Use the Compose deploy script from the active checkout:
+Production deploys run through the `Production deploy` GitHub Actions workflow.
+The workflow starts after a successful `CI` run on `master`. It performs these
+steps:
+
+1. Build one application image from the exact `master` commit.
+2. Push the image to GHCR and retain its immutable digest.
+3. Transfer that exact image and the production Compose files to the server.
+4. Apply migrations, replace Socket.IO before the API, and verify all five
+   production services.
+5. Retry image builds, transfers, and activation up to three times. Each failed
+   activation restores the previous application images and Compose files before
+   the next attempt.
+
+The server does not fetch or merge Git commits during this process. A manual
+workflow run can deploy a specific commit, branch, or tag. The workflow uses the
+GitHub `production` environment, so configure its approval policy to match the
+release policy.
+
+The repository needs these GitHub Actions secrets:
+
+- `SERVER_IP`: the production server address.
+- `DEPLOY_SSH_KEY`: the private key for the `www` account.
+- `DEPLOY_KNOWN_HOSTS`: the pinned SSH host key entry.
+
+The server needs Docker access for `www`, the production `.env.prod` file at
+`/home/www/letscube`, and the existing certificate directories. Actions stores
+runtime Compose files in `/opt/letscube/runtime`, outside the old Git checkout.
+After the first successful image activation, it removes only the old
+`scripts/deploy.sh` cron entry. It saves the prior crontab at
+`/opt/letscube/legacy-deploy-crontab.backup`. The PostgreSQL backup cron remains
+active. A replacement cron checks all five services every ten minutes. It
+recreates only missing or unhealthy services from the last successful image.
+It does not fetch source code.
+
+The checkout-based script remains available as a temporary recovery path:
 
 ```sh
-APP_DIR=/opt/letscube ENV_FILE=.env.prod scripts/deploy.sh
+APP_DIR=/home/www/letscube ENV_FILE=.env.prod scripts/deploy.sh
 ```
 
-The script builds an immutable image, starts PostgreSQL and Redis, applies
-committed Prisma migrations, then replaces and health-checks Socket.IO and the
-API. It does not start or depend on MongoDB.
+It records the last successful commit separately from the checkout. A failed
+deployment therefore retries on the next run even when Git already moved to the
+new commit. It also treats a missing or unhealthy PostgreSQL, Redis, Socket.IO,
+API, or nginx container as a full repair deployment.
 
 Before a big-bang cutover, take a PostgreSQL backup and run the MongoDB
 backfill tool during a maintenance window:
@@ -34,6 +69,9 @@ not copy sessions or OAuth tokens; users authenticate again after cutover.
 
 ```sh
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod ps
+APP_DIR=/opt/letscube/runtime \
+  ENV_FILE=/home/www/letscube/.env.prod \
+  /opt/letscube/runtime/scripts/check-production-health.sh
 docker compose -f compose.yml -f compose.prod.yml --env-file .env.prod logs --tail=200 api socket postgres
 curl -fsS https://letscube.net/health/api
 curl -fsS https://letscube.net/health/socket
@@ -41,6 +79,10 @@ curl -fsS https://letscube.net/health/socket
 
 Both health endpoints require PostgreSQL. The socket endpoint also requires
 Redis. A failed required dependency returns HTTP 503.
+
+nginx also has a container health check. It calls the API health route through
+the local TLS listener. This detects a broken proxy configuration and an
+unavailable API upstream.
 
 ## Backups and restore
 

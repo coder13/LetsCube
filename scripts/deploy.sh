@@ -9,6 +9,7 @@ DEPLOY_STRATEGY="${DEPLOY_STRATEGY:-ff-only}"
 DEPLOY_FORCE="${DEPLOY_FORCE:-false}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-auto}"
 DEPLOY_WAIT_TIMEOUT_SECONDS="${DEPLOY_WAIT_TIMEOUT_SECONDS:-60}"
+LAST_SUCCESSFUL_DEPLOY_FILE="${LAST_SUCCESSFUL_DEPLOY_FILE:-$APP_DIR/.last-successful-deploy}"
 
 COMPOSE=(docker compose -f compose.yml -f compose.prod.yml --env-file "$ENV_FILE")
 ROLLBACK_COMPOSE=()
@@ -39,7 +40,18 @@ fi
 
 cd "$APP_DIR"
 
-previous_commit="$(git rev-parse HEAD)"
+checkout_commit="$(git rev-parse HEAD)"
+if [ -f "$LAST_SUCCESSFUL_DEPLOY_FILE" ]; then
+  previous_commit="$(tr -d '[:space:]' < "$LAST_SUCCESSFUL_DEPLOY_FILE")"
+  if ! [[ "$previous_commit" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "Invalid commit in $LAST_SUCCESSFUL_DEPLOY_FILE" >&2
+    exit 2
+  fi
+else
+  previous_commit="$checkout_commit"
+  printf '%s\n' "$previous_commit" > "$LAST_SUCCESSFUL_DEPLOY_FILE"
+fi
+
 git fetch "$REMOTE" "$BRANCH"
 
 case "$DEPLOY_STRATEGY" in
@@ -87,20 +99,44 @@ if [ -f "$privacy_cutover_file" ]; then
   fi
 fi
 
+unhealthy_backing_services=()
+unhealthy_runtime_services=()
 if [ "$DEPLOY_TARGET" = "auto" ]; then
   missing_services=()
-  for service in api socket nginx; do
+  unhealthy_services=()
+  for service in postgres redis api socket nginx; do
     if ! container_id="$("${COMPOSE[@]}" ps --status running -q "$service")"; then
       echo "Failed to inspect the $service container." >&2
       exit 1
     fi
     if [ -z "$container_id" ]; then
       missing_services+=("$service")
+      if [ "$service" = "postgres" ] || [ "$service" = "redis" ]; then
+        unhealthy_backing_services+=("$service")
+      else
+        unhealthy_runtime_services+=("$service")
+      fi
+      continue
+    fi
+
+    health_status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$container_id")"
+    if [ "$health_status" != "healthy" ]; then
+      unhealthy_services+=("$service:$health_status")
+      if [ "$service" = "postgres" ] || [ "$service" = "redis" ]; then
+        unhealthy_backing_services+=("$service")
+      else
+        unhealthy_runtime_services+=("$service")
+      fi
     fi
   done
 
-  if [ "${#missing_services[@]}" -gt 0 ]; then
-    echo "Missing runtime services: ${missing_services[*]}; deploying all."
+  if [ "${#missing_services[@]}" -gt 0 ] || [ "${#unhealthy_services[@]}" -gt 0 ]; then
+    if [ "${#missing_services[@]}" -gt 0 ]; then
+      echo "Missing production services: ${missing_services[*]}; deploying all."
+    fi
+    if [ "${#unhealthy_services[@]}" -gt 0 ]; then
+      echo "Unhealthy production services: ${unhealthy_services[*]}; deploying all."
+    fi
     resolved_target="all"
   elif [ "$previous_commit" = "$current_commit" ]; then
     if [ "$DEPLOY_FORCE" != "true" ]; then
@@ -135,6 +171,7 @@ case "$resolved_target" in
     ;;
   none)
     echo "Updated checkout to $current_commit; no application services selected."
+    printf '%s\n' "$current_commit" > "$LAST_SUCCESSFUL_DEPLOY_FILE"
     "${COMPOSE[@]}" ps
     exit 0
     ;;
@@ -182,9 +219,13 @@ fi
 # Compose usage compatible with the default `local` tag.
 export APP_IMAGE_TAG="$current_commit"
 
-compose_recreate_args=()
+backing_recreate_args=()
+runtime_recreate_args=()
 if [ "$production_compose_changed" = "true" ]; then
-  compose_recreate_args=(--force-recreate)
+  backing_recreate_args=(--force-recreate)
+  runtime_recreate_args=(--force-recreate)
+elif [ "${#unhealthy_runtime_services[@]}" -gt 0 ]; then
+  runtime_recreate_args=(--force-recreate)
 fi
 
 if ! "${COMPOSE[@]}" build api; then
@@ -193,7 +234,16 @@ if ! "${COMPOSE[@]}" build api; then
   exit 1
 fi
 
-if ! "${COMPOSE[@]}" up -d "${compose_recreate_args[@]}" --wait \
+for service in "${unhealthy_backing_services[@]}"; do
+  if ! "${COMPOSE[@]}" up -d --force-recreate --wait \
+    --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" "$service"; then
+    echo "Failed to repair unhealthy $service; no application containers were replaced." >&2
+    print_retry_hint
+    exit 1
+  fi
+done
+
+if ! "${COMPOSE[@]}" up -d "${backing_recreate_args[@]}" --wait \
   --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" postgres redis; then
   echo "Failed to start backing services; no application containers were replaced." >&2
   print_retry_hint
@@ -241,7 +291,7 @@ reload_nginx() {
     echo "nginx is not running; starting it without replacing dependencies."
   fi
 
-  "${compose_command[@]}" up -d --no-deps "${compose_recreate_args[@]}" --wait \
+  "${compose_command[@]}" up -d --no-deps "${runtime_recreate_args[@]}" --wait \
     --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" nginx || return 1
 
   "${compose_command[@]}" exec -T nginx nginx -s reload
@@ -306,7 +356,7 @@ for service_index in "${!selected_services[@]}"; do
   service="${selected_services[$service_index]}"
   attempted_services+=("$service")
 
-  if ! "${COMPOSE[@]}" up -d --no-deps --wait \
+  if ! "${COMPOSE[@]}" up -d --no-deps "${runtime_recreate_args[@]}" --wait \
     --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" "$service"; then
     echo "$service deployment failed. Recent logs:" >&2
     "${COMPOSE[@]}" logs --tail=120 "$service" >&2 || true
@@ -336,6 +386,7 @@ for service_index in "${!selected_services[@]}"; do
 done
 
 echo "Deployment complete: $resolved_target now uses letscube-app:$current_commit"
+printf '%s\n' "$current_commit" > "$LAST_SUCCESSFUL_DEPLOY_FILE"
 "${COMPOSE[@]}" ps
 
 if ! docker image prune -af --filter "until=168h"; then
