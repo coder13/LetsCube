@@ -20,6 +20,8 @@ assert_contains() {
 assert_contains "$WORKFLOW" 'workflows: [CI]'
 assert_contains "$WORKFLOW" 'branches: [master]'
 assert_contains "$WORKFLOW" "github.event.workflow_run.conclusion == 'success'"
+assert_contains "$WORKFLOW" 'IMAGE_TAG="${IMAGE_REPOSITORY,,}:$SOURCE_SHA"'
+assert_contains "$WORKFLOW" 'IMAGE_REPOSITORY="${IMAGE_REPOSITORY,,}"'
 assert_contains "$WORKFLOW" 'image_ref=$IMAGE_REPOSITORY@$IMAGE_DIGEST'
 assert_contains "$WORKFLOW" 'for attempt in 1 2 3; do'
 assert_contains "$WORKFLOW" '--cache-to type=gha,mode=max,scope=production-image'
