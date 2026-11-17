@@ -22,6 +22,9 @@ jobs:
         run: |
           scripts/test-deploy-classifier.sh
           scripts/test-deploy.sh
+          scripts/test-image-deploy.sh
+          scripts/test-production-repair.sh
+          scripts/test-deploy-workflow.sh
           scripts/test-backup-postgres.sh
 
       - name: Validate CI branch coverage

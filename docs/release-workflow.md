@@ -1,8 +1,8 @@
 # Release Workflow
 
 `dev` is the integration branch. `master` is the reviewed release branch.
-Production deployment remains a separately authorized operation described in
-[Production operations](operations.md).
+Production deployment runs through the protected GitHub `production`
+environment described in [Production operations](operations.md).
 
 ## Branch Flow
 
@@ -11,8 +11,8 @@ Production deployment remains a separately authorized operation described in
 3. Treat the resulting `dev` merge commit as the release candidate. Its push
    CI and CodeQL push runs must finish before promotion is considered.
 4. Open a reviewed promotion from that exact `dev` commit to `master`.
-5. After the promotion is merged and its `master` push CI passes, perform the
-   separately authorized deployment procedure.
+5. After the promotion is merged, the successful `master` CI run starts the
+   production deployment workflow.
 
 Do not bypass `dev` by merging feature work directly to `master`. A new commit
 on `dev` after release-candidate validation requires a new validation run.
@@ -42,10 +42,11 @@ explicit operational authorization required by the operations guide.
 
 ## Deployment Handoff
 
-After `master` CI is green, follow the operations guide in order:
+After `master` CI is green, GitHub Actions follows the operations guide in
+order:
 
 1. complete the [preflight](operations.md#preflight) checks;
-2. deploy with the documented procedure;
+2. build and deploy the immutable release image;
 3. perform the [verification and monitoring](operations.md#verification-and-monitoring)
    checks; and
 4. use the documented rollback procedure if readiness or verification fails.

@@ -5,7 +5,6 @@ const http = require('http');
 const path = require('path');
 const express = require('express');
 const { createClientAssetsRouter } = require('./clientAssets');
-const { apiRateLimitOptions } = require('./apiRateLimit');
 
 const request = (server) => new Promise((resolve, reject) => {
   const req = http.request({
@@ -22,15 +21,12 @@ const request = (server) => new Promise((resolve, reject) => {
   req.end();
 });
 
-describe('client asset rate limiting', () => {
+describe('client assets', () => {
   let server;
 
   beforeEach((done) => {
     const app = express();
-    app.use(createClientAssetsRouter(
-      path.join(__dirname, '../../client'),
-      apiRateLimitOptions({ limit: 1, windowMs: 60_000 }),
-    ));
+    app.use(createClientAssetsRouter(path.join(__dirname, '../../client')));
     server = app.listen(0, '127.0.0.1', () => done());
   });
 
@@ -38,14 +34,11 @@ describe('client asset rate limiting', () => {
     server.close(() => done());
   });
 
-  it('serves the client fallback', async () => {
+  it('serves repeated client fallback requests without API rate limiting', async () => {
     const response = await request(server);
 
     expect(response.status).toBe(200);
     expect(response.body).toContain('<html lang="en">');
-    expect(await request(server)).toEqual({
-      body: '{"code":"rate_limited","message":"Too many requests. Please try again later."}',
-      status: 429,
-    });
+    expect((await request(server)).status).toBe(200);
   });
 });

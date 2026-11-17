@@ -48,5 +48,12 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ${LETSENCRYPT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
       - ${CERTBOT_WWW_DIR:-/var/www/certbot}:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider --no-check-certificate https://127.0.0.1/health/api || exit 1"]
+      interval: 30s
+      start_interval: 2s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     logging: *production-logging
     restart: unless-stopped

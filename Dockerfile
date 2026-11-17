@@ -3,6 +3,10 @@
 FROM node:22-bookworm-slim AS client-build
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 
 COPY package.json yarn.lock ./
@@ -27,7 +31,7 @@ RUN yarn workspace letscube-client build
 
 FROM node:22-bookworm-slim AS server-deps
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
+  && apt-get install -y --no-install-recommends ca-certificates openssl python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -42,6 +46,8 @@ RUN yarn install --frozen-lockfile --production=true --network-concurrency 1 --n
   && mkdir -p server/node_modules
 
 FROM node:22-bookworm-slim AS runtime
+ARG SOURCE_SHA=local
+LABEL org.opencontainers.image.revision=${SOURCE_SHA}
 ENV NODE_ENV=prod
 ENV PORT=8080
 ENV SOCKETIO_PORT=9000
