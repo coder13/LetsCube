@@ -66,9 +66,10 @@ jobs:
       - name: Build and publish release image with retries
         id: build
         env:
-          IMAGE_TAG: ghcr.io/${{ github.repository }}:${{ needs.resolve.outputs.source_sha }}
+          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
           SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
         run: |
+          IMAGE_TAG="${IMAGE_REPOSITORY,,}:$SOURCE_SHA"
           for attempt in 1 2 3; do
             if docker buildx build . \
               --build-arg "SOURCE_SHA=$SOURCE_SHA" \
@@ -96,6 +97,7 @@ jobs:
           IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
+          IMAGE_REPOSITORY="${IMAGE_REPOSITORY,,}"
           [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "image_ref=$IMAGE_REPOSITORY@$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
 
