@@ -58,7 +58,7 @@ fake_docker() {
       printf 'sha256:old-image\n'
       return 0
       ;;
-    image)
+    builder|image)
       return 0
       ;;
     compose)
@@ -225,6 +225,42 @@ run_bootstrap_test() {
   fi
 
   assert_contains "$(<"$log")" 'docker image prune -af --filter until=168h'
+  assert_contains "$(<"$log")" 'docker builder prune -af --max-used-space 2GB'
+}
+
+run_compose_change_test() {
+  local scenario="$TEST_ROOT/compose-change"
+  local app_dir="$scenario/app"
+  local log="$scenario/commands.log"
+  local output="$scenario/output.log"
+  local git_state="$scenario/git-state"
+  local rollback_marker="$scenario/rollback"
+  local previous_commit="1111111111111111111111111111111111111111"
+  local current_commit="2222222222222222222222222222222222222222"
+
+  mkdir -p "$scenario/tmp"
+  prepare_app "$app_dir"
+
+  PATH="$FAKE_BIN:$PATH" \
+    APP_DIR="$app_dir" \
+    DEPLOY_TEST_LOG="$log" \
+    DEPLOY_WAIT_TIMEOUT_SECONDS=17 \
+    ENV_FILE=.env.prod \
+    FAKE_CHANGED_PATH=compose.prod.yml \
+    FAKE_CURRENT_COMMIT="$current_commit" \
+    FAKE_GIT_STATE="$git_state" \
+    FAKE_PREVIOUS_COMMIT="$previous_commit" \
+    FAKE_ROLLBACK_MARKER="$rollback_marker" \
+    FAKE_RUNNING_API=api-container \
+    FAKE_RUNNING_NGINX=nginx-container \
+    FAKE_RUNNING_SOCKET=socket-container \
+    TMPDIR="$scenario/tmp" \
+    bash "$app_dir/scripts/deploy.sh" > "$output" 2>&1
+
+  assert_contains "$(<"$log")" \
+    'up -d --force-recreate --wait --wait-timeout 17 postgres redis'
+  assert_contains "$(<"$log")" \
+    'up -d --no-deps --force-recreate --wait --wait-timeout 17 nginx'
 }
 
 run_rollback_test() {
@@ -273,8 +309,8 @@ run_rollback_test() {
   assert_contains "$(<"$log")" "git show $previous_commit:compose.yml"
   assert_contains "$(<"$log")" "git show $previous_commit:compose.prod.yml"
 
-  if grep -q 'docker image prune' "$log"; then
-    echo 'Failed deployment removed images.' >&2
+  if grep -Eq 'docker (image|builder) prune' "$log"; then
+    echo 'Failed deployment removed Docker data.' >&2
     exit 1
   fi
 }
@@ -316,6 +352,7 @@ run_privacy_floor_test() {
 }
 
 run_bootstrap_test
+run_compose_change_test
 run_rollback_test
 run_privacy_floor_test
 
