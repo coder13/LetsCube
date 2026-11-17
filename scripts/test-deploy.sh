@@ -210,7 +210,7 @@ run_bootstrap_test() {
   assert_contains "$(<"$output")" 'Missing runtime services: api socket nginx; deploying all.'
   assert_contains "$(<"$output")" '(target: all)'
 
-  backing_line="$(command_line "$log" 'up -d --no-recreate --wait --wait-timeout 17 postgres redis')"
+  backing_line="$(command_line "$log" 'up -d --wait --wait-timeout 17 postgres redis')"
   migration_line="$(command_line "$log" 'run --rm --no-deps migrate')"
   socket_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 socket')"
   api_line="$(command_line "$log" 'up -d --no-deps --wait --wait-timeout 17 api')"
@@ -223,6 +223,8 @@ run_bootstrap_test() {
     echo 'Bootstrap did not deploy socket before API.' >&2
     exit 1
   fi
+
+  assert_contains "$(<"$log")" 'docker image prune -af --filter until=168h'
 }
 
 run_rollback_test() {
@@ -270,6 +272,11 @@ run_rollback_test() {
   assert_contains "$rollback_details" 'APP_IMAGE_TAG=rollback-socket-111111111111-'
   assert_contains "$(<"$log")" "git show $previous_commit:compose.yml"
   assert_contains "$(<"$log")" "git show $previous_commit:compose.prod.yml"
+
+  if grep -q 'docker image prune' "$log"; then
+    echo 'Failed deployment removed images.' >&2
+    exit 1
+  fi
 }
 
 run_privacy_floor_test() {

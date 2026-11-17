@@ -175,7 +175,7 @@ if ! "${COMPOSE[@]}" build api; then
   exit 1
 fi
 
-if ! "${COMPOSE[@]}" up -d --no-recreate --wait \
+if ! "${COMPOSE[@]}" up -d --wait \
   --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" postgres redis; then
   echo "Failed to start backing services; no application containers were replaced." >&2
   print_retry_hint
@@ -221,9 +221,10 @@ reload_nginx() {
   container_id="$("${compose_command[@]}" ps --status running -q nginx)"
   if [ -z "$container_id" ]; then
     echo "nginx is not running; starting it without replacing dependencies."
-    "${compose_command[@]}" up -d --no-deps --wait \
-      --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" nginx || return 1
   fi
+
+  "${compose_command[@]}" up -d --no-deps --wait \
+    --wait-timeout "$DEPLOY_WAIT_TIMEOUT_SECONDS" nginx || return 1
 
   "${compose_command[@]}" exec -T nginx nginx -s reload
 }
@@ -318,3 +319,7 @@ done
 
 echo "Deployment complete: $resolved_target now uses letscube-app:$current_commit"
 "${COMPOSE[@]}" ps
+
+if ! docker image prune -af --filter "until=168h"; then
+  echo "Deployment succeeded, but unused image cleanup failed." >&2
+fi
