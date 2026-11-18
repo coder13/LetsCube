@@ -84,6 +84,20 @@ nginx also has a container health check. It calls the API health route through
 the local TLS listener. This detects a broken proxy configuration and an
 unavailable API upstream.
 
+The `Production health monitor` GitHub Actions workflow checks the homepage and
+both health endpoints every five minutes. It opens one `production-health`
+issue during an outage. It closes that issue after the public routes recover.
+This external check still runs when the production host or its network fails.
+
+API and Socket.IO containers allow 30 seconds for a clean stop. On `SIGTERM` or
+`SIGINT`, they stop accepting connections and close their PostgreSQL and Redis
+clients before they exit. The Socket.IO process also closes its active sockets.
+This keeps rolling deployments from cutting off work in the middle of cleanup.
+
+The Cypress CI job restarts both Node services during browser tests. It verifies
+that an API restart keeps the PostgreSQL-backed login session and that a browser
+in a room reconnects after a Socket.IO restart.
+
 ## Backups and restore
 
 Create a PostgreSQL custom-format backup and test restores against a separate

@@ -20,6 +20,7 @@ jobs:
 
       - name: Validate production deployment
         run: |
+          scripts/test-public-health.sh
           scripts/test-deploy-classifier.sh
           scripts/test-deploy.sh
           scripts/test-image-deploy.sh
@@ -117,6 +118,9 @@ jobs:
       PGDATABASE: letscube
       PGUSER: letscube
       PGPASSWORD: letscube
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8080
+      LETSCUBE_TEST_AUTH: true
+      SOCIAL_FEATURES_ENABLED: true
     services:
       postgres:
         image: postgres:17-alpine
@@ -160,10 +164,15 @@ jobs:
         run: yarn workspace letscube-server postgres:migrate
 
       - name: Start server
-        run: CORS_ORIGINS=http://localhost:3000,http://localhost:8080 LETSCUBE_TEST_AUTH=true SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node index.js > server.log 2>&1 &
+        run: |
+          mkdir -p .tmp
+          node server/index.js > server.log 2>&1 &
+          echo $! > .tmp/ci-api.pid
 
       - name: Start socket server
-        run: SOCIAL_FEATURES_ENABLED=true yarn workspace letscube-server node socket/ > socket.log 2>&1 &
+        run: |
+          node server/socket/index.js > socket.log 2>&1 &
+          echo $! > .tmp/ci-socket.pid
 
       - name: Wait for local stack
         run: |
@@ -194,6 +203,8 @@ jobs:
           done
 
       - name: Run Cypress
+        env:
+          CYPRESS_faultInjection: true
         run: yarn cypress:run
 
       - name: Print app logs on failure

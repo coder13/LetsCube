@@ -459,6 +459,26 @@ const find = (criteria = {}) => new SqlQuery(async () => {
 
 const findById = (id) => new SqlQuery(() => loadRoom(id));
 
+const listActiveParticipants = async () => {
+  const result = await pool.query(`
+    SELECT r.mongo_id AS room_id, u.wca_user_id AS user_id,
+      rp.presence_revision
+    FROM app.room_participants rp
+    JOIN app.rooms r ON r.id = rp.room_id
+    JOIN app.users u ON u.id = rp.user_id
+    WHERE rp.in_room = true
+      AND r.deleted_at IS NULL
+      AND (r.expires_at IS NULL OR r.expires_at > now())
+    ORDER BY r.id, rp.user_id
+  `);
+
+  return result.rows.map((row) => ({
+    roomId: row.room_id,
+    userId: row.user_id,
+    presenceRevision: row.presence_revision || 0,
+  }));
+};
+
 const deleteOne = async (criteria) => {
   const id = externalRoomId(criteria._id || criteria.id);
   const result = await pool.query(`
@@ -472,8 +492,18 @@ const deleteOne = async (criteria) => {
 const Room = RoomDocument;
 Room.find = find;
 Room.findById = findById;
+Room.listActiveParticipants = listActiveParticipants;
 Room.deleteOne = deleteOne;
 Room.isSqlRepository = true;
 Room.cache = roomCache;
 
-module.exports = { Room, RoomDocument, find, findById, loadRoom, saveRoom, selectRoomAdmin };
+module.exports = {
+  Room,
+  RoomDocument,
+  find,
+  findById,
+  listActiveParticipants,
+  loadRoom,
+  saveRoom,
+  selectRoomAdmin,
+};

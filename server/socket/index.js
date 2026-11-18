@@ -15,6 +15,7 @@ const { isFeatureEnabled } = require('../features');
 const wrapExpressMiddleware = require('./middlewares/wrapExpressMiddleware');
 const initRooms = require('./namespaces/rooms');
 const initDefault = require('./namespaces/default');
+const { registerGracefulShutdown } = require('../gracefulShutdown');
 
 const logSocketError = (source) => (err) => {
   if (err) {
@@ -107,7 +108,30 @@ const init = async () => {
   watchNamespaceErrors(io, '/');
   watchNamespaceErrors(io, '/rooms');
 
-  return server.listen(process.env.SOCKETIO_PORT || config.socketio.port);
+  server.listen(process.env.SOCKETIO_PORT || config.socketio.port);
+
+  registerGracefulShutdown({
+    name: 'SOCKET',
+    logger,
+    close: async () => {
+      await new Promise((resolve) => io.close(resolve));
+      const redisResults = await Promise.allSettled([
+        pubClient.quit(),
+        subClient.quit(),
+        socialSubClient ? socialSubClient.quit() : Promise.resolve(),
+      ]);
+      await pool.end();
+      const redisFailure = redisResults.find(({ status }) => status === 'rejected');
+      if (redisFailure) {
+        throw redisFailure.reason;
+      }
+    },
+  });
+
+  return server;
 };
 
-init();
+init().catch((err) => {
+  logger.error(err);
+  process.exit(1);
+});

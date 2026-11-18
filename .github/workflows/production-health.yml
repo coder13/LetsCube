@@ -1,0 +1,66 @@
+name: Production health monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-health-monitor
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    name: Verify public production health
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify public routes
+        id: health
+        continue-on-error: true
+        run: scripts/check-public-health.sh
+
+      - name: Open one outage issue
+        if: steps.health.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          label=production-health
+          gh label create "$label" \
+            --color D73A4A \
+            --description "The external production health monitor found an outage." \
+            --force
+          issue_number="$(gh issue list --state open --label "$label" --json number --jq '.[0].number // empty')"
+          if [ -z "$issue_number" ]; then
+            gh issue create \
+              --label "$label" \
+              --title "Production health monitor failed" \
+              --body "The external monitor could not verify the homepage and both health endpoints. [Open the failed run]($RUN_URL)."
+          fi
+
+      - name: Close the outage issue after recovery
+        if: steps.health.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          label_count="$(gh label list --json name --jq 'map(select(.name == "production-health")) | length')"
+          if [ "$label_count" -gt 0 ]; then
+            issue_number="$(gh issue list --state open --label production-health --json number --jq '.[0].number // empty')"
+            if [ -n "$issue_number" ]; then
+              gh issue close "$issue_number" \
+                --comment "The external monitor reports that production recovered. [Open the successful run]($RUN_URL)."
+            fi
+          fi
+
+      - name: Fail an unhealthy monitor run
+        if: steps.health.outcome == 'failure'
+        run: exit 1

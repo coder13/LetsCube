@@ -8,6 +8,13 @@ const { buildWcaUserUpdate } = require('./wcaProfile');
 const { upsertTestUser } = require('./testUser');
 const { apiRateLimitOptions } = require('../middlewares/apiRateLimit');
 
+const AUTH_PROVIDER_TIMEOUT_MS = 10000;
+
+const fetchFromAuthProvider = (url, options = {}) => fetch(url, {
+  ...options,
+  signal: AbortSignal.timeout(AUTH_PROVIDER_TIMEOUT_MS),
+});
+
 const checkStatus = async (res) => {
   if (res.ok) { // res.status >= 200 && res.status < 300
     return res;
@@ -68,7 +75,7 @@ module.exports = (app, passport, rateLimitOptions = apiRateLimitOptions()) => {
     params.append('code', code);
 
     try {
-      const tokenRes = await fetch(tokenURL, {
+      const tokenRes = await fetchFromAuthProvider(tokenURL, {
         method: 'POST',
         body: params,
         headers: {
@@ -76,7 +83,7 @@ module.exports = (app, passport, rateLimitOptions = apiRateLimitOptions()) => {
         },
       }).then(checkStatus).then((data) => data.json());
 
-      const meRes = await fetch(userProfileURL, {
+      const meRes = await fetchFromAuthProvider(userProfileURL, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Bearer ${tokenRes.access_token}`,
@@ -154,3 +161,4 @@ module.exports = (app, passport, rateLimitOptions = apiRateLimitOptions()) => {
 };
 
 module.exports.deserializeUser = deserializeUser;
+module.exports.fetchFromAuthProvider = fetchFromAuthProvider;

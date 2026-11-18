@@ -9,7 +9,12 @@ const rateLimit = require('express-rate-limit');
 
 const config = require('./runtimeConfig');
 const { createHealthHandler, createHealthReporter } = require('./health');
-const { initializePostgres, pool, startPostgresMaintenance } = require('./postgres');
+const {
+  initializePostgres,
+  pool,
+  startPostgresMaintenance,
+  stopPostgresMaintenance,
+} = require('./postgres');
 const session = require('./middlewares/session');
 const { createCorsOptions } = require('./middlewares/cors');
 const { createClientAssetsRouter } = require('./middlewares/clientAssets');
@@ -18,6 +23,7 @@ const logger = require('./logger');
 const auth = require('./auth');
 const api = require('./api');
 const { isUserApiRequest } = require('./requestLogging');
+const { registerGracefulShutdown } = require('./gracefulShutdown');
 
 Error.stackTraceLimit = 100;
 
@@ -93,7 +99,7 @@ const init = async () => {
 
   app.use(createClientAssetsRouter(path.join(__dirname, '../client/build')));
 
-  app.listen(config.server.port, '0.0.0.0', (err) => {
+  const server = app.listen(config.server.port, '0.0.0.0', (err) => {
     if (err) {
       logger.error(err);
     }
@@ -103,12 +109,25 @@ const init = async () => {
     });
   });
 
+  registerGracefulShutdown({
+    name: 'API',
+    logger,
+    close: async () => {
+      stopPostgresMaintenance();
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      await pool.end();
+    },
+  });
+
   return app;
 };
 
-try {
-  const app = init();
-  module.exports = app;
-} catch (e) {
+const app = init().catch((e) => {
   logger.error(e);
-}
+  process.exitCode = 1;
+  throw e;
+});
+
+module.exports = app;

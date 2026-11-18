@@ -26,6 +26,7 @@ jest.mock('../../models', () => ({
   Room: {
     find: jest.fn(),
     findById: jest.fn(),
+    listActiveParticipants: jest.fn(),
   },
   User: {
     find: jest.fn(),
@@ -139,6 +140,7 @@ const setup = (rooms) => {
   });
   Room.find.mockImplementation(() => queryResult([]));
   Room.findById.mockImplementation(({ _id }) => queryResult(rooms.get(String(_id))));
+  Room.listActiveParticipants.mockResolvedValue([]);
   User.find.mockResolvedValue([]);
   initRooms(io, []);
 
@@ -457,6 +459,33 @@ describe('room namespace departures and moderation', () => {
     expect(metrics.endRoomVisit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledTimes(1);
     expect(connect.roomChannel.emit).toHaveBeenCalledWith(Protocol.USER_LEFT, 101);
+  });
+
+  it('uses the per-user revision when reconciliation sees a room-wide change', async () => {
+    const room = makeRoom({
+      private: false,
+      password: null,
+      inRoom: new Map([['101', true]]),
+      membershipRevision: 9,
+      presenceRevision: new Map([['101', 7]]),
+      doneWithScramble: jest.fn().mockReturnValue(false),
+    });
+    room.dropUserAtomically = jest.fn().mockResolvedValue({
+      room: { ...room, usersLength: 0 },
+      adminChanged: false,
+    });
+    const connect = setup(new Map([[room._id, room]]));
+    await connect(makeSocket({ id: 'spectator-socket', session: {} }));
+    const reconnectGrace = createReconnectGrace.mock.results[0].value;
+
+    await expect(reconnectGrace.finalizeDeparture({
+      roomId: room._id,
+      userId: 101,
+      presenceRevision: 7,
+      leaveReason: 'disconnect',
+    })).resolves.toBe(true);
+
+    expect(room.dropUserAtomically).toHaveBeenCalledWith({ id: 101 }, undefined, 7);
   });
 
   it('fences an active duplicate join before an older departure can finalize', async () => {

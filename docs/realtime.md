@@ -63,9 +63,11 @@ adapter. This prevents a deploy or second browser tab from producing a false
 leave.
 
 The server also reconciles durable room presence after startup and every five
-minutes. Reconciliation processes two departures at a time so it does not
-exhaust the PostgreSQL connection pool. A departure that throws an error gets
-two retries.
+minutes. A narrow PostgreSQL query reads only active room IDs, user IDs, and
+per-user presence revisions. It does not load full rooms, attempts, or solves.
+Reconciliation processes two departures at a time so it does not exhaust the
+PostgreSQL connection pool. Per-user revision checks let one pass remove several
+stale users from the same room. A departure that throws an error gets two retries.
 Each retry checks live socket presence and the durable presence revision again.
 This prevents an old cleanup attempt from removing a user who reconnected.
 

@@ -45,6 +45,7 @@ services:
   api:
     image: letscube-app:${APP_IMAGE_TAG:-local}
     command: ["node", "server/index.js"]
+    stop_grace_period: 30s
     environment:
       <<: *app-environment
     depends_on:
@@ -65,6 +66,7 @@ services:
   socket:
     image: letscube-app:${APP_IMAGE_TAG:-local}
     command: ["node", "server/socket/index.js"]
+    stop_grace_period: 30s
     environment:
       <<: *app-environment
     depends_on:

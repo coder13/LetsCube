@@ -40,6 +40,7 @@ let initialized = false;
 let initializationPromise;
 let lastFailureAt = 0;
 let maintenancePromise;
+let maintenanceTimer;
 
 const initializePostgres = async () => {
   if (!config.postgres.enabled) {
@@ -163,8 +164,17 @@ const runPostgresMaintenance = () => {
 
 const startPostgresMaintenance = () => {
   runPostgresMaintenance();
-  const timer = setInterval(runPostgresMaintenance, MAINTENANCE_INTERVAL_MS);
-  timer.unref();
+  if (!maintenanceTimer) {
+    maintenanceTimer = setInterval(runPostgresMaintenance, MAINTENANCE_INTERVAL_MS);
+    maintenanceTimer.unref();
+  }
+};
+
+const stopPostgresMaintenance = () => {
+  if (maintenanceTimer) {
+    clearInterval(maintenanceTimer);
+    maintenanceTimer = undefined;
+  }
 };
 
 module.exports = {
@@ -175,5 +185,6 @@ module.exports = {
   query,
   runPostgresMaintenance,
   startPostgresMaintenance,
+  stopPostgresMaintenance,
   withTransaction,
 };
