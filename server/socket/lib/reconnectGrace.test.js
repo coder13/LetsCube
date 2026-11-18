@@ -14,13 +14,23 @@ describe('reconnect grace', () => {
   let listActiveUsers;
   let logger;
 
-  const createManager = (graceMs = 30000) => createReconnectGrace({
+  const createManager = (graceMs = 30000, options = {}) => createReconnectGrace({
     graceMs,
     hasActiveSockets,
     finalizeDeparture,
     listActiveUsers,
     logger,
+    ...options,
   });
+
+  const flushPromises = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -142,6 +152,83 @@ describe('reconnect grace', () => {
     expect(finalizeDeparture).toHaveBeenCalledWith(departure);
   });
 
+  it('limits reconciliation concurrency across rooms', async () => {
+    const departures = Array.from({ length: 5 }, (_, index) => ({
+      ...departure,
+      roomId: `room-${index}`,
+      userId: 200 + index,
+    }));
+    let releaseFinalizations;
+    const finalizationsBlocked = new Promise((resolve) => {
+      releaseFinalizations = resolve;
+    });
+    let activeFinalizations = 0;
+    let peakFinalizations = 0;
+    listActiveUsers.mockResolvedValue(departures);
+    finalizeDeparture.mockImplementation(async () => {
+      activeFinalizations += 1;
+      peakFinalizations = Math.max(peakFinalizations, activeFinalizations);
+      await finalizationsBlocked;
+      activeFinalizations -= 1;
+      return true;
+    });
+    const manager = createManager(30000, { reconciliationConcurrency: 2 });
+
+    const reconciliation = manager.reconcile();
+    await flushPromises();
+
+    expect(finalizeDeparture).toHaveBeenCalledTimes(2);
+
+    releaseFinalizations();
+    await reconciliation;
+
+    expect(finalizeDeparture).toHaveBeenCalledTimes(5);
+    expect(peakFinalizations).toBe(2);
+  });
+
+  it('retries a failed disconnect cleanup after checking socket activity again', async () => {
+    finalizeDeparture
+      .mockRejectedValueOnce(new Error('database unavailable'))
+      .mockResolvedValueOnce(true);
+    const manager = createManager(30000, {
+      maxFinalizationRetries: 1,
+      finalizationRetryDelayMs: 5000,
+    });
+
+    manager.schedule(departure);
+    jest.advanceTimersByTime(30000);
+    await flushPromises();
+
+    expect(finalizeDeparture).toHaveBeenCalledTimes(1);
+    expect(hasActiveSockets).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(finalizeDeparture).toHaveBeenCalledTimes(2);
+    expect(hasActiveSockets).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry departure after the user reconnects', async () => {
+    hasActiveSockets
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    finalizeDeparture.mockRejectedValueOnce(new Error('database unavailable'));
+    const manager = createManager(30000, {
+      maxFinalizationRetries: 1,
+      finalizationRetryDelayMs: 5000,
+    });
+
+    manager.schedule(departure);
+    jest.advanceTimersByTime(30000);
+    await flushPromises();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(hasActiveSockets).toHaveBeenCalledTimes(2);
+    expect(finalizeDeparture).toHaveBeenCalledTimes(1);
+  });
+
   it('serializes cleanup for users in the same room', async () => {
     let finishFirstDeparture;
     let markFirstStarted;
@@ -183,5 +270,23 @@ describe('reconnect grace', () => {
     await Promise.resolve();
 
     expect(listActiveUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('repeats reconciliation after the configured interval', async () => {
+    const manager = createManager(30000, { reconciliationIntervalMs: 60000 });
+
+    manager.startReconciliation();
+    jest.advanceTimersByTime(30000);
+    await flushPromises();
+
+    expect(listActiveUsers).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(59999);
+    expect(listActiveUsers).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(listActiveUsers).toHaveBeenCalledTimes(2);
   });
 });
