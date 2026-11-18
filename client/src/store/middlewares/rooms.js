@@ -100,6 +100,7 @@ export const createRoomsNamespaceMiddleware = ({
   let roomsConnected = false;
   let joinedRoomId = null;
   let pendingJoinRequest = null;
+  let pendingChatMessages = [];
   let joinGeneration = 0;
   let submissionGeneration = 0;
   let submissionAckTimer = null;
@@ -273,6 +274,18 @@ export const createRoomsNamespaceMiddleware = ({
   };
 
   let namespace;
+
+  const flushPendingChatMessages = (roomId) => {
+    const remainingMessages = [];
+    pendingChatMessages.forEach((pendingMessage) => {
+      if (String(pendingMessage.roomId) === String(roomId)) {
+        namespace.emit(Protocol.MESSAGE, pendingMessage.message);
+      } else {
+        remainingMessages.push(pendingMessage);
+      }
+    });
+    pendingChatMessages = remainingMessages;
+  };
 
   flushPendingResult = () => {
     const submission = currentSubmission();
@@ -646,6 +659,7 @@ export const createRoomsNamespaceMiddleware = ({
             password: room.private ? roomPassword || null : null,
           }));
           joinedRoomId = joinedRoomIdValue;
+          flushPendingChatMessages(joinedRoomIdValue);
           flushPendingResult();
 
           if (room.accessCode) {
@@ -675,6 +689,7 @@ export const createRoomsNamespaceMiddleware = ({
           password: room.private ? options.password : null,
         }));
         joinedRoomId = room._id;
+        flushPendingChatMessages(room._id);
         history.push(`/rooms/${room._id}`);
         flushPendingResult();
       });
@@ -682,6 +697,7 @@ export const createRoomsNamespaceMiddleware = ({
     [LEAVE_ROOM]: () => {
       joinedRoomId = null;
       pendingJoinRequest = null;
+      pendingChatMessages = [];
       joinGeneration += 1;
       if (store.getState().room._id) {
         namespace.emit(Protocol.LEAVE_ROOM);
@@ -784,7 +800,12 @@ export const createRoomsNamespaceMiddleware = ({
       });
     },
     [SEND_CHAT]: ({ message }) => {
-      namespace.emit(Protocol.MESSAGE, message);
+      const roomId = store.getState().room._id;
+      if (roomsConnected && String(joinedRoomId) === String(roomId)) {
+        namespace.emit(Protocol.MESSAGE, message);
+      } else if (roomId) {
+        pendingChatMessages.push({ roomId, message });
+      }
     },
     [SEND_STATUS]: ({ status }) => {
       namespace.emit(Protocol.UPDATE_STATUS, {

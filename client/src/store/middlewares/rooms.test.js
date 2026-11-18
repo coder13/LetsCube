@@ -11,6 +11,7 @@ import {
   joinRoom,
   submitResult,
 } from '../room/actions';
+import { sendChat } from '../chat/actions';
 import { connectSocket, createRoom } from '../rooms/actions';
 import {
   PENDING_RESULT_STORAGE_KEY,
@@ -175,6 +176,27 @@ describe('rooms middleware', () => {
     expect(emissionsFor(namespace, Protocol.JOIN_ROOM)).toHaveLength(1);
     expect(store.getState().room.fetching).toBe(false);
     expect(store.getState().room.attempts).toBe(attempts);
+  });
+
+  it('sends chat only after the room rejoin succeeds', () => {
+    const { namespace, store } = buildStore();
+    store.dispatch(connectSocket());
+    namespace.options.onConnected();
+    acknowledgeJoin(namespace);
+
+    namespace.options.onDisconnected();
+    namespace.options.onConnected();
+    store.dispatch(sendChat({ text: 'Sent during reconnect' }));
+
+    expect(emissionsFor(namespace, Protocol.MESSAGE)).toHaveLength(0);
+
+    acknowledgeJoin(namespace);
+
+    expect(emissionsFor(namespace, Protocol.MESSAGE)).toEqual([
+      expect.objectContaining({
+        args: [{ text: 'Sent during reconnect' }],
+      }),
+    ]);
   });
 
   it('waits for the socket connection before emitting the initial room join', () => {
