@@ -62,6 +62,13 @@ checks for another active socket for the same user and room through the Redis
 adapter. This prevents a deploy or second browser tab from producing a false
 leave.
 
+The server also reconciles durable room presence after startup and every five
+minutes. Reconciliation processes two departures at a time so it does not
+exhaust the PostgreSQL connection pool. A departure that throws an error gets
+two retries.
+Each retry checks live socket presence and the durable presence revision again.
+This prevents an old cleanup attempt from removing a user who reconnected.
+
 During the grace window, preserve:
 
 - room membership;
