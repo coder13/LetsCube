@@ -86,18 +86,11 @@ module.exports = (io, middlewares) => {
   );
 
   async function listActiveRoomUsers() {
-    const rooms = await Room.find()
-      .populate('users')
-      .populate('admin')
-      .populate('owner');
-
-    return rooms.flatMap((room) => room.usersInRoom.map((user) => ({
-      roomId: room._id,
-      userId: user.id,
-      membershipRevision: room.membershipRevision,
-      presenceRevision: room.presenceRevision.get(user.id.toString()),
+    const participants = await Room.listActiveParticipants();
+    return participants.map((participant) => ({
+      ...participant,
       leaveReason: 'disconnect',
-    })));
+    }));
   }
 
   async function createAndSendNewScramble(room) {
@@ -140,8 +133,9 @@ module.exports = (io, middlewares) => {
 
     const room = await fetchRoom(roomId);
     if (!room || !room.inRoom.get(userKey)
-      || room.membershipRevision !== membershipRevision
-      || room.presenceRevision.get(userKey) !== presenceRevision) {
+      || (membershipRevision !== undefined && room.membershipRevision !== membershipRevision)
+      || (presenceRevision !== undefined
+        && room.presenceRevision.get(userKey) !== presenceRevision)) {
       return false;
     }
 

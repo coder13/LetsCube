@@ -1,7 +1,7 @@
 /** @jest-environment node */
 /* eslint-env jest */
 
-const { deserializeUser } = require('./index');
+const { deserializeUser, fetchFromAuthProvider } = require('./index');
 const http = require('http');
 const express = require('express');
 const createAuthRouter = require('./index');
@@ -46,6 +46,27 @@ describe('session user deserialization', () => {
     await deserializeUser(User, 990001, done);
 
     expect(done).toHaveBeenCalledWith(error);
+  });
+});
+
+describe('authentication provider requests', () => {
+  it('sets a deadline on provider requests', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+
+    try {
+      await fetchFromAuthProvider('https://wca.example/oauth/token', { method: 'POST' });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://wca.example/oauth/token',
+        expect.objectContaining({
+          method: 'POST',
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });
 
