@@ -13,7 +13,6 @@ const { generateCubingScramble } = require('./providers/cubing');
 const { generateScrambowScramble } = require('./providers/scrambow');
 
 const cubingEventIds = [
-  '222',
   '333',
   '333bf',
   '333oh',
@@ -26,7 +25,6 @@ const cubingEventIds = [
   '777',
   'minx',
   'pyram',
-  'clock',
   'skewb',
   'sq1',
   'fto',
@@ -46,18 +44,13 @@ describe('generateScramble', () => {
     expect(generateScrambowScramble).not.toHaveBeenCalled();
   });
 
-  it('uses Scrambow for the custom practice events', async () => {
-    await expect(generateScramble('clock-optimal')).resolves.toBe('scrambow scramble');
-    await expect(generateScramble('pll')).resolves.toBe('scrambow scramble');
-    await expect(generateScramble('zbll')).resolves.toBe('scrambow scramble');
-    await expect(generateScramble('lse')).resolves.toBe('scrambow scramble');
-    await expect(generateScramble('ru')).resolves.toBe('scrambow scramble');
+  it('uses Scrambow for conventional Clock and 2x2 notation and custom practice events', async () => {
+    const scrambowEvents = ['222', 'clock', 'clock-optimal', 'pll', 'zbll', 'lse', 'ru'];
 
-    expect(generateScrambowScramble).toHaveBeenNthCalledWith(1, 'clock-optimal');
-    expect(generateScrambowScramble).toHaveBeenNthCalledWith(2, 'pll');
-    expect(generateScrambowScramble).toHaveBeenNthCalledWith(3, 'zbll');
-    expect(generateScrambowScramble).toHaveBeenNthCalledWith(4, 'lse');
-    expect(generateScrambowScramble).toHaveBeenNthCalledWith(5, 'ru');
+    await Promise.all(scrambowEvents.map((eventId) => expect(generateScramble(eventId)).resolves.toBe('scrambow scramble')));
+
+    expect(generateCubingScramble).not.toHaveBeenCalled();
+    expect(generateScrambowScramble.mock.calls.map(([eventId]) => eventId)).toEqual(scrambowEvents);
   });
 
   it('rejects events that are not in the shared catalog', async () => {
@@ -80,6 +73,8 @@ describe('events', () => {
   it('contains every event supported by the generator', () => {
     expect(events.map(({ id }) => id)).toEqual(expect.arrayContaining([
       ...cubingEventIds,
+      '222',
+      'clock',
       'clock-optimal',
       'pll',
       'zbll',
