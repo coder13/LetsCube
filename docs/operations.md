@@ -31,6 +31,10 @@ The repository needs these GitHub Actions secrets:
 - `DEPLOY_SSH_KEY`: the private key for the `www` account.
 - `DEPLOY_KNOWN_HOSTS`: the pinned SSH host key entry.
 
+Set the GitHub Actions repository variable `REACT_APP_WCA_CLIENT_ID` to the
+public application ID. Use the same value as `WCA_CLIENT_ID` on the production
+server. The workflow requires this variable to build the login link.
+
 The server needs Docker access for `www`, the production `.env.prod` file at
 `/home/www/letscube`, and the existing certificate directories. Actions stores
 runtime Compose files in `/opt/letscube/runtime`, outside the old Git checkout.
