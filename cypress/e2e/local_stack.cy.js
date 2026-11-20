@@ -100,14 +100,30 @@ describe('local app stack', () => {
     cy.get('[aria-label="Find a cuber by username or visible WCA ID"]').should('not.exist');
   });
 
-  it('opens spacious account navigation', () => {
+  it('opens a centered profile from the account menu', () => {
+    cy.viewport(1280, 900);
     login();
     cy.visit('/');
 
     cy.get('button[aria-label="Open account menu"]').click();
-    cy.get('[aria-label="Account navigation"]').contains('Friends').should('be.visible');
-    cy.get('[aria-label="Account navigation"]').contains('Profile').should('be.visible');
-    cy.get('[aria-label="Account navigation"]').contains('Log out').should('be.visible');
+    cy.get('[aria-label="Account navigation"]').within(() => {
+      cy.contains('Friends').should('be.visible');
+      cy.contains('Log out').should('be.visible');
+      cy.get('a[href="/profile"]').should('have.text', 'Profile').click();
+    });
+
+    cy.location('pathname').should('eq', '/profile');
+    cy.get('main .MuiPaper-root').first().should(($paper) => {
+      const profile = $paper[0].getBoundingClientRect();
+      const main = $paper[0].closest('main').getBoundingClientRect();
+
+      expect(profile.top - main.top).to.be.closeTo(main.bottom - profile.bottom, 1);
+      expect(profile.width).to.be.at.most(900);
+    });
+
+    cy.viewport(375, 420);
+    cy.get('main .MuiContainer-root').scrollTo('bottom');
+    cy.contains('All preferences get saved automatically.').should('be.visible');
   });
 
   it('shows a not-found page for an unavailable user profile', () => {

@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { makeStyles } from '@mui/styles';
+import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import Grid from '@mui/material/Grid';
 import Avatar from '@mui/material/Avatar';
@@ -29,8 +30,16 @@ const validate = (username) => {
 
 const useStyles = makeStyles((theme) => ({
   root: {
+    display: 'flex',
+    flexDirection: 'column',
     flexGrow: 1,
-    padding: '1em',
+    minHeight: 0,
+    overflowY: 'auto',
+    paddingBlock: theme.spacing(2),
+  },
+  content: {
+    flexShrink: 0,
+    marginBlock: 'auto',
   },
   avatar: {
     width: '10em',
@@ -118,8 +127,8 @@ function Profile({ user, dispatch }) {
   return !user.id ? (
     <div />
   ) : (
-    <Grid container justify="center" className={classes.root}>
-      <Grid item xs={12} md={8}>
+    <Container className={classes.root} maxWidth="md">
+      <div className={classes.content}>
         {!user.canJoinRoom && (
           <Alert
             severity="error"
@@ -208,8 +217,8 @@ function Profile({ user, dispatch }) {
             </Paper>
           </Grid>
         </Paper>
-      </Grid>
-    </Grid>
+      </div>
+    </Container>
   );
 }
 

@@ -97,7 +97,7 @@ function AccountItems({ itemComponent: Item, itemClassName, onClose, onLogout })
       )}
       <Item className={itemClassName} component={Link} onClick={onClose} to="/profile">
         <ListItemIcon className={classes.menuIcon}><PersonIcon /></ListItemIcon>
-        <ListItemText primary="Profile" secondary="Your cuber identity" />
+        <ListItemText primary="Profile" />
       </Item>
       <Divider />
       <Item className={itemClassName} onClick={onLogout}>
