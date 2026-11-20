@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.31.9-alpine
     depends_on:
       api:
         condition: service_healthy
